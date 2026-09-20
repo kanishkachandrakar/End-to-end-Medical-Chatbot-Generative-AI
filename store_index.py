@@ -7,15 +7,16 @@ import os
 
 load_dotenv()
 
-os.environ["PINECONE_API_KEY"] = "pcsk_3Jcjfc_Pu6ddn3gygeGxuYq7ZU3zqSJ9s2WoULe6EKvcZDJKpShU9aGnyarSzMncvL9s52"
-os.environ["OPENAI_API_KEY"] = "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"
+PINECONE_API_KEY = os.environ.get('PINECONE_API_KEY')
+
+os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
 
 extracted_data = load_pdf("Data/")
 text_chunks = text_split(extracted_data)
 embeddings = download_hugging_face_embeddings()
 
 
-pc = Pinecone(api_key="pcsk_3Jcjfc_Pu6ddn3gygeGxuYq7ZU3zqSJ9s2WoULe6EKvcZDJKpShU9aGnyarSzMncvL9s52")
+pc = Pinecone(api_key=PINECONE_API_KEY)
 
 index_name = "medicalbot"
 
