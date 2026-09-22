@@ -97,3 +97,18 @@ Data/Medical_book.pdf
 - A [Groq](https://console.groq.com/) API key
 - An OpenAI API key (read at startup by `app.py`; the LLM itself runs on Groq)
 - ~1 GB of free disk for the sentence-transformers model, downloaded on first run
+
+## Installation
+
+```bash
+git clone https://github.com/kanishkachandrakar/End-to-end-Medical-Chatbot-Generative-AI.git
+cd End-to-end-Medical-Chatbot-Generative-AI
+
+conda create -n medibot python=3.10 -y
+conda activate medibot
+
+pip install -r requirements.txt
+```
+
+`requirements.txt` ends with `-e .`, which installs the local `src` package in
+editable mode so `from src.helper import …` works from anywhere in the repo.
