@@ -84,10 +84,10 @@ Data/Medical_book.pdf
 ├── templates/
 │   └── chat.html        # Chat page
 ├── static/
-│   └── style.css
-├── research/
-│   └── trials.ipynb     # Notebook used to prototype the pipeline and upload chunks
-└── medicalbotpic.jpeg   # Bot avatar
+│   ├── style.css
+│   └── medicalbotpic.jpeg  # Bot avatar
+└── research/
+    └── trials.ipynb     # Notebook used to prototype the pipeline and upload chunks
 ```
 
 ## Prerequisites
