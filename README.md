@@ -65,3 +65,27 @@ Data/Medical_book.pdf
 | PDF parsing | `pypdf` through LangChain's `PyPDFLoader` |
 | Front end | Jinja template + jQuery + Bootstrap-style CSS |
 | Config | `python-dotenv` (`.env`) |
+
+## Project structure
+
+```
+.
+├── app.py               # Flask app: builds the RAG chain and serves the chat UI
+├── store_index.py       # Creates the Pinecone index (see "Build the vector index")
+├── template.py          # One-off scaffold script that created the initial file layout
+├── setup.py             # Makes `src/` installable (`pip install -e .`)
+├── requirements.txt
+├── .env.example         # Names of the environment variables the app expects
+├── Data/
+│   └── Medical_book.pdf # Source document that gets indexed
+├── src/
+│   ├── helper.py        # PDF loading, chunking, embedding model
+│   └── prompt.py        # System prompt for the LLM
+├── templates/
+│   └── chat.html        # Chat page
+├── static/
+│   └── style.css
+├── research/
+│   └── trials.ipynb     # Notebook used to prototype the pipeline and upload chunks
+└── medicalbotpic.jpeg   # Bot avatar
+```
