@@ -89,3 +89,11 @@ Data/Medical_book.pdf
 │   └── trials.ipynb     # Notebook used to prototype the pipeline and upload chunks
 └── medicalbotpic.jpeg   # Bot avatar
 ```
+
+## Prerequisites
+
+- Python 3.10 (the project was developed in a conda env named `medibot`)
+- A [Pinecone](https://www.pinecone.io/) account and API key
+- A [Groq](https://console.groq.com/) API key
+- An OpenAI API key (read at startup by `app.py`; the LLM itself runs on Groq)
+- ~1 GB of free disk for the sentence-transformers model, downloaded on first run
