@@ -20,3 +20,35 @@ than relying on the LLM's memory alone.
   DeepSeek reasoning model are removed before the reply reaches the UI.
 - **Simple chat UI** – a single-page jQuery front end that talks to a Flask
   endpoint.
+
+## How it works
+
+```
+Data/Medical_book.pdf
+        │  PyPDFLoader + DirectoryLoader
+        ▼
+   page documents
+        │  RecursiveCharacterTextSplitter (chunk_size=500, overlap=20)
+        ▼
+   text chunks ──► all-MiniLM-L6-v2 embeddings (384-dim) ──► Pinecone index "medicalbot"
+                                                                       │
+ user question ──► embed ──► similarity search (k=3) ◄─────────────────┘
+        │
+        ▼
+ ChatGroq (deepseek-r1-distill-qwen-32b, temperature=0)
+   system prompt + retrieved context + question
+        │
+        ▼
+ answer (with <think> tags stripped) ──► Flask /get ──► chat UI
+```
+
+1. **Ingest** – the PDF is loaded page by page and split into overlapping
+   500-character chunks (`src/helper.py`).
+2. **Embed & store** – each chunk is embedded with
+   `sentence-transformers/all-MiniLM-L6-v2` and upserted into a serverless
+   Pinecone index.
+3. **Retrieve** – at query time the question is embedded the same way and the
+   three nearest chunks are pulled back.
+4. **Generate** – the chunks are stuffed into the system prompt
+   (`src/prompt.py`) and sent to the Groq-hosted LLM via a LangChain
+   `create_retrieval_chain`.
