@@ -112,3 +112,20 @@ pip install -r requirements.txt
 
 `requirements.txt` ends with `-e .`, which installs the local `src` package in
 editable mode so `from src.helper import …` works from anywhere in the repo.
+
+## Configuration
+
+Copy the example file and fill in your keys:
+
+```bash
+cp .env.example .env
+```
+
+```dotenv
+PINECONE_API_KEY=
+OPENAI_API_KEY=
+GROQ_API_KEY=
+```
+
+`.env` is gitignored. Never commit real keys — both `app.py` and
+`store_index.py` load them with `python-dotenv` at startup.
