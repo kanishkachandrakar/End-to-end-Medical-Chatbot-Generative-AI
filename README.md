@@ -129,3 +129,21 @@ GROQ_API_KEY=
 
 `.env` is gitignored. Never commit real keys — both `app.py` and
 `store_index.py` load them with `python-dotenv` at startup.
+
+## Build the vector index
+
+Run this once before starting the app:
+
+```bash
+python store_index.py
+```
+
+This loads and chunks `Data/Medical_book.pdf`, downloads the embedding model,
+and creates a serverless Pinecone index called `medicalbot`
+(384 dimensions, cosine metric, AWS `us-east-1`).
+
+> **Note:** `store_index.py` currently only *creates* the index. The step that
+> embeds the chunks and uploads them (`PineconeVectorStore.from_documents(...)`)
+> lives in `research/trials.ipynb`. Run that cell after the index exists, or
+> the app will retrieve nothing. Re-running `store_index.py` against an existing
+> index raises a Pinecone `409 Conflict`.
