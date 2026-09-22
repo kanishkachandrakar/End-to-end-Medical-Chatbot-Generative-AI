@@ -52,3 +52,16 @@ Data/Medical_book.pdf
 4. **Generate** – the chunks are stuffed into the system prompt
    (`src/prompt.py`) and sent to the Groq-hosted LLM via a LangChain
    `create_retrieval_chain`.
+
+## Tech stack
+
+| Layer | Choice |
+|---|---|
+| Web framework | Flask |
+| Orchestration | LangChain (`create_retrieval_chain`, `create_stuff_documents_chain`) |
+| LLM | `deepseek-r1-distill-qwen-32b` via [Groq](https://groq.com) (`langchain_groq`) |
+| Embeddings | `sentence-transformers/all-MiniLM-L6-v2` (HuggingFace) |
+| Vector store | Pinecone serverless (AWS `us-east-1`), cosine metric |
+| PDF parsing | `pypdf` through LangChain's `PyPDFLoader` |
+| Front end | Jinja template + jQuery + Bootstrap-style CSS |
+| Config | `python-dotenv` (`.env`) |
