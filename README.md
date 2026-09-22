@@ -147,3 +147,20 @@ and creates a serverless Pinecone index called `medicalbot`
 > lives in `research/trials.ipynb`. Run that cell after the index exists, or
 > the app will retrieve nothing. Re-running `store_index.py` against an existing
 > index raises a Pinecone `409 Conflict`.
+
+## Run the chatbot
+
+```bash
+conda activate medibot
+python app.py
+```
+
+Then open <http://localhost:8080>. The server binds to `0.0.0.0:8080` with
+Flask debug mode on, so it is reachable from other machines on your network.
+
+The UI posts each message as a form field `msg` to `POST /get` and renders the
+plain-text reply, so you can also hit the endpoint directly:
+
+```bash
+curl -X POST http://localhost:8080/get -d "msg=What is hypertension?"
+```
