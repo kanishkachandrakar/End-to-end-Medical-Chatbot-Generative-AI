@@ -164,3 +164,22 @@ plain-text reply, so you can also hit the endpoint directly:
 ```bash
 curl -X POST http://localhost:8080/get -d "msg=What is hypertension?"
 ```
+
+## Notes & troubleshooting
+
+- **First start is slow** – `download_hugging_face_embeddings()` pulls
+  `all-MiniLM-L6-v2` from HuggingFace on the first run; later runs use the cache.
+- **`TypeError: str expected, not NoneType` on startup** – one of the keys in
+  `.env` is missing. `app.py` writes `PINECONE_API_KEY` and `OPENAI_API_KEY`
+  straight into `os.environ` and will fail if either is unset.
+- **Empty or off-topic answers** – confirm the `medicalbot` index actually
+  contains vectors (see the note under *Build the vector index*).
+- **Changing the model** – edit the `ChatGroq(...)` call in `app.py`. If you
+  switch to a model that doesn't emit `<think>` tags the regex cleanup in
+  `chat()` is harmless.
+- **Changing the source document** – drop any `*.pdf` into `Data/`;
+  `load_pdf()` globs the whole directory. Rebuild the index afterwards.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
