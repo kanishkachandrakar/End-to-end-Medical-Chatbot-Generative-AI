@@ -14,15 +14,25 @@ app = Flask(__name__)
 
 load_dotenv()
 
-PINECONE_API_KEY = os.environ.get('PINECONE_API_KEY')
-OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
-GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
+PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
-os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
-os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
-
-if GROQ_API_KEY:
-    os.environ["GROQ_API_KEY"] = GROQ_API_KEY
+_missing = [
+    name
+    for name, value in (
+        ("PINECONE_API_KEY", PINECONE_API_KEY),
+        ("OPENAI_API_KEY", OPENAI_API_KEY),
+        ("GROQ_API_KEY", GROQ_API_KEY),
+    )
+    if not value
+]
+if _missing:
+    raise RuntimeError(
+        "Missing required environment variable(s): "
+        + ", ".join(_missing)
+        + ". Copy .env.example to .env and fill in your keys."
+    )
 
 
 embeddings = download_hugging_face_embeddings()
