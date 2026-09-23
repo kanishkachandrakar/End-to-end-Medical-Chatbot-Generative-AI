@@ -137,14 +137,12 @@ python store_index.py
 ```
 
 This loads and chunks `Data/Medical_book.pdf`, downloads the embedding model,
-and creates a serverless Pinecone index called `medicalbot`
-(384 dimensions, cosine metric, AWS `us-east-1`).
+creates a serverless Pinecone index called `medicalbot` (384 dimensions, cosine
+metric, AWS `us-east-1`) and upserts every chunk into it.
 
-> **Note:** `store_index.py` currently only *creates* the index. The step that
-> embeds the chunks and uploads them (`PineconeVectorStore.from_documents(...)`)
-> lives in `research/trials.ipynb`. Run that cell after the index exists, or
-> the app will retrieve nothing. Re-running `store_index.py` against an existing
-> index raises a Pinecone `409 Conflict`.
+The script is safe to re-run: index creation is skipped if `medicalbot` already
+exists. Note that re-running it upserts the chunks again under fresh ids, so
+delete the index first if you want a clean rebuild.
 
 ## Run the chatbot
 

@@ -13,6 +13,8 @@ os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
 
 extracted_data = load_pdf("Data/")
 text_chunks = text_split(extracted_data)
+print(f"loaded {len(extracted_data)} pages -> {len(text_chunks)} chunks")
+
 embeddings = download_hugging_face_embeddings()
 
 
@@ -33,3 +35,11 @@ else:
             region="us-east-1"
         )
     )
+
+docsearch = PineconeVectorStore.from_documents(
+    documents=text_chunks,
+    index_name=index_name,
+    embedding=embeddings
+)
+
+print(f"upserted {len(text_chunks)} chunks into {index_name!r}")
