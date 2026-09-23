@@ -7,9 +7,12 @@ import os
 
 load_dotenv()
 
-PINECONE_API_KEY = os.environ.get('PINECONE_API_KEY')
+PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
 
-os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
+if not PINECONE_API_KEY:
+    raise SystemExit(
+        "PINECONE_API_KEY is not set. Copy .env.example to .env and fill it in."
+    )
 
 extracted_data = load_pdf("Data/")
 text_chunks = text_split(extracted_data)
