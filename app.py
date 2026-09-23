@@ -69,17 +69,16 @@ def index():
 
 @app.route("/get", methods=["GET", "POST"])
 def chat():
-    msg = request.form["msg"]
-    input = msg
-    print(input)
+    msg = (request.values.get("msg") or "").strip()
+    if not msg:
+        return "Please type a question.", 400
+
+    app.logger.info("question: %s", msg)
     response = rag_chain.invoke({"input": msg})
     answer = response["answer"]
     cleaned_answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL).strip()
 
     return cleaned_answer
-
-    # print("Response : ", response["answer"])
-    # return str(response.get("result") or response.get("answer") or response.get("output") or "No valid response.")
 
 
 
