@@ -20,12 +20,16 @@ pc = Pinecone(api_key=PINECONE_API_KEY)
 
 index_name = "medicalbot"
 
-pc.create_index(
-    name=index_name,
-    dimension=384,
-    metric="cosine",
-    spec=ServerlessSpec(
-        cloud="aws",
-        region="us-east-1"
-    ) 
-)
+if index_name in pc.list_indexes().names():
+    print(f"index {index_name!r} already exists, skipping creation")
+else:
+    print(f"creating index {index_name!r}")
+    pc.create_index(
+        name=index_name,
+        dimension=384,
+        metric="cosine",
+        spec=ServerlessSpec(
+            cloud="aws",
+            region="us-east-1"
+        )
+    )
