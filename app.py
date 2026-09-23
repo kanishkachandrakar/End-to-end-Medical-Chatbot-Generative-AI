@@ -74,11 +74,16 @@ def chat():
         return "Please type a question.", 400
 
     app.logger.info("question: %s", msg)
-    response = rag_chain.invoke({"input": msg})
-    answer = response["answer"]
+    try:
+        response = rag_chain.invoke({"input": msg})
+    except Exception:
+        app.logger.exception("the retrieval chain failed")
+        return "Sorry, I could not answer that right now. Please try again.", 502
+
+    answer = response.get("answer", "")
     cleaned_answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL).strip()
 
-    return cleaned_answer
+    return cleaned_answer or "I don't have an answer for that."
 
 
 
