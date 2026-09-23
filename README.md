@@ -153,8 +153,11 @@ conda activate medibot
 python app.py
 ```
 
-Then open <http://localhost:8080>. The server binds to `0.0.0.0:8080` with
-Flask debug mode on, so it is reachable from other machines on your network.
+Then open <http://localhost:8080>. The server binds to `0.0.0.0:8080`, so it is
+reachable from other machines on your network.
+
+Debug mode is off unless you ask for it — set `FLASK_DEBUG=1` in `.env` while
+working locally to get the auto-reloader.
 
 The UI posts each message as a form field `msg` to `POST /get` and renders the
 plain-text reply, so you can also hit the endpoint directly:
