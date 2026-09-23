@@ -15,14 +15,12 @@ app = Flask(__name__)
 load_dotenv()
 
 PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
 _missing = [
     name
     for name, value in (
         ("PINECONE_API_KEY", PINECONE_API_KEY),
-        ("OPENAI_API_KEY", OPENAI_API_KEY),
         ("GROQ_API_KEY", GROQ_API_KEY),
     )
     if not value

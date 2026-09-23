@@ -95,7 +95,6 @@ Data/Medical_book.pdf
 - Python 3.10 (the project was developed in a conda env named `medibot`)
 - A [Pinecone](https://www.pinecone.io/) account and API key
 - A [Groq](https://console.groq.com/) API key
-- An OpenAI API key (read at startup by `app.py`; the LLM itself runs on Groq)
 - ~1 GB of free disk for the sentence-transformers model, downloaded on first run
 
 ## Installation
@@ -123,7 +122,6 @@ cp .env.example .env
 
 ```dotenv
 PINECONE_API_KEY=
-OPENAI_API_KEY=
 GROQ_API_KEY=
 ```
 
@@ -169,9 +167,8 @@ curl -X POST http://localhost:8080/get -d "msg=What is hypertension?"
 
 - **First start is slow** – `download_hugging_face_embeddings()` pulls
   `all-MiniLM-L6-v2` from HuggingFace on the first run; later runs use the cache.
-- **`TypeError: str expected, not NoneType` on startup** – one of the keys in
-  `.env` is missing. `app.py` writes `PINECONE_API_KEY` and `OPENAI_API_KEY`
-  straight into `os.environ` and will fail if either is unset.
+- **`Missing required environment variable(s)` on startup** – `.env` is absent
+  or a key is blank. Copy `.env.example` and fill both values in.
 - **Empty or off-topic answers** – confirm the `medicalbot` index actually
   contains vectors (see the note under *Build the vector index*).
 - **Changing the model** – edit the `ChatGroq(...)` call in `app.py`. If you
