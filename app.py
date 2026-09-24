@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request
+from flask import Flask, Response, render_template, request
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
@@ -64,6 +64,11 @@ question_answer_chain = create_stuff_documents_chain(llm, prompt)
 rag_chain = create_retrieval_chain(retriever, question_answer_chain)
 
 
+def _text(body, status=200):
+    """Reply with plain text; the front end renders it as text, not markup."""
+    return Response(body, status=status, mimetype="text/plain")
+
+
 @app.route("/")
 def index():
     return render_template('chat.html')
@@ -74,19 +79,19 @@ def index():
 def chat():
     msg = (request.values.get("msg") or "").strip()
     if not msg:
-        return "Please type a question.", 400
+        return _text("Please type a question.", 400)
 
     app.logger.info("question: %s", msg)
     try:
         response = rag_chain.invoke({"input": msg})
     except Exception:
         app.logger.exception("the retrieval chain failed")
-        return "Sorry, I could not answer that right now. Please try again.", 502
+        return _text("Sorry, I could not answer that right now. Please try again.", 502)
 
     answer = response.get("answer", "")
     cleaned_answer = THINK_BLOCK.sub("", answer).strip()
 
-    return cleaned_answer or "I don't have an answer for that."
+    return _text(cleaned_answer or "I don't have an answer for that.")
 
 
 
