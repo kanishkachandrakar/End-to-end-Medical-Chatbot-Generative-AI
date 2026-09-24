@@ -1,0 +1,21 @@
+.git
+.gitignore
+.env
+.DS_Store
+
+# 15MB source PDF, only needed by store_index.py, which is run locally
+Data/
+
+# Prototyping notebook and its checkpoints
+research/
+.ipynb_checkpoints/
+
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+README.md
+DEPLOY.md
+LICENSE

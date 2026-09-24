@@ -7,4 +7,5 @@ pinecone[grpc]
 langchain-pinecone
 langchain_community
 langchain-groq
+gunicorn
 -e .
