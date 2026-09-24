@@ -1,3 +1,11 @@
+"""Flask front end for the medical chatbot.
+
+Building the RAG chain happens at import time: the embedding model is
+loaded, the existing Pinecone index is opened and the Groq client is
+created, so the first request does not pay for any of it. That also means
+importing this module needs a configured .env and network access.
+"""
+
 from flask import Flask, Response, render_template, request
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
@@ -71,12 +79,14 @@ def _text(body, status=200):
 
 @app.route("/")
 def index():
-    return render_template('chat.html')
+    """Serve the chat page."""
+    return render_template("chat.html")
 
 
 
 @app.route("/get", methods=["GET", "POST"])
 def chat():
+    """Answer one question and return the reply as plain text."""
     msg = (request.values.get("msg") or "").strip()
     if not msg:
         return _text("Please type a question.", 400)
