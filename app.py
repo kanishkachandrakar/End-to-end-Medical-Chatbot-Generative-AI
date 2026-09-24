@@ -5,6 +5,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from langchain_pinecone import PineconeVectorStore
 from dotenv import load_dotenv
+from src.config import GROQ_MODEL, INDEX_NAME, PORT, TOP_K
 from src.helper import download_hugging_face_embeddings
 from src.prompt import system_prompt
 import os
@@ -35,19 +36,17 @@ if _missing:
 
 embeddings = download_hugging_face_embeddings()
 
-index_name = "medicalbot"
-
 docsearch = PineconeVectorStore.from_existing_index(
-    index_name=index_name,
+    index_name=INDEX_NAME,
     embedding=embeddings
 )
 
-retriever = docsearch.as_retriever(search_type='similarity', search_kwargs={"k":3})
+retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k": TOP_K})
 
 llm = ChatGroq(
     temperature=0,
     groq_api_key=GROQ_API_KEY,
-    model_name="deepseek-r1-distill-qwen-32b"
+    model_name=GROQ_MODEL
 )
 
 prompt = ChatPromptTemplate.from_messages(
@@ -89,4 +88,4 @@ def chat():
 
 if __name__ == "__main__":
     debug = os.environ.get("FLASK_DEBUG", "").lower() in ("1", "true", "yes")
-    app.run(host="0.0.0.0", port=8080, debug=debug)
+    app.run(host="0.0.0.0", port=PORT, debug=debug)
