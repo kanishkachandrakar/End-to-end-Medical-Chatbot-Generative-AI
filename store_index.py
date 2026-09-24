@@ -11,42 +11,48 @@ from langchain_pinecone import PineconeVectorStore
 from dotenv import load_dotenv
 import os
 
-load_dotenv()
 
-PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
+def main() -> None:
+    """Chunk the PDFs in Data/, create the index if needed and upsert them."""
+    load_dotenv()
 
-if not PINECONE_API_KEY:
-    raise SystemExit(
-        "PINECONE_API_KEY is not set. Copy .env.example to .env and fill it in."
-    )
+    api_key = os.environ.get("PINECONE_API_KEY")
 
-extracted_data = load_pdf("Data/")
-text_chunks = text_split(extracted_data)
-print(f"loaded {len(extracted_data)} pages -> {len(text_chunks)} chunks")
-
-embeddings = download_hugging_face_embeddings()
-
-
-pc = Pinecone(api_key=PINECONE_API_KEY)
-
-if INDEX_NAME in pc.list_indexes().names():
-    print(f"index {INDEX_NAME!r} already exists, skipping creation")
-else:
-    print(f"creating index {INDEX_NAME!r}")
-    pc.create_index(
-        name=INDEX_NAME,
-        dimension=EMBED_DIM,
-        metric="cosine",
-        spec=ServerlessSpec(
-            cloud=PINECONE_CLOUD,
-            region=PINECONE_REGION
+    if not api_key:
+        raise SystemExit(
+            "PINECONE_API_KEY is not set. Copy .env.example to .env and fill it in."
         )
+
+    extracted_data = load_pdf("Data/")
+    text_chunks = text_split(extracted_data)
+    print(f"loaded {len(extracted_data)} pages -> {len(text_chunks)} chunks")
+
+    embeddings = download_hugging_face_embeddings()
+
+    pc = Pinecone(api_key=api_key)
+
+    if INDEX_NAME in pc.list_indexes().names():
+        print(f"index {INDEX_NAME!r} already exists, skipping creation")
+    else:
+        print(f"creating index {INDEX_NAME!r}")
+        pc.create_index(
+            name=INDEX_NAME,
+            dimension=EMBED_DIM,
+            metric="cosine",
+            spec=ServerlessSpec(
+                cloud=PINECONE_CLOUD,
+                region=PINECONE_REGION
+            )
+        )
+
+    docsearch = PineconeVectorStore.from_documents(
+        documents=text_chunks,
+        index_name=INDEX_NAME,
+        embedding=embeddings
     )
 
-docsearch = PineconeVectorStore.from_documents(
-    documents=text_chunks,
-    index_name=INDEX_NAME,
-    embedding=embeddings
-)
+    print(f"upserted {len(text_chunks)} chunks into {INDEX_NAME!r}")
 
-print(f"upserted {len(text_chunks)} chunks into {INDEX_NAME!r}")
+
+if __name__ == "__main__":
+    main()
