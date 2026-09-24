@@ -49,6 +49,10 @@ llm = ChatGroq(
     model_name=GROQ_MODEL
 )
 
+# deepseek-r1 wraps its chain of thought in <think>...</think>; it is useful
+# in the logs but should not reach the user.
+THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL)
+
 prompt = ChatPromptTemplate.from_messages(
     [
         ("system", system_prompt),
@@ -80,7 +84,7 @@ def chat():
         return "Sorry, I could not answer that right now. Please try again.", 502
 
     answer = response.get("answer", "")
-    cleaned_answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL).strip()
+    cleaned_answer = THINK_BLOCK.sub("", answer).strip()
 
     return cleaned_answer or "I don't have an answer for that."
 
