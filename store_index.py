@@ -1,3 +1,9 @@
+from src.config import (
+    EMBED_DIM,
+    INDEX_NAME,
+    PINECONE_CLOUD,
+    PINECONE_REGION,
+)
 from src.helper import load_pdf, text_split, download_hugging_face_embeddings
 from pinecone.grpc import PineconeGRPC as Pinecone
 from pinecone import ServerlessSpec
@@ -23,26 +29,24 @@ embeddings = download_hugging_face_embeddings()
 
 pc = Pinecone(api_key=PINECONE_API_KEY)
 
-index_name = "medicalbot"
-
-if index_name in pc.list_indexes().names():
-    print(f"index {index_name!r} already exists, skipping creation")
+if INDEX_NAME in pc.list_indexes().names():
+    print(f"index {INDEX_NAME!r} already exists, skipping creation")
 else:
-    print(f"creating index {index_name!r}")
+    print(f"creating index {INDEX_NAME!r}")
     pc.create_index(
-        name=index_name,
-        dimension=384,
+        name=INDEX_NAME,
+        dimension=EMBED_DIM,
         metric="cosine",
         spec=ServerlessSpec(
-            cloud="aws",
-            region="us-east-1"
+            cloud=PINECONE_CLOUD,
+            region=PINECONE_REGION
         )
     )
 
 docsearch = PineconeVectorStore.from_documents(
     documents=text_chunks,
-    index_name=index_name,
+    index_name=INDEX_NAME,
     embedding=embeddings
 )
 
-print(f"upserted {len(text_chunks)} chunks into {index_name!r}")
+print(f"upserted {len(text_chunks)} chunks into {INDEX_NAME!r}")
