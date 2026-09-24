@@ -9,6 +9,7 @@ from pinecone.grpc import PineconeGRPC as Pinecone
 from pinecone import ServerlessSpec
 from langchain_pinecone import PineconeVectorStore
 from dotenv import load_dotenv
+import hashlib
 import os
 
 
@@ -45,13 +46,27 @@ def main() -> None:
             )
         )
 
+    # Derive each vector's id from the chunk text so that re-running this
+    # script overwrites the previous upsert instead of adding a second copy
+    # under a fresh uuid. Without this, every run multiplied the index: a
+    # top-k retrieval then returned k copies of one chunk rather than k
+    # different ones.
+    ids = [
+        hashlib.sha1(chunk.page_content.encode("utf-8")).hexdigest()
+        for chunk in text_chunks
+    ]
+    unique = len(set(ids))
+    if unique != len(ids):
+        print(f"note: {len(ids) - unique} chunks are byte-identical and will collapse")
+
     PineconeVectorStore.from_documents(
         documents=text_chunks,
         index_name=INDEX_NAME,
-        embedding=embeddings
+        embedding=embeddings,
+        ids=ids,
     )
 
-    print(f"upserted {len(text_chunks)} chunks into {INDEX_NAME!r}")
+    print(f"upserted {unique} unique chunks into {INDEX_NAME!r}")
 
 
 if __name__ == "__main__":
