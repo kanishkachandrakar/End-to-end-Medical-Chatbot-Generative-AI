@@ -45,7 +45,7 @@ def main() -> None:
             )
         )
 
-    docsearch = PineconeVectorStore.from_documents(
+    PineconeVectorStore.from_documents(
         documents=text_chunks,
         index_name=INDEX_NAME,
         embedding=embeddings
