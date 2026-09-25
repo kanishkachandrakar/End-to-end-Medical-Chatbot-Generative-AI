@@ -13,7 +13,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from langchain_pinecone import PineconeVectorStore
 from dotenv import load_dotenv
-from src.config import GROQ_MODEL, INDEX_NAME, PORT, TOP_K
+from src.config import GROQ_MODEL, INDEX_NAME, MAX_QUESTION_CHARS, PORT, TOP_K
 from src.helper import download_hugging_face_embeddings
 from src.prompt import system_prompt
 import os
@@ -96,6 +96,12 @@ def chat():
     msg = (request.values.get("msg") or "").strip()
     if not msg:
         return _text("Please type a question.", 400)
+    if len(msg) > MAX_QUESTION_CHARS:
+        return _text(
+            f"That question is too long -- please keep it under "
+            f"{MAX_QUESTION_CHARS} characters.",
+            413,
+        )
 
     app.logger.info("question: %s", msg)
     try:
