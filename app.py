@@ -84,6 +84,12 @@ def index():
 
 
 
+@app.route("/healthz")
+def healthz():
+    """Liveness probe: the chain is built at import, so a reply means it's up."""
+    return _text("ok")
+
+
 @app.route("/get", methods=["GET", "POST"])
 def chat():
     """Answer one question and return the reply as plain text."""
