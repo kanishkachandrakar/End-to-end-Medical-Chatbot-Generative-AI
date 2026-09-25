@@ -38,4 +38,4 @@ EXPOSE 7860
 # One worker: each would load its own copy of the embedding model. Threads
 # handle concurrency instead, since requests are spent waiting on the Groq
 # and Pinecone APIs. The long timeout covers slow LLM responses.
-CMD gunicorn --bind "0.0.0.0:${PORT:-7860}" --workers 1 --threads 4 --timeout 120 app:app
+CMD ["sh", "-c", "exec gunicorn --bind 0.0.0.0:${PORT:-7860} --workers 1 --threads 4 --timeout 120 app:app"]
