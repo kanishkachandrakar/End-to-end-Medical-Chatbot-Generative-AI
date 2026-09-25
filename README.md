@@ -1,3 +1,14 @@
+---
+title: Medical Chatbot
+emoji: 🩺
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+license: mit
+---
+
 # End-to-End Medical Chatbot (Generative AI)
 
 A retrieval-augmented medical question-answering chatbot. It indexes a medical
