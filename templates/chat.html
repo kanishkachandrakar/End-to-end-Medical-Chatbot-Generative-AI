@@ -85,6 +85,14 @@
 
 					$log.append($row);
 					$log.scrollTop($log[0].scrollHeight);
+					return $row;
+				}
+
+				// A request takes a few seconds: retrieval, then the LLM. Block a
+				// second submit while one is in flight rather than queueing another.
+				function setBusy(busy) {
+					$("#text").prop("disabled", busy);
+					$("#send").prop("disabled", busy);
 				}
 
 				$("#messageArea").on("submit", function (event) {
@@ -97,6 +105,9 @@
 
 					appendMessage(question, true);
 					$("#text").val("");
+					setBusy(true);
+
+					const $pending = appendMessage("\u2026", false);
 
 					$.ajax({
 						type: "POST",
@@ -109,6 +120,10 @@
 							jqXHR.responseText || "Sorry, the server is not reachable right now.",
 							false
 						);
+					}).always(function () {
+						$pending.remove();
+						setBusy(false);
+						$("#text").trigger("focus");
 					});
 				});
 			});
