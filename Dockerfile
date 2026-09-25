@@ -17,6 +17,12 @@ WORKDIR /app
 # Dependencies first so edits to the app don't invalidate the pip layer.
 COPY --chown=user requirements.txt setup.py ./
 COPY --chown=user src ./src
+
+# Install torch from the CPU index first. The default PyPI wheel bundles the
+# CUDA runtime (~2.5GB) which is dead weight on a CPU-only host; pip then sees
+# the requirement as already satisfied when it reads requirements.txt.
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
 RUN pip install --no-cache-dir -r requirements.txt
 
 USER user
