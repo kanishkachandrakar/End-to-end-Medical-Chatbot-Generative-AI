@@ -35,6 +35,11 @@ COPY --chown=user . .
 
 EXPOSE 7860
 
+# Generous start period: the first boot loads the embedding model before the
+# port opens.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
+    CMD python -c "import os,urllib.request; urllib.request.urlopen(f\"http://127.0.0.1:{os.environ.get('PORT','7860')}/healthz\").read()"
+
 # One worker: each would load its own copy of the embedding model. Threads
 # handle concurrency instead, since requests are spent waiting on the Groq
 # and Pinecone APIs. The long timeout covers slow LLM responses.
