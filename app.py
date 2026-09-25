@@ -127,7 +127,10 @@ def chat():
             413,
         )
 
-    app.logger.info("question: %s", msg)
+    # Deliberately not logging the question itself: on a public URL these are
+    # strangers' health questions, and Space logs are retained and readable by
+    # anyone with access to the Space.
+    app.logger.info("question received (%d chars)", len(msg))
     try:
         response = rag_chain.invoke({"input": msg})
     except Exception:
