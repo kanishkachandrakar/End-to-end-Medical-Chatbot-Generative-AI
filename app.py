@@ -51,6 +51,30 @@ docsearch = PineconeVectorStore.from_existing_index(
 
 retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k": TOP_K})
 
+
+def _report_index_size():
+    """Say how many vectors are in the index, so an empty one is obvious."""
+    try:
+        from pinecone import Pinecone
+
+        stats = Pinecone(api_key=PINECONE_API_KEY).Index(INDEX_NAME).describe_index_stats()
+        count = stats.get("total_vector_count") or 0
+    except Exception:
+        app.logger.warning("could not read stats for index %r", INDEX_NAME, exc_info=True)
+        return
+
+    if count:
+        app.logger.info("index %r holds %s vectors", INDEX_NAME, count)
+    else:
+        app.logger.warning(
+            "index %r is empty -- run 'python store_index.py' first, or every "
+            "answer will be produced with no retrieved context",
+            INDEX_NAME,
+        )
+
+
+_report_index_size()
+
 llm = ChatGroq(
     temperature=0,
     groq_api_key=GROQ_API_KEY,
