@@ -82,6 +82,8 @@ Data/Medical_book.pdf
 ```
 .
 ├── app.py               # Flask app: builds the RAG chain and serves the chat UI
+├── Dockerfile           # Container used for deployment
+├── DEPLOY.md            # Hugging Face Spaces walkthrough
 ├── store_index.py       # Creates the Pinecone index (see "Build the vector index")
 ├── template.py          # One-off scaffold script that created the initial file layout
 ├── setup.py             # Makes `src/` installable (`pip install -e .`)
@@ -89,7 +91,10 @@ Data/Medical_book.pdf
 ├── .env.example         # Names of the environment variables the app expects
 ├── Data/
 │   └── Medical_book.pdf # Source document that gets indexed
+├── scripts/
+│   └── deploy_space.sh  # Pushes the runtime files to a Space
 ├── src/
+│   ├── config.py        # Settings, overridable by environment variable
 │   ├── helper.py        # PDF loading, chunking, embedding model
 │   └── prompt.py        # System prompt for the LLM
 ├── templates/
@@ -174,6 +179,22 @@ plain-text reply, so you can also hit the endpoint directly:
 ```bash
 curl -X POST http://localhost:8080/get -d "msg=What is hypertension?"
 ```
+
+`GET /healthz` returns `ok` without spending an LLM call.
+
+## Deploying
+
+`Dockerfile` serves the app through gunicorn and reads `$PORT`, so it runs on
+Hugging Face Spaces, Cloud Run, Fly or a plain VM:
+
+```bash
+docker build -t medibot .
+docker run -p 8080:8080 -e PORT=8080 --env-file .env medibot
+```
+
+See [DEPLOY.md](DEPLOY.md) for the Hugging Face Spaces walkthrough, including
+the two things to do first — rotating the API keys that leaked into this
+repository's history, and rebuilding the index to clear duplicate chunks.
 
 ## Notes & troubleshooting
 
