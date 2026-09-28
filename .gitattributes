@@ -1,0 +1,10 @@
+# research/trials.ipynb is scratch work that prototyped the pipeline now living
+# in src/. As JSON it is the second-largest file in the repo and takes nearly a
+# third of GitHub's language statistics away from the code that actually runs.
+research/*.ipynb linguist-documentation
+
+# The book is the input data, not part of the project's source.
+Data/** linguist-vendored
+
+# Normalise line endings through the index; this repo is LF throughout.
+* text=auto
