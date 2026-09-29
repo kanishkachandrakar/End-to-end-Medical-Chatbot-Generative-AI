@@ -12,6 +12,10 @@ from dotenv import load_dotenv
 import hashlib
 import os
 
+# Chunks per upsert. Small enough to see progress and to keep the embedding
+# batch off the heap, large enough not to pay request overhead 5,000 times.
+BATCH_SIZE = 250
+
 
 def main() -> None:
     """Chunk the PDFs in Data/, create the index if needed and upsert them."""
@@ -59,12 +63,16 @@ def main() -> None:
     if unique != len(ids):
         print(f"note: {len(ids) - unique} chunks are byte-identical and will collapse")
 
-    PineconeVectorStore.from_documents(
-        documents=text_chunks,
+    store = PineconeVectorStore.from_existing_index(
         index_name=INDEX_NAME,
         embedding=embeddings,
-        ids=ids,
     )
+
+    total = len(text_chunks)
+    for start in range(0, total, BATCH_SIZE):
+        end = min(start + BATCH_SIZE, total)
+        store.add_documents(text_chunks[start:end], ids=ids[start:end])
+        print(f"  {end}/{total} chunks", flush=True)
 
     print(f"upserted {unique} unique chunks into {INDEX_NAME!r}")
 
