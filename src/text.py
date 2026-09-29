@@ -8,7 +8,7 @@ both do.
 
 import hashlib
 import re
-from typing import Iterable, List
+from collections.abc import Iterable
 
 # deepseek-r1 wraps its chain of thought in <think>...</think>. It is useful in
 # a log and should never reach the user.
@@ -20,7 +20,7 @@ def strip_reasoning(answer: str) -> str:
     return THINK_BLOCK.sub("", answer).strip()
 
 
-def chunk_ids(chunks: Iterable) -> List[str]:
+def chunk_ids(chunks: Iterable) -> list[str]:
     """Derive a stable vector id for each chunk from its text.
 
     Hashing the content rather than generating a uuid makes re-indexing an

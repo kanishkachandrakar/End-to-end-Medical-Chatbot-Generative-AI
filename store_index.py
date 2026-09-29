@@ -1,16 +1,18 @@
+import os
+
+from dotenv import load_dotenv
+from langchain_pinecone import PineconeVectorStore
+from pinecone import ServerlessSpec
+from pinecone.grpc import PineconeGRPC as Pinecone
+
 from src.config import (
     EMBED_DIM,
     INDEX_NAME,
     PINECONE_CLOUD,
     PINECONE_REGION,
 )
-from src.helper import load_pdf, text_split, download_hugging_face_embeddings
+from src.helper import download_hugging_face_embeddings, load_pdf, text_split
 from src.text import chunk_ids
-from pinecone.grpc import PineconeGRPC as Pinecone
-from pinecone import ServerlessSpec
-from langchain_pinecone import PineconeVectorStore
-from dotenv import load_dotenv
-import os
 
 # Chunks per upsert. Small enough to see progress and to keep the embedding
 # batch off the heap, large enough not to pay request overhead 5,000 times.

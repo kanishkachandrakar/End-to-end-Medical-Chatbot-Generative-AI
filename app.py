@@ -6,13 +6,16 @@ created, so the first request does not pay for any of it. That also means
 importing this module needs a configured .env and network access.
 """
 
+import os
+
+from dotenv import load_dotenv
 from flask import Flask, Response, render_template, request
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from langchain_pinecone import PineconeVectorStore
-from dotenv import load_dotenv
+
 from src.config import (
     GROQ_MODEL,
     GROQ_TIMEOUT,
@@ -25,7 +28,6 @@ from src.config import (
 from src.helper import download_hugging_face_embeddings
 from src.prompt import system_prompt
 from src.text import strip_reasoning
-import os
 
 app = Flask(__name__)
 
@@ -70,10 +72,12 @@ def _report_index_size():
     try:
         from pinecone import Pinecone
 
-        stats = Pinecone(api_key=PINECONE_API_KEY).Index(INDEX_NAME).describe_index_stats()
-        count = stats.get("total_vector_count") or 0
+        index = Pinecone(api_key=PINECONE_API_KEY).Index(INDEX_NAME)
+        count = index.describe_index_stats().get("total_vector_count") or 0
     except Exception:
-        app.logger.warning("could not read stats for index %r", INDEX_NAME, exc_info=True)
+        app.logger.warning(
+            "could not read stats for index %r", INDEX_NAME, exc_info=True
+        )
         return
 
     if count:

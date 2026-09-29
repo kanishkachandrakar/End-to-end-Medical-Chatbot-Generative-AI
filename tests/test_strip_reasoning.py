@@ -8,7 +8,10 @@ from src.text import strip_reasoning
 @pytest.mark.parametrize(
     "raw, expected",
     [
-        ("<think>weighing it up</think>Acne is a skin condition.", "Acne is a skin condition."),
+        (
+            "<think>weighing it up</think>Acne is a skin condition.",
+            "Acne is a skin condition.",
+        ),
         ("Acne is a skin condition.", "Acne is a skin condition."),
         ("<think>only reasoning</think>", ""),
         ("before<think>middle</think>after", "beforeafter"),

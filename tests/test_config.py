@@ -15,7 +15,9 @@ def reload_config(monkeypatch):
         for key, value in env.items():
             monkeypatch.setenv(key, value)
         # load_dotenv would otherwise put the developer's .env back on top
-        monkeypatch.setattr(src.config, "load_dotenv", lambda *a, **k: None, raising=False)
+        monkeypatch.setattr(
+            src.config, "load_dotenv", lambda *a, **k: None, raising=False
+        )
         return importlib.reload(src.config)
 
     yield _reload
