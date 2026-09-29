@@ -16,6 +16,7 @@ reference book into a Pinecone vector store and answers user questions through a
 Flask web UI, grounding every reply in passages retrieved from the book rather
 than relying on the LLM's memory alone.
 
+[![CI](https://github.com/kanishkachandrakar/End-to-end-Medical-Chatbot-Generative-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/kanishkachandrakar/End-to-end-Medical-Chatbot-Generative-AI/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
@@ -127,6 +128,17 @@ pip install -r requirements.txt
 
 `requirements.txt` ends with `-e .`, which installs the local `src` package in
 editable mode so `from src.helper import …` works from anywhere in the repo.
+
+## Tests
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest
+```
+
+The suite covers the pure helpers in `src/text.py` and the defaults in
+`src/config.py`. It needs no API keys, no network and no embedding model, so it
+runs in a second — which is also why CI does not install torch.
 
 ## Configuration
 
