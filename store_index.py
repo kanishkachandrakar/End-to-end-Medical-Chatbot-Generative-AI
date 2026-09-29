@@ -5,11 +5,11 @@ from src.config import (
     PINECONE_REGION,
 )
 from src.helper import load_pdf, text_split, download_hugging_face_embeddings
+from src.text import chunk_ids
 from pinecone.grpc import PineconeGRPC as Pinecone
 from pinecone import ServerlessSpec
 from langchain_pinecone import PineconeVectorStore
 from dotenv import load_dotenv
-import hashlib
 import os
 
 # Chunks per upsert. Small enough to see progress and to keep the embedding
@@ -50,15 +50,7 @@ def main() -> None:
             )
         )
 
-    # Derive each vector's id from the chunk text so that re-running this
-    # script overwrites the previous upsert instead of adding a second copy
-    # under a fresh uuid. Without this, every run multiplied the index: a
-    # top-k retrieval then returned k copies of one chunk rather than k
-    # different ones.
-    ids = [
-        hashlib.sha1(chunk.page_content.encode("utf-8")).hexdigest()
-        for chunk in text_chunks
-    ]
+    ids = chunk_ids(text_chunks)
     unique = len(set(ids))
     if unique != len(ids):
         print(f"note: {len(ids) - unique} chunks are byte-identical and will collapse")
