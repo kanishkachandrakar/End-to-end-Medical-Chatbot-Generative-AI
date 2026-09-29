@@ -19,3 +19,12 @@ venv/
 README.md
 DEPLOY.md
 LICENSE
+
+# Development-only: tests, tooling config and the deploy script are not part of
+# the runtime image.
+tests/
+requirements-dev.txt
+pytest.ini
+ruff.toml
+scripts/
+.github/
