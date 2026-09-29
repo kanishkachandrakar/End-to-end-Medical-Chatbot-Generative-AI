@@ -1,0 +1,5 @@
+# Test tooling, kept out of requirements.txt so the container does not carry
+# it. The suite touches no network and loads no model, so it needs only pytest
+# plus python-dotenv, which src/config.py imports.
+pytest>=8.0
+python-dotenv
