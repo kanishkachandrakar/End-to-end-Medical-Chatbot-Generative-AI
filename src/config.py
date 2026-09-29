@@ -31,3 +31,4 @@ GROQ_MODEL = os.environ.get("GROQ_MODEL", "deepseek-r1-distill-qwen-32b")
 
 # Web server.
 PORT = int(os.environ.get("PORT", "8080"))
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()

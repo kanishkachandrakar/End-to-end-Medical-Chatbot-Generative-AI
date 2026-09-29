@@ -13,13 +13,25 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from langchain_pinecone import PineconeVectorStore
 from dotenv import load_dotenv
-from src.config import GROQ_MODEL, INDEX_NAME, MAX_QUESTION_CHARS, PORT, TOP_K
+from src.config import (
+    GROQ_MODEL,
+    INDEX_NAME,
+    LOG_LEVEL,
+    MAX_QUESTION_CHARS,
+    PORT,
+    TOP_K,
+)
 from src.helper import download_hugging_face_embeddings
 from src.prompt import system_prompt
 import os
 import re
 
 app = Flask(__name__)
+
+# Outside debug mode Flask leaves app.logger at the root logger's level, which
+# is WARNING -- so every logger.info() call below was silently dropped under
+# gunicorn. Setting it explicitly is what makes them show up in the logs.
+app.logger.setLevel(LOG_LEVEL)
 
 load_dotenv()
 
