@@ -15,6 +15,7 @@ from langchain_pinecone import PineconeVectorStore
 from dotenv import load_dotenv
 from src.config import (
     GROQ_MODEL,
+    GROQ_TIMEOUT,
     INDEX_NAME,
     LOG_LEVEL,
     MAX_QUESTION_CHARS,
@@ -90,7 +91,10 @@ _report_index_size()
 llm = ChatGroq(
     temperature=0,
     groq_api_key=GROQ_API_KEY,
-    model_name=GROQ_MODEL
+    model_name=GROQ_MODEL,
+    # Without this a stalled call occupies a gunicorn thread until the worker
+    # timeout kills it at 120s, and there are only four threads.
+    timeout=GROQ_TIMEOUT,
 )
 
 # deepseek-r1 wraps its chain of thought in <think>...</think>; it is useful

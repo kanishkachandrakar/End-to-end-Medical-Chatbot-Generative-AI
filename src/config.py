@@ -28,6 +28,7 @@ CHUNK_OVERLAP = int(os.environ.get("CHUNK_OVERLAP", "20"))
 TOP_K = int(os.environ.get("TOP_K", "3"))
 MAX_QUESTION_CHARS = int(os.environ.get("MAX_QUESTION_CHARS", "500"))
 GROQ_MODEL = os.environ.get("GROQ_MODEL", "deepseek-r1-distill-qwen-32b")
+GROQ_TIMEOUT = float(os.environ.get("GROQ_TIMEOUT", "60"))
 
 # Web server.
 PORT = int(os.environ.get("PORT", "8080"))
