@@ -24,8 +24,8 @@ from src.config import (
 )
 from src.helper import download_hugging_face_embeddings
 from src.prompt import system_prompt
+from src.text import strip_reasoning
 import os
-import re
 
 app = Flask(__name__)
 
@@ -96,10 +96,6 @@ llm = ChatGroq(
     # timeout kills it at 120s, and there are only four threads.
     timeout=GROQ_TIMEOUT,
 )
-
-# deepseek-r1 wraps its chain of thought in <think>...</think>; it is useful
-# in the logs but should not reach the user.
-THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL)
 
 prompt = ChatPromptTemplate.from_messages(
     [
@@ -173,7 +169,7 @@ def chat():
         return _text(*_failure_reply(exc))
 
     answer = response.get("answer", "")
-    cleaned_answer = THINK_BLOCK.sub("", answer).strip()
+    cleaned_answer = strip_reasoning(answer)
 
     return _text(cleaned_answer or "I don't have an answer for that.")
 
