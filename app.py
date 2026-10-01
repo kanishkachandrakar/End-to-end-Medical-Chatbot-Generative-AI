@@ -16,7 +16,6 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from langchain_pinecone import PineconeVectorStore
 
-from src.errors import failure_reply
 from src.config import (
     GROQ_MODEL,
     GROQ_TIMEOUT,
@@ -26,6 +25,7 @@ from src.config import (
     PORT,
     TOP_K,
 )
+from src.errors import failure_reply
 from src.helper import download_hugging_face_embeddings
 from src.prompt import system_prompt
 from src.text import strip_reasoning
