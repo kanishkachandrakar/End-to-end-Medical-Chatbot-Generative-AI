@@ -16,6 +16,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from langchain_pinecone import PineconeVectorStore
 
+from src.errors import failure_reply
 from src.config import (
     GROQ_MODEL,
     GROQ_TIMEOUT,
@@ -117,31 +118,10 @@ def _text(body, status=200):
     return Response(body, status=status, mimetype="text/plain")
 
 
-def _failure_reply(exc):
-    """Map a chain failure to (message, status).
-
-    Rate limiting is the one a visitor can do something about -- waiting --
-    so it is worth telling them apart from everything else. The status code is
-    read off the exception rather than imported from groq, so this keeps
-    working if the provider client changes shape.
-    """
-    status = getattr(exc, "status_code", None)
-    if status is None:
-        status = getattr(getattr(exc, "response", None), "status_code", None)
-
-    if status == 429:
-        return "I am being rate limited right now -- please try again in a moment.", 429
-    if isinstance(exc, TimeoutError) or "timeout" in type(exc).__name__.lower():
-        return "That took too long to answer -- please try again.", 504
-    return "Sorry, I could not answer that right now. Please try again.", 502
-
-
 @app.route("/")
 def index():
     """Serve the chat page."""
     return render_template("chat.html")
-
-
 
 @app.route("/healthz")
 def healthz():
@@ -170,7 +150,7 @@ def chat():
         response = rag_chain.invoke({"input": msg})
     except Exception as exc:
         app.logger.exception("the retrieval chain failed")
-        return _text(*_failure_reply(exc))
+        return _text(*failure_reply(exc))
 
     answer = response.get("answer", "")
     cleaned_answer = strip_reasoning(answer)
