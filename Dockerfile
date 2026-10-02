@@ -43,4 +43,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
 # One worker: each would load its own copy of the embedding model. Threads
 # handle concurrency instead, since requests are spent waiting on the Groq
 # and Pinecone APIs. The long timeout covers slow LLM responses.
-CMD ["sh", "-c", "exec gunicorn --bind 0.0.0.0:${PORT:-7860} --workers 1 --threads 4 --timeout 120 app:app"]
+# --access-logfile - sends the request log to stdout; without it gunicorn
+# logs errors only, which makes a deployed Space impossible to debug: there
+# is no way to tell a request that failed from one that never arrived.
+CMD ["sh", "-c", "exec gunicorn --bind 0.0.0.0:${PORT:-7860} --workers 1 --threads 4 --timeout 120 --access-logfile - --error-logfile - app:app"]
