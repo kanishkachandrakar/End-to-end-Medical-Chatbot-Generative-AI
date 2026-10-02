@@ -21,10 +21,12 @@ from src.config import (
     GROQ_TIMEOUT,
     INDEX_NAME,
     PORT,
+    RATE_LIMIT_PER_MINUTE,
     TOP_K,
 )
 from src.helper import download_hugging_face_embeddings
 from src.prompt import system_prompt
+from src.ratelimit import per_minute
 from src.webapp import create_app
 
 load_dotenv()
@@ -100,7 +102,7 @@ def build_chain():
     return create_retrieval_chain(retriever, create_stuff_documents_chain(llm, prompt))
 
 
-app = create_app(build_chain())
+app = create_app(build_chain(), limiter=per_minute(RATE_LIMIT_PER_MINUTE))
 report_index_size(app.logger)
 
 

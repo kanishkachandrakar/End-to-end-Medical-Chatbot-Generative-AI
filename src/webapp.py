@@ -20,6 +20,10 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 NO_QUESTION = "Please type a question."
 NO_ANSWER = "I don't have an answer for that."
+TOO_BUSY = (
+    "This demo answers a limited number of questions a minute -- "
+    "please try again shortly."
+)
 
 
 def text_reply(body: str, status: int = 200) -> Response:
@@ -27,8 +31,12 @@ def text_reply(body: str, status: int = 200) -> Response:
     return Response(body, status=status, mimetype="text/plain")
 
 
-def create_app(rag_chain) -> Flask:
-    """Build the Flask app around an object exposing .invoke({"input": ...})."""
+def create_app(rag_chain, limiter=None) -> Flask:
+    """Build the Flask app around an object exposing .invoke({"input": ...}).
+
+    ``limiter`` is an optional TokenBucket spending one token per answered
+    question. None means no limit, which is what the tests use.
+    """
     app = Flask(
         __name__,
         template_folder=str(ROOT / "templates"),
@@ -62,6 +70,11 @@ def create_app(rag_chain) -> Flask:
                 f"{MAX_QUESTION_CHARS} characters.",
                 413,
             )
+
+        # Checked after validation so a rejected question costs no budget.
+        if limiter is not None and not limiter.take():
+            app.logger.warning("rate limit reached, question refused")
+            return text_reply(TOO_BUSY, 429)
 
         # Deliberately not logging the question itself: on a public URL these
         # are strangers' health questions, and Space logs are retained and

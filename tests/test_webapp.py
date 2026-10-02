@@ -4,7 +4,8 @@ import pytest
 
 from src.config import MAX_QUESTION_CHARS
 from src.errors import RATE_LIMITED, UNAVAILABLE
-from src.webapp import NO_ANSWER, NO_QUESTION, create_app
+from src.ratelimit import TokenBucket
+from src.webapp import NO_ANSWER, NO_QUESTION, TOO_BUSY, create_app
 
 
 class StubChain:
@@ -157,3 +158,33 @@ def test_every_reply_is_plain_text(client_for):
         client.post("/get", data={"msg": ""}),
     ):
         assert response.mimetype == "text/plain", response.status_code
+
+
+def test_the_limiter_refuses_a_question_once_the_budget_is_spent(client_for):
+    chain = StubChain()
+    app = create_app(chain, limiter=TokenBucket(capacity=1, rate=0.0001))
+    client = app.test_client()
+
+    assert client.post("/get", data={"msg": "first"}).status_code == 200
+    refused = client.post("/get", data={"msg": "second"})
+    assert refused.status_code == 429
+    assert refused.data.decode() == TOO_BUSY
+    assert len(chain.calls) == 1, "the refused question must not reach the model"
+
+
+def test_a_rejected_question_does_not_spend_budget(client_for):
+    """An empty question is free, so a typo cannot exhaust the demo's quota."""
+    chain = StubChain()
+    app = create_app(chain, limiter=TokenBucket(capacity=1, rate=0.0001))
+    client = app.test_client()
+
+    assert client.post("/get", data={"msg": ""}).status_code == 400
+    assert client.post("/get", data={"msg": "real question"}).status_code == 200
+
+
+def test_healthz_is_never_rate_limited(client_for):
+    chain = StubChain()
+    app = create_app(chain, limiter=TokenBucket(capacity=1, rate=0.0001))
+    client = app.test_client()
+    client.post("/get", data={"msg": "spend it"})
+    assert client.get("/healthz").status_code == 200
