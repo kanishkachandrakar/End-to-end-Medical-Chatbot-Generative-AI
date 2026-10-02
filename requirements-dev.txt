@@ -3,3 +3,7 @@
 # plus python-dotenv, which src/config.py imports.
 pytest>=8.0
 python-dotenv
+
+# Light enough to test against directly: pure Python, no torch, no network.
+langchain-core
+langchain-text-splitters

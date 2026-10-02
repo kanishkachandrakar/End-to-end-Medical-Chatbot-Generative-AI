@@ -5,13 +5,14 @@ from langchain_pinecone import PineconeVectorStore
 from pinecone import ServerlessSpec
 from pinecone.grpc import PineconeGRPC as Pinecone
 
+from src.chunking import text_split
 from src.config import (
     EMBED_DIM,
     INDEX_NAME,
     PINECONE_CLOUD,
     PINECONE_REGION,
 )
-from src.helper import download_hugging_face_embeddings, load_pdf, text_split
+from src.helper import download_hugging_face_embeddings, load_pdf
 from src.text import chunk_ids
 
 # Chunks per upsert. Small enough to see progress and to keep the embedding
