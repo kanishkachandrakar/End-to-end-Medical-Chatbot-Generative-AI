@@ -9,14 +9,26 @@ this module lives in src/ and would otherwise look for them there.
 """
 
 import pathlib
+from typing import Any, Protocol
 
 from flask import Flask, Response, render_template, request
 
 from src.config import LOG_LEVEL, MAX_QUESTION_CHARS
 from src.errors import failure_reply
+from src.ratelimit import TokenBucket
 from src.text import strip_reasoning
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+
+class RagChain(Protocol):
+    """What create_app() needs from a chain: nothing but invoke().
+
+    Spelled out as a Protocol so the stub the tests pass in is a declared part
+    of the interface rather than an accident of duck typing.
+    """
+
+    def invoke(self, payload: dict[str, str]) -> dict[str, Any]: ...
 
 NO_QUESTION = "Please type a question."
 NO_ANSWER = "I don't have an answer for that."
@@ -31,7 +43,7 @@ def text_reply(body: str, status: int = 200) -> Response:
     return Response(body, status=status, mimetype="text/plain")
 
 
-def create_app(rag_chain, limiter=None) -> Flask:
+def create_app(rag_chain: RagChain, limiter: TokenBucket | None = None) -> Flask:
     """Build the Flask app around an object exposing .invoke({"input": ...}).
 
     ``limiter`` is an optional TokenBucket spending one token per answered
@@ -49,17 +61,17 @@ def create_app(rag_chain, limiter=None) -> Flask:
     app.logger.setLevel(LOG_LEVEL)
 
     @app.route("/")
-    def index():
+    def index() -> str:
         """Serve the chat page."""
         return render_template("chat.html")
 
     @app.route("/healthz")
-    def healthz():
+    def healthz() -> Response:
         """Liveness probe: a reply means the chain was built and the app is up."""
         return text_reply("ok")
 
     @app.route("/get", methods=["GET", "POST"])
-    def chat():
+    def chat() -> Response:
         """Answer one question and return the reply as plain text."""
         msg = (request.values.get("msg") or "").strip()
         if not msg:
