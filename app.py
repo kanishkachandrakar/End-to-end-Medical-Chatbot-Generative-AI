@@ -1,15 +1,15 @@
-"""Flask front end for the medical chatbot.
+"""Entry point: builds the retrieval chain, then the Flask app around it.
 
-Building the RAG chain happens at import time: the embedding model is
-loaded, the existing Pinecone index is opened and the Groq client is
-created, so the first request does not pay for any of it. That also means
-importing this module needs a configured .env and network access.
+Everything happens at import time -- the embedding model is loaded, the Pinecone
+index is opened and the Groq client is created -- so the first request does not
+pay for any of it, and so gunicorn can serve ``app:app``. It also means
+importing this module needs a configured .env and network access; the routes
+themselves live in src/webapp.py, which needs neither.
 """
 
 import os
 
 from dotenv import load_dotenv
-from flask import Flask, Response, render_template, request
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
@@ -20,22 +20,12 @@ from src.config import (
     GROQ_MODEL,
     GROQ_TIMEOUT,
     INDEX_NAME,
-    LOG_LEVEL,
-    MAX_QUESTION_CHARS,
     PORT,
     TOP_K,
 )
-from src.errors import failure_reply
 from src.helper import download_hugging_face_embeddings
 from src.prompt import system_prompt
-from src.text import strip_reasoning
-
-app = Flask(__name__)
-
-# Outside debug mode Flask leaves app.logger at the root logger's level, which
-# is WARNING -- so every logger.info() call below was silently dropped under
-# gunicorn. Setting it explicitly is what makes them show up in the logs.
-app.logger.setLevel(LOG_LEVEL)
+from src.webapp import create_app
 
 load_dotenv()
 
@@ -58,17 +48,7 @@ if _missing:
     )
 
 
-embeddings = download_hugging_face_embeddings()
-
-docsearch = PineconeVectorStore.from_existing_index(
-    index_name=INDEX_NAME,
-    embedding=embeddings
-)
-
-retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k": TOP_K})
-
-
-def _report_index_size():
+def report_index_size(logger) -> None:
     """Say how many vectors are in the index, so an empty one is obvious."""
     try:
         from pinecone import Pinecone
@@ -76,87 +56,52 @@ def _report_index_size():
         index = Pinecone(api_key=PINECONE_API_KEY).Index(INDEX_NAME)
         count = index.describe_index_stats().get("total_vector_count") or 0
     except Exception:
-        app.logger.warning(
-            "could not read stats for index %r", INDEX_NAME, exc_info=True
-        )
+        logger.warning("could not read stats for index %r", INDEX_NAME, exc_info=True)
         return
 
     if count:
-        app.logger.info("index %r holds %s vectors", INDEX_NAME, count)
+        logger.info("index %r holds %s vectors", INDEX_NAME, count)
     else:
-        app.logger.warning(
+        logger.warning(
             "index %r is empty -- run 'python store_index.py' first, or every "
             "answer will be produced with no retrieved context",
             INDEX_NAME,
         )
 
 
-_report_index_size()
+def build_chain():
+    """Assemble the retrieval chain: Pinecone retriever + Groq answerer."""
+    embeddings = download_hugging_face_embeddings()
 
-llm = ChatGroq(
-    temperature=0,
-    groq_api_key=GROQ_API_KEY,
-    model_name=GROQ_MODEL,
-    # Without this a stalled call occupies a gunicorn thread until the worker
-    # timeout kills it at 120s, and there are only four threads.
-    timeout=GROQ_TIMEOUT,
-)
+    docsearch = PineconeVectorStore.from_existing_index(
+        index_name=INDEX_NAME,
+        embedding=embeddings,
+    )
+    retriever = docsearch.as_retriever(
+        search_type="similarity", search_kwargs={"k": TOP_K}
+    )
 
-prompt = ChatPromptTemplate.from_messages(
-    [
-        ("system", system_prompt),
-        ("human", "{input}"),
-    ]
-)
+    llm = ChatGroq(
+        temperature=0,
+        groq_api_key=GROQ_API_KEY,
+        model_name=GROQ_MODEL,
+        # Without this a stalled call occupies a gunicorn thread until the
+        # worker timeout kills it at 120s, and there are only four threads.
+        timeout=GROQ_TIMEOUT,
+    )
 
-question_answer_chain = create_stuff_documents_chain(llm, prompt)
-rag_chain = create_retrieval_chain(retriever, question_answer_chain)
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            ("human", "{input}"),
+        ]
+    )
 
-
-def _text(body, status=200):
-    """Reply with plain text; the front end renders it as text, not markup."""
-    return Response(body, status=status, mimetype="text/plain")
-
-
-@app.route("/")
-def index():
-    """Serve the chat page."""
-    return render_template("chat.html")
-
-@app.route("/healthz")
-def healthz():
-    """Liveness probe: the chain is built at import, so a reply means it's up."""
-    return _text("ok")
+    return create_retrieval_chain(retriever, create_stuff_documents_chain(llm, prompt))
 
 
-@app.route("/get", methods=["GET", "POST"])
-def chat():
-    """Answer one question and return the reply as plain text."""
-    msg = (request.values.get("msg") or "").strip()
-    if not msg:
-        return _text("Please type a question.", 400)
-    if len(msg) > MAX_QUESTION_CHARS:
-        return _text(
-            f"That question is too long -- please keep it under "
-            f"{MAX_QUESTION_CHARS} characters.",
-            413,
-        )
-
-    # Deliberately not logging the question itself: on a public URL these are
-    # strangers' health questions, and Space logs are retained and readable by
-    # anyone with access to the Space.
-    app.logger.info("question received (%d chars)", len(msg))
-    try:
-        response = rag_chain.invoke({"input": msg})
-    except Exception as exc:
-        app.logger.exception("the retrieval chain failed")
-        return _text(*failure_reply(exc))
-
-    answer = response.get("answer", "")
-    cleaned_answer = strip_reasoning(answer)
-
-    return _text(cleaned_answer or "I don't have an answer for that.")
-
+app = create_app(build_chain())
+report_index_size(app.logger)
 
 
 if __name__ == "__main__":
