@@ -94,10 +94,16 @@ Data/Medical_book.pdf
 │   └── Medical_book.pdf # Source document that gets indexed
 ├── scripts/
 │   └── deploy_space.sh  # Pushes the runtime files to a Space
+├── tests/               # pytest suite; no keys or network required
 ├── src/
+│   ├── chunking.py      # Splitting pages into chunks
 │   ├── config.py        # Settings, overridable by environment variable
-│   ├── helper.py        # PDF loading, chunking, embedding model
-│   └── prompt.py        # System prompt for the LLM
+│   ├── errors.py        # Failure -> user-facing message and status
+│   ├── helper.py        # PDF loading and the embedding model
+│   ├── prompt.py        # System prompt for the LLM
+│   ├── ratelimit.py     # Token bucket guarding the Groq quota
+│   ├── text.py          # Answer cleaning and chunk ids
+│   └── webapp.py        # Flask routes, built by create_app()
 ├── templates/
 │   └── chat.html        # Chat page
 ├── static/
@@ -221,6 +227,27 @@ repository's history, and rebuilding the index to clear duplicate chunks.
   `chat()` is harmless.
 - **Changing the source document** – drop any `*.pdf` into `Data/`;
   `load_pdf()` globs the whole directory. Rebuild the index afterwards.
+
+## Known limitations
+
+Worth knowing before judging the answers:
+
+- **Retrieval quality is bounded by one book.** Everything comes from the 1999
+  Gale Encyclopedia of Medicine, so the coverage and the vintage are whatever
+  that book has. Nothing in the pipeline checks a claim against anything newer.
+- **No conversation memory.** Each question is answered independently; the
+  retriever never sees what you asked before, so follow-ups like "and in
+  children?" retrieve nothing useful.
+- **Chunks are 500 characters with 20 of overlap**, which splits mid-sentence
+  often enough that a retrieved passage can begin or end mid-clause. The model
+  sees exactly that.
+- **One global rate limit**, not one per visitor — see `src/ratelimit.py` for
+  why. A busy visitor can make others wait.
+- **Reasoning tokens are paid for and discarded.** The model emits a `<think>`
+  block that is stripped before display, so part of every response's latency and
+  token cost never reaches the user.
+- **Not medical advice**, and nothing enforces that beyond the prompt asking for
+  it. Treat it as a search tool over one reference book.
 
 ## License
 
