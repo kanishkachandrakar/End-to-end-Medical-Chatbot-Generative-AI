@@ -1,7 +1,7 @@
 # Test tooling, kept out of requirements.txt so the container does not carry
 # it. The suite touches no network and loads no model, so it needs only pytest
 # plus python-dotenv, which src/config.py imports.
-pytest>=8.0
+pytest>=9.1.1
 python-dotenv
 
 # Light enough to test against directly: pure Python, no torch, no network.
