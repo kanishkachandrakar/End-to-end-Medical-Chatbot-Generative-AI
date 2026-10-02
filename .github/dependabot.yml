@@ -1,0 +1,19 @@
+version: 2
+updates:
+  # The pins that matter here are the ones that broke a build before:
+  # sentence-transformers against huggingface_hub, and the langchain split
+  # across langchain / langchain-community / langchain-core.
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      langchain:
+        patterns:
+          - "langchain*"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
