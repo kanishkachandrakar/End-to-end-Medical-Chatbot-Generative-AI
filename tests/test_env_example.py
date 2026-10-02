@@ -23,7 +23,9 @@ def _supported():
 
 def test_every_setting_is_documented():
     missing = _supported() - _documented()
-    assert not missing, f"settings exist but .env.example never mentions them: {missing}"
+    assert not missing, (
+        f"settings exist but .env.example never mentions them: {missing}"
+    )
 
 
 def test_nothing_documented_that_is_not_read():
@@ -34,7 +36,11 @@ def test_nothing_documented_that_is_not_read():
 def test_the_two_secrets_are_listed_uncommented():
     """They are required, so they must be ready to fill in, not commented out."""
     lines = (ROOT / ".env.example").read_text().splitlines()
-    uncommented = {ln.split("=", 1)[0].strip() for ln in lines if "=" in ln and not ln.startswith("#")}
+    uncommented = {
+        ln.split("=", 1)[0].strip()
+        for ln in lines
+        if "=" in ln and not ln.startswith("#")
+    }
     assert SECRETS <= uncommented
 
 
@@ -43,4 +49,6 @@ def test_optional_settings_are_commented_out():
     for line in (ROOT / ".env.example").read_text().splitlines():
         if "=" in line and not line.startswith("#"):
             name, value = (part.strip() for part in line.split("=", 1))
-            assert value == "", f"{name} ships with a value, which overrides the default"
+            assert value == "", (
+                f"{name} ships with a value, which overrides the default"
+            )
