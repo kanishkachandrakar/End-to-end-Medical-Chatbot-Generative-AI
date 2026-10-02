@@ -41,7 +41,7 @@ jobs:
         run: python -m compileall -q app.py store_index.py template.py setup.py src
 
       - name: Validate the Dockerfile
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: false
