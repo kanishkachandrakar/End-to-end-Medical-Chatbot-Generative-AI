@@ -188,3 +188,9 @@ def test_healthz_is_never_rate_limited(client_for):
     client = app.test_client()
     client.post("/get", data={"msg": "spend it"})
     assert client.get("/healthz").status_code == 200
+
+
+def test_the_input_carries_the_server_side_limit(client_for):
+    """Without this the browser lets you type a question the server refuses."""
+    page = client_for(StubChain()).get("/")
+    assert f'maxlength="{MAX_QUESTION_CHARS}"'.encode() in page.data

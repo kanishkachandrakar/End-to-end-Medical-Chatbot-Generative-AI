@@ -63,7 +63,9 @@ def create_app(rag_chain: RagChain, limiter: TokenBucket | None = None) -> Flask
     @app.route("/")
     def index() -> str:
         """Serve the chat page."""
-        return render_template("chat.html")
+        # The template mirrors the server limit in a maxlength attribute, so
+        # the two cannot drift apart.
+        return render_template("chat.html", max_question_chars=MAX_QUESTION_CHARS)
 
     @app.route("/healthz")
     def healthz() -> Response:
