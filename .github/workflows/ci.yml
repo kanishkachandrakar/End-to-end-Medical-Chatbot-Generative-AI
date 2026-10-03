@@ -33,8 +33,10 @@ jobs:
       - name: Lint
         run: ruff check .
 
+      # The floor belongs here rather than in pytest.ini: it is only
+      # meaningful across the whole suite, which is what CI runs.
       - name: Test
-        run: python -m pytest
+        run: python -m pytest --cov-fail-under=95
 
       # Catches a syntax error in a module the unit tests do not import.
       - name: Byte-compile every module
