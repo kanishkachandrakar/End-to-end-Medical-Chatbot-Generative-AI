@@ -96,3 +96,8 @@ def test_images_built_by_the_script_also_set_alt():
     """The avatars in each bubble are created in JS, not in the markup."""
     for constructor in re.findall(r'\$\("<img>"\)((?:\s*\.\w+\([^)]*\))+)', HTML):
         assert '"alt"' in constructor, constructor
+
+
+def test_a_favicon_is_declared():
+    """Browsers request /favicon.ico regardless; declaring one avoids a 404."""
+    assert 'rel="icon"' in MARKUP
