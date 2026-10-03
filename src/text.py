@@ -8,7 +8,7 @@ both do.
 
 import hashlib
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator, Sequence
 
 # deepseek-r1 wraps its chain of thought in <think>...</think>. It is useful in
 # a log and should never reach the user.
@@ -32,3 +32,15 @@ def chunk_ids(chunks: Iterable) -> list[str]:
         hashlib.sha1(chunk.page_content.encode("utf-8")).hexdigest()
         for chunk in chunks
     ]
+
+
+def batched(items: Sequence, size: int) -> Iterator[Sequence]:
+    """Yield consecutive slices of ``items`` of at most ``size`` entries.
+
+    Used to upsert the book a few hundred chunks at a time rather than in one
+    call that embeds everything into memory and reports no progress.
+    """
+    if size < 1:
+        raise ValueError("size must be at least 1")
+    for start in range(0, len(items), size):
+        yield items[start : start + size]

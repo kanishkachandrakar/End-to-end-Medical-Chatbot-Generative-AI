@@ -13,7 +13,7 @@ from src.config import (
     PINECONE_REGION,
 )
 from src.helper import download_hugging_face_embeddings, load_pdf
-from src.text import chunk_ids
+from src.text import batched, chunk_ids
 
 # Chunks per upsert. Small enough to see progress and to keep the embedding
 # batch off the heap, large enough not to pay request overhead 5,000 times.
@@ -64,10 +64,13 @@ def main() -> None:
     )
 
     total = len(text_chunks)
-    for start in range(0, total, BATCH_SIZE):
-        end = min(start + BATCH_SIZE, total)
-        store.add_documents(text_chunks[start:end], ids=ids[start:end])
-        print(f"  {end}/{total} chunks", flush=True)
+    done = 0
+    for chunks, batch_ids in zip(
+        batched(text_chunks, BATCH_SIZE), batched(ids, BATCH_SIZE), strict=True
+    ):
+        store.add_documents(chunks, ids=batch_ids)
+        done += len(chunks)
+        print(f"  {done}/{total} chunks", flush=True)
 
     print(f"upserted {unique} unique chunks into {INDEX_NAME!r}")
 

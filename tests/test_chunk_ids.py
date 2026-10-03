@@ -2,7 +2,9 @@
 
 import hashlib
 
-from src.text import chunk_ids
+import pytest
+
+from src.text import batched, chunk_ids
 
 
 class Chunk:
@@ -47,3 +49,45 @@ def test_handles_non_ascii_content():
 
 def test_empty_input():
     assert chunk_ids([]) == []
+
+
+class TestBatched:
+    """Slicing the upsert into batches; an off-by-one silently skips chunks."""
+
+    def test_splits_into_full_batches(self):
+
+        assert [list(b) for b in batched([1, 2, 3, 4], 2)] == [[1, 2], [3, 4]]
+
+    def test_the_last_batch_is_short(self):
+
+        assert [list(b) for b in batched([1, 2, 3], 2)] == [[1, 2], [3]]
+
+    def test_every_item_appears_exactly_once(self):
+
+        for total in (0, 1, 249, 250, 251, 5860):
+            items = list(range(total))
+            flattened = [x for batch in batched(items, 250) for x in batch]
+            assert flattened == items, total
+
+    def test_a_batch_larger_than_the_input_yields_one_batch(self):
+
+        assert [list(b) for b in batched([1, 2], 100)] == [[1, 2]]
+
+    def test_empty_input_yields_nothing(self):
+
+        assert list(batched([], 10)) == []
+
+    def test_a_zero_size_is_rejected(self):
+
+
+        with pytest.raises(ValueError):
+            list(batched([1], 0))
+
+    def test_documents_and_ids_batch_in_lockstep(self):
+        """store_index zips these two; a mismatch would mislabel every vector."""
+
+        docs = list(range(7))
+        ids = [f"id{i}" for i in range(7)]
+        pairs = list(zip(batched(docs, 3), batched(ids, 3), strict=True))
+        assert [len(d) for d, _ in pairs] == [3, 3, 1]
+        assert all(len(d) == len(i) for d, i in pairs)
