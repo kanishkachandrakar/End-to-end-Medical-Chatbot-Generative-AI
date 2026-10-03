@@ -24,7 +24,14 @@ def test_the_payload_entries_all_exist():
 
 def test_the_runtime_essentials_are_shipped():
     payload = set(_payload())
-    for required in ("Dockerfile", "requirements.txt", "setup.py", "app.py", "src"):
+    for required in (
+        "Dockerfile",
+        "gunicorn.conf.py",
+        "requirements.txt",
+        "setup.py",
+        "app.py",
+        "src",
+    ):
         assert required in payload, required
 
 

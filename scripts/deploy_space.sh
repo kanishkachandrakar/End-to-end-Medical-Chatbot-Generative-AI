@@ -17,6 +17,7 @@ fi
 
 PAYLOAD=(
     Dockerfile
+    gunicorn.conf.py
     README.md
     requirements.txt
     setup.py
