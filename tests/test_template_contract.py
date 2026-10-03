@@ -9,6 +9,9 @@ import re
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 HTML = (ROOT / "templates" / "chat.html").read_text()
+# The script block contains jQuery element constructors such as $("<img>"),
+# which are not markup and must not be scanned as if they were.
+MARKUP = re.sub(r"<script>.*?</script>", "", HTML, flags=re.DOTALL)
 
 
 def test_the_elements_the_script_drives_exist():
@@ -61,3 +64,35 @@ def test_the_avatar_file_exists():
     referenced = re.findall(r"filename='([^']+)'", HTML)
     for name in referenced:
         assert (ROOT / "static" / name).exists(), name
+
+
+def test_the_icon_only_button_has_an_accessible_name():
+    """A <button> containing only an <i> announces as 'button' and nothing else."""
+    assert 'aria-label="Send question"' in HTML
+
+
+def test_the_free_text_input_is_labelled():
+    """There is no visible <label>, so the input needs one of its own."""
+    assert 'aria-label="Your question"' in HTML
+
+
+def test_replies_are_announced():
+    """The log is appended to by script, which a screen reader otherwise misses."""
+    assert 'aria-live="polite"' in HTML
+    assert 'role="log"' in HTML
+
+
+def test_every_image_is_labelled_or_marked_decorative():
+    """An <img> with no alt at all is read out as its filename."""
+    tags = re.findall(r"<img[^>]*>", MARKUP)
+    assert tags, "expected at least one image in the markup"
+    for tag in tags:
+        decorative = 'aria-hidden="true"' in tag or 'alt=""' in tag
+        labelled = re.search(r'alt="[^"]+"', tag)
+        assert decorative or labelled, tag
+
+
+def test_images_built_by_the_script_also_set_alt():
+    """The avatars in each bubble are created in JS, not in the markup."""
+    for constructor in re.findall(r'\$\("<img>"\)((?:\s*\.\w+\([^)]*\))+)', HTML):
+        assert '"alt"' in constructor, constructor

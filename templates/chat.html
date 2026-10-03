@@ -18,8 +18,8 @@
 						<div class="card-header msg_head">
 							<div class="d-flex bd-highlight">
 								<div class="img_cont">
-									<img src="{{ url_for('static', filename='medicalbotpic.jpeg') }}" alt="" class="rounded-circle user_img_msg">
-									<span class="online_icon"></span>
+									<img src="{{ url_for('static', filename='medicalbotpic.jpeg') }}" alt="" class="rounded-circle user_img_msg" aria-hidden="true">
+									<span class="online_icon" aria-hidden="true"></span>
 								</div>
 								<div class="user_info">
 									<span>Medical Chatbot</span>
@@ -27,13 +27,13 @@
 								</div>
 							</div>
 						</div>
-						<div id="messageFormeight" class="card-body msg_card_body">
+						<div id="messageFormeight" class="card-body msg_card_body" role="log" aria-live="polite" aria-label="Conversation">
 						</div>
 						<div class="card-footer">
 							<form id="messageArea" class="input-group">
-								<input type="text" id="text" name="msg" placeholder="Type your message..." autocomplete="off" maxlength="{{ max_question_chars }}" class="form-control type_msg" required/>
+								<input type="text" id="text" name="msg" aria-label="Your question" placeholder="Type your message..." autocomplete="off" maxlength="{{ max_question_chars }}" class="form-control type_msg" required/>
 								<div class="input-group-append">
-									<button type="submit" id="send" class="input-group-text send_btn"><i class="fas fa-location-arrow"></i></button>
+									<button type="submit" id="send" class="input-group-text send_btn" aria-label="Send question"><i class="fas fa-location-arrow" aria-hidden="true"></i></button>
 								</div>
 							</form>
 						</div>
