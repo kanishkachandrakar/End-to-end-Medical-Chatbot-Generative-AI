@@ -84,6 +84,24 @@ go back to *Rebuild the index*.
 Then open the Space and ask something like *What is hypertension?*. There is
 also `GET /healthz`, which returns `ok` without spending a Groq call.
 
+## Optional settings
+
+Everything in `.env.example` below the two keys can also be set as a Space
+*variable* (not a secret — variables are public, which is correct for these):
+
+| Variable | Default | Why you might change it |
+|---|---|---|
+| `RATE_LIMIT_PER_MINUTE` | `30` | Questions answered per minute, across all visitors. `0` removes the cap. |
+| `MAX_QUESTION_CHARS` | `500` | Longest accepted question. The input box mirrors this. |
+| `GROQ_TIMEOUT` | `60` | Seconds before a stalled Groq call is abandoned. |
+| `TOP_K` | `3` | Passages retrieved per question. |
+| `LOG_LEVEL` | `INFO` | Set to `WARNING` to quieten the log. |
+
+The rate limit is deliberately global rather than per visitor: behind the
+Spaces proxy every request arrives from the same address, so a per-IP limit
+would put all visitors in one bucket anyway, and keying on a forwarded header
+would be trivially spoofed. One busy visitor can therefore make others wait.
+
 ## Things to expect
 
 - **Cold starts.** A free Space idles after about 48 hours untouched and
@@ -92,8 +110,12 @@ also `GET /healthz`, which returns `ok` without spending a Groq call.
   download.
 - **Editing a secret restarts the Space.** Gunicorn drains in-flight requests
   when that happens.
-- **Groq rate limits** on the free tier surface as a "could not answer that
-  right now" reply; the traceback is in the runtime log.
+- **Groq rate limits** on the free tier surface as "I am being rate limited
+  right now" with a 429; the traceback is in the runtime log.
+- **The demo's own limit** is separate, and says "This demo answers a limited
+  number of questions a minute". That one is `RATE_LIMIT_PER_MINUTE`, not Groq.
+- **Request logs appear in the runtime log**, one line per request, so you can
+  tell a question that failed from one that never arrived.
 
 ## Other hosts
 
