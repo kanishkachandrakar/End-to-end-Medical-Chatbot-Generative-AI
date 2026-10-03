@@ -24,6 +24,7 @@ from src.config import (
     RATE_LIMIT_PER_MINUTE,
     TOP_K,
 )
+from src.env import require_env
 from src.helper import download_hugging_face_embeddings
 from src.prompt import system_prompt
 from src.ratelimit import per_minute
@@ -31,23 +32,9 @@ from src.webapp import create_app
 
 load_dotenv()
 
-PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-
-_missing = [
-    name
-    for name, value in (
-        ("PINECONE_API_KEY", PINECONE_API_KEY),
-        ("GROQ_API_KEY", GROQ_API_KEY),
-    )
-    if not value
-]
-if _missing:
-    raise RuntimeError(
-        "Missing required environment variable(s): "
-        + ", ".join(_missing)
-        + ". Copy .env.example to .env and fill in your keys."
-    )
+_keys = require_env("PINECONE_API_KEY", "GROQ_API_KEY")
+PINECONE_API_KEY = _keys["PINECONE_API_KEY"]
+GROQ_API_KEY = _keys["GROQ_API_KEY"]
 
 
 def report_index_size(logger) -> None:
