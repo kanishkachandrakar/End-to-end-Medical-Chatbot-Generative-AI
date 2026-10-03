@@ -29,11 +29,6 @@ class TokenBucket:
         self._updated = clock()
         self._lock = threading.Lock()
 
-    @property
-    def tokens(self) -> float:
-        """Tokens available as of the last call; for tests and diagnostics."""
-        return self._tokens
-
     def take(self, tokens: float = 1) -> bool:
         """Spend a token if one is available. Thread-safe; never blocks."""
         with self._lock:

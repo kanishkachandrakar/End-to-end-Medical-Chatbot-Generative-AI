@@ -1,0 +1,14 @@
+[run]
+source = src
+
+# src/helper.py is the one module that needs torch and langchain-community.
+# CI deliberately installs neither -- the whole point of keeping the suite
+# light -- so it cannot be exercised here and would only depress the number.
+omit =
+    src/helper.py
+
+[report]
+show_missing = True
+exclude_also =
+    if TYPE_CHECKING:
+    ^\s*\.\.\.$
