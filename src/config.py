@@ -35,3 +35,39 @@ GROQ_TIMEOUT = float(os.environ.get("GROQ_TIMEOUT", "60"))
 # Web server.
 PORT = int(os.environ.get("PORT", "8080"))
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
+
+
+def _validate() -> None:
+    """Reject settings that would fail later and further from the cause.
+
+    Every one of these produces a confusing symptom rather than an error:
+    an overlap at or above the chunk size makes RecursiveCharacterTextSplitter
+    loop, a TOP_K of zero retrieves nothing so answers are silently ungrounded,
+    and a dimension mismatch is only reported by Pinecone at upsert time.
+    """
+    problems = []
+    if CHUNK_OVERLAP >= CHUNK_SIZE:
+        problems.append(
+            f"CHUNK_OVERLAP ({CHUNK_OVERLAP}) must be smaller than "
+            f"CHUNK_SIZE ({CHUNK_SIZE})"
+        )
+    if CHUNK_SIZE <= 0:
+        problems.append(f"CHUNK_SIZE ({CHUNK_SIZE}) must be positive")
+    if CHUNK_OVERLAP < 0:
+        problems.append(f"CHUNK_OVERLAP ({CHUNK_OVERLAP}) cannot be negative")
+    if TOP_K < 1:
+        problems.append(f"TOP_K ({TOP_K}) must be at least 1")
+    if EMBED_DIM < 1:
+        problems.append(f"EMBED_DIM ({EMBED_DIM}) must be at least 1")
+    if MAX_QUESTION_CHARS < 1:
+        problems.append(f"MAX_QUESTION_CHARS ({MAX_QUESTION_CHARS}) must be at least 1")
+    if GROQ_TIMEOUT <= 0:
+        problems.append(f"GROQ_TIMEOUT ({GROQ_TIMEOUT}) must be positive")
+    if not 1 <= PORT <= 65535:
+        problems.append(f"PORT ({PORT}) is outside 1-65535")
+
+    if problems:
+        raise ValueError("Invalid configuration: " + "; ".join(problems))
+
+
+_validate()
