@@ -62,3 +62,42 @@ def test_gunicorn_logs_to_stdout():
 def test_a_single_worker_is_configured():
     """Two workers mean two copies of the embedding model on a 16GB box."""
     assert re.search(r"^workers\s*=\s*1$", GUNICORN, re.MULTILINE)
+
+
+def _load_gunicorn_config():
+    """Execute gunicorn.conf.py the way gunicorn does, and return the module."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "gunicorn_conf", ROOT / "gunicorn.conf.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_the_config_file_executes():
+    """Gunicorn exec's this file; a syntax or name error means no server."""
+    assert _load_gunicorn_config().workers == 1
+
+
+def test_the_bind_defaults_to_the_declared_port(monkeypatch):
+    monkeypatch.delenv("PORT", raising=False)
+    assert _load_gunicorn_config().bind == f"0.0.0.0:{_frontmatter()['app_port']}"
+
+
+def test_the_bind_honours_PORT(monkeypatch):
+    """Cloud Run and most other hosts inject it rather than using 7860."""
+    monkeypatch.setenv("PORT", "8080")
+    assert _load_gunicorn_config().bind == "0.0.0.0:8080"
+
+
+def test_the_timeout_exceeds_the_apps_own_groq_timeout():
+    """Gunicorn's timeout is the backstop; the app should give up first."""
+    from src.config import GROQ_TIMEOUT
+
+    assert _load_gunicorn_config().timeout > GROQ_TIMEOUT
+
+
+def test_threads_are_configured_for_a_waiting_workload():
+    assert _load_gunicorn_config().threads > 1
