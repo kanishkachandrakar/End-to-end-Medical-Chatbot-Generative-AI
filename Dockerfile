@@ -21,7 +21,16 @@ COPY --chown=user src ./src
 # Install torch from the CPU index first. The default PyPI wheel bundles the
 # CUDA runtime (~2.5GB) which is dead weight on a CPU-only host; pip then sees
 # the requirement as already satisfied when it reads requirements.txt.
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+#
+# PyPI has to stay available as a fallback. The PyTorch index serves the torch
+# wheel but not every pure-Python dependency of it: typing-extensions is there
+# only as an sdist, and building that needs flit_core, which the index does not
+# carry at all -- so --index-url alone fails to resolve. Keeping the PyTorch
+# index first still selects the CPU build, because PEP 440 sorts the local
+# version 2.x+cpu above a plain 2.x from PyPI.
+RUN pip install --no-cache-dir torch \
+    --index-url https://download.pytorch.org/whl/cpu \
+    --extra-index-url https://pypi.org/simple
 
 RUN pip install --no-cache-dir -r requirements.txt
 
