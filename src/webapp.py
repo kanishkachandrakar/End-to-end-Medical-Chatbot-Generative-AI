@@ -61,6 +61,10 @@ SECURITY_HEADERS = {
     "Referrer-Policy": "no-referrer",
 }
 
+# Crawlers cannot reach /get now that it is POST-only, but indexing the page
+# invites traffic that spends the shared rate limit on nobody's question.
+ROBOTS_TXT = "User-agent: *\nDisallow: /\n"
+
 NO_QUESTION = "Please type a question."
 NO_ANSWER = "I don't have an answer for that."
 TOO_BUSY = (
@@ -111,6 +115,11 @@ def create_app(rag_chain: RagChain, limiter: TokenBucket | None = None) -> Flask
         # The template mirrors the server limit in a maxlength attribute, so
         # the two cannot drift apart.
         return render_template("chat.html", max_question_chars=MAX_QUESTION_CHARS)
+
+    @app.route("/robots.txt")
+    def robots() -> Response:
+        """Ask crawlers to stay away; this is a demo, not a resource to index."""
+        return text_reply(ROBOTS_TXT)
 
     @app.route("/healthz")
     def healthz() -> Response:

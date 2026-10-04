@@ -229,3 +229,17 @@ def test_a_successful_answer_is_not_cluttered_with_the_id(client_for):
     """It is in the header either way; the chat bubble should stay clean."""
     response = client_for(StubChain()).post("/get", data={"msg": "q"})
     assert "ref" not in response.data.decode()
+
+
+def test_robots_txt_disallows_everything(client_for):
+    response = client_for(StubChain()).get("/robots.txt")
+    assert response.status_code == 200
+    assert response.mimetype == "text/plain"
+    assert "User-agent: *" in response.data.decode()
+    assert "Disallow: /" in response.data.decode()
+
+
+def test_robots_txt_does_not_touch_the_chain(client_for):
+    chain = StubChain()
+    client_for(chain).get("/robots.txt")
+    assert chain.calls == []
