@@ -8,28 +8,29 @@ import pathlib
 import re
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-HTML = (ROOT / "templates" / "chat.html").read_text()
-# The script block contains jQuery element constructors such as $("<img>"),
-# which are not markup and must not be scanned as if they were.
-MARKUP = re.sub(r"<script>.*?</script>", "", HTML, flags=re.DOTALL)
+MARKUP = (ROOT / "templates" / "chat.html").read_text()
+SCRIPT = (ROOT / "static" / "chat.js").read_text()
+# Several checks span both: the markup declares the elements, the script drives
+# them, and the point is that the two agree.
+HTML = MARKUP + SCRIPT
 
 
 def test_the_elements_the_script_drives_exist():
     for element_id in ("text", "send", "messageArea", "messageFormeight"):
-        assert f'id="{element_id}"' in HTML, element_id
+        assert f'id="{element_id}"' in MARKUP, element_id
 
 
 def test_every_queried_id_is_defined_in_the_markup():
     """Catches a renamed id that the script still looks for."""
-    queried = set(re.findall(r'\$\("#([A-Za-z_][\w-]*)"\)', HTML))
-    defined = set(re.findall(r'id="([^"]+)"', HTML))
+    queried = set(re.findall(r'\$\("#([A-Za-z_][\w-]*)"\)', SCRIPT))
+    defined = set(re.findall(r'id="([^"]+)"', MARKUP))
     assert queried <= defined, (
         f"script queries ids that do not exist: {queried - defined}"
     )
 
 
 def test_posts_to_the_route_the_app_serves():
-    assert 'url: "/get"' in HTML
+    assert 'url: "/get"' in SCRIPT
     app_py = (ROOT / "app.py").read_text()
     webapp = ROOT / "src" / "webapp.py"
     routes = app_py + (webapp.read_text() if webapp.exists() else "")
@@ -37,15 +38,15 @@ def test_posts_to_the_route_the_app_serves():
 
 
 def test_sends_the_field_name_the_route_reads():
-    assert re.search(r"data:\s*\{\s*msg:", HTML)
+    assert re.search(r"data:\s*\{\s*msg:", SCRIPT)
 
 
 def test_the_css_classes_the_script_applies_are_styled():
     """Renaming a class in the stylesheet silently unstyles every bubble."""
     css = (ROOT / "static" / "style.css").read_text()
-    applied = set(re.findall(r'addClass\("([a-z_]+)"\)', HTML))
+    applied = set(re.findall(r'addClass\("([a-z_]+)"\)', SCRIPT))
     # classes chosen by a ternary, e.g. fromUser ? "msg_time_send" : "msg_time"
-    for pair in re.findall(r'\?\s*"([a-z_]+)"\s*:\s*"([a-z_]+)"', HTML):
+    for pair in re.findall(r'\?\s*"([a-z_]+)"\s*:\s*"([a-z_]+)"', SCRIPT):
         applied.update(pair)
     project_classes = {c for c in applied if "_" in c}
     missing = {c for c in project_classes if f".{c}" not in css}
@@ -94,10 +95,22 @@ def test_every_image_is_labelled_or_marked_decorative():
 
 def test_images_built_by_the_script_also_set_alt():
     """The avatars in each bubble are created in JS, not in the markup."""
-    for constructor in re.findall(r'\$\("<img>"\)((?:\s*\.\w+\([^)]*\))+)', HTML):
+    for constructor in re.findall(r'\$\("<img>"\)((?:\s*\.\w+\([^)]*\))+)', SCRIPT):
         assert '"alt"' in constructor, constructor
 
 
 def test_a_favicon_is_declared():
     """Browsers request /favicon.ico regardless; declaring one avoids a 404."""
     assert 'rel="icon"' in MARKUP
+
+
+def test_the_script_is_a_separate_file_not_inline():
+    """Inline script would have to be allowed by the page's own CSP."""
+    assert "<script>" not in MARKUP
+    assert 'filename=\'chat.js\'' in MARKUP
+
+
+def test_values_only_the_server_knows_arrive_as_data_attributes():
+    """The script is static, so the avatar path cannot be templated into it."""
+    assert "data-bot-avatar=" in MARKUP
+    assert "document.body.dataset.botAvatar" in SCRIPT
