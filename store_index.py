@@ -1,3 +1,4 @@
+import argparse
 import os
 
 from dotenv import load_dotenv
@@ -20,13 +21,28 @@ from src.text import batched, chunk_ids
 BATCH_SIZE = 250
 
 
-def main() -> None:
+def parse_args(argv=None) -> argparse.Namespace:
+    """Command line for the indexer."""
+    parser = argparse.ArgumentParser(
+        description="Chunk the PDFs in Data/ and upsert them into Pinecone."
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="load and chunk the PDFs, report the counts, and touch nothing "
+        "in Pinecone. Use this to check the chunking before a rebuild.",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv=None) -> None:
     """Chunk the PDFs in Data/, create the index if needed and upsert them."""
+    args = parse_args(argv)
     load_dotenv()
 
     api_key = os.environ.get("PINECONE_API_KEY")
 
-    if not api_key:
+    if not api_key and not args.dry_run:
         raise SystemExit(
             "PINECONE_API_KEY is not set. Copy .env.example to .env and fill it in."
         )
@@ -34,6 +50,15 @@ def main() -> None:
     extracted_data = load_pdf("Data/")
     text_chunks = text_split(extracted_data)
     print(f"loaded {len(extracted_data)} pages -> {len(text_chunks)} chunks")
+
+    ids = chunk_ids(text_chunks)
+    unique = len(set(ids))
+    if unique != len(ids):
+        print(f"note: {len(ids) - unique} chunks are byte-identical and will collapse")
+
+    if args.dry_run:
+        print(f"dry run: would upsert {unique} unique chunks into {INDEX_NAME!r}")
+        return
 
     embeddings = download_hugging_face_embeddings()
 
@@ -53,10 +78,6 @@ def main() -> None:
             )
         )
 
-    ids = chunk_ids(text_chunks)
-    unique = len(set(ids))
-    if unique != len(ids):
-        print(f"note: {len(ids) - unique} chunks are byte-identical and will collapse")
 
     store = PineconeVectorStore.from_existing_index(
         index_name=INDEX_NAME,
