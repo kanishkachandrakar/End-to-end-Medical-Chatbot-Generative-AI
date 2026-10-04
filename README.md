@@ -258,6 +258,12 @@ Worth knowing before judging the answers:
 - **Not medical advice**, and nothing enforces that beyond the prompt asking for
   it. Treat it as a search tool over one reference book.
 
+## Changelog
+
+[CHANGELOG.md](CHANGELOG.md) records the behavioural changes, including several
+bugs that made earlier versions of this project answer without retrieving
+anything.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
