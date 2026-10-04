@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+# Packaging metadata stays in setup.py: requirements.txt ends with "-e ." purely
+# to put src/ on the path, and moving that is a change to how the image installs
+# rather than a tidy-up.
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# The notebook's prototype code is kept as a record of how the pipeline was
+# built; it is not maintained to the same standard as src/.
+"research/*" = ["ALL"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Coverage is reported locally but not enforced: the floor only makes sense over
+# the whole suite, and failing `pytest tests/test_one_thing.py` for 0% coverage
+# makes the normal way of working unusable. CI passes --cov-fail-under.
+addopts = "-q --strict-markers --cov"
+markers = [
+    "slow: needs a heavyweight import (langchain_community)",
+]
+
+[tool.coverage.run]
+source = ["src"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "^\\s*\\.\\.\\.$",
+    # Constructing HuggingFaceEmbeddings loads torch and downloads weights;
+    # CI installs neither, by design.
+    "def download_hugging_face_embeddings",
+]
