@@ -30,6 +30,36 @@ class RagChain(Protocol):
 
     def invoke(self, payload: dict[str, str]) -> dict[str, Any]: ...
 
+# Content-Security-Policy. Every origin here is one the page actually loads
+# from; a test cross-checks this against the template and chat.js, because a
+# policy that silently blocks the stylesheet is worse than none at all.
+# Fonts come from use.fontawesome.com's own domain, and the user avatar from
+# i.ibb.co. 'self' covers chat.js and style.css.
+CSP = "; ".join(
+    [
+        "default-src 'self'",
+        "script-src 'self' https://code.jquery.com https://stackpath.bootstrapcdn.com",
+        "style-src 'self' https://stackpath.bootstrapcdn.com https://use.fontawesome.com",
+        "font-src 'self' https://use.fontawesome.com",
+        "img-src 'self' https://i.ibb.co data:",
+        "connect-src 'self'",
+        "form-action 'self'",
+        "frame-ancestors 'none'",
+        "base-uri 'none'",
+    ]
+)
+
+SECURITY_HEADERS = {
+    "Content-Security-Policy": CSP,
+    # The replies are text/plain and contain passages from a PDF; without this
+    # a browser is free to sniff one as HTML and run it.
+    "X-Content-Type-Options": "nosniff",
+    # frame-ancestors above covers modern browsers; this covers the rest.
+    "X-Frame-Options": "DENY",
+    # Questions are in the URL on a GET, so do not leak them to the CDNs.
+    "Referrer-Policy": "no-referrer",
+}
+
 NO_QUESTION = "Please type a question."
 NO_ANSWER = "I don't have an answer for that."
 TOO_BUSY = (
@@ -59,6 +89,12 @@ def create_app(rag_chain: RagChain, limiter: TokenBucket | None = None) -> Flask
     # which is WARNING -- so every logger.info() call below would be dropped
     # under gunicorn. Setting it explicitly is what makes them appear.
     app.logger.setLevel(LOG_LEVEL)
+
+    @app.after_request
+    def _add_security_headers(response: Response) -> Response:
+        for header, value in SECURITY_HEADERS.items():
+            response.headers.setdefault(header, value)
+        return response
 
     @app.route("/")
     def index() -> str:
