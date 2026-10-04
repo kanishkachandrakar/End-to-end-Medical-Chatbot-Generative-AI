@@ -192,7 +192,9 @@ Debug mode is off unless you ask for it — set `FLASK_DEBUG=1` in `.env` while
 working locally to get the auto-reloader.
 
 The UI posts each message as a form field `msg` to `POST /get` and renders the
-plain-text reply, so you can also hit the endpoint directly:
+plain-text reply, so you can also hit the endpoint directly. It is POST-only:
+answering spends a Groq call and the shared rate limit, which is not something
+a crawler or a link prefetch should be able to trigger.
 
 ```bash
 curl -X POST http://localhost:8080/get -d "msg=What is hypertension?"

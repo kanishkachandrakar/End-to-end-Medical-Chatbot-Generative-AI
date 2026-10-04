@@ -88,12 +88,20 @@ def test_a_missing_field_is_rejected(client_for):
     assert response.status_code == 400
 
 
-def test_get_works_as_well_as_post(client_for):
-    """The route allows both verbs, so both must read the parameter."""
+def test_get_is_rejected(client_for):
+    """Answering spends money and rate limit, so it is not a safe method."""
     chain = StubChain()
     response = client_for(chain).get("/get?msg=hello")
+    assert response.status_code == 405
+    assert chain.calls == [], "a crawler or prefetch must not reach the model"
+
+
+def test_a_query_string_on_a_post_is_ignored(client_for):
+    """Reading request.form, not request.values, keeps the question out of URLs."""
+    chain = StubChain()
+    response = client_for(chain).post("/get?msg=from-url", data={"msg": "from-body"})
     assert response.status_code == 200
-    assert chain.calls == [{"input": "hello"}]
+    assert chain.calls == [{"input": "from-body"}]
 
 
 def test_an_over_long_question_is_rejected(client_for):

@@ -108,10 +108,15 @@ def create_app(rag_chain: RagChain, limiter: TokenBucket | None = None) -> Flask
         """Liveness probe: a reply means the chain was built and the app is up."""
         return text_reply("ok")
 
-    @app.route("/get", methods=["GET", "POST"])
+    @app.route("/get", methods=["POST"])
     def chat() -> Response:
-        """Answer one question and return the reply as plain text."""
-        msg = (request.values.get("msg") or "").strip()
+        """Answer one question and return the reply as plain text.
+
+        POST only. Answering costs a Groq call and spends the shared rate
+        limit, which is a side effect -- so it does not belong behind a verb
+        that crawlers follow and browsers prefetch.
+        """
+        msg = (request.form.get("msg") or "").strip()
         if not msg:
             return text_reply(NO_QUESTION, 400)
         if len(msg) > MAX_QUESTION_CHARS:
