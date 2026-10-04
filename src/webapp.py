@@ -9,9 +9,10 @@ this module lives in src/ and would otherwise look for them there.
 """
 
 import pathlib
+import uuid
 from typing import Any, Protocol
 
-from flask import Flask, Response, render_template, request
+from flask import Flask, Response, g, render_template, request
 
 from src.config import LOG_LEVEL, MAX_QUESTION_CHARS
 from src.errors import failure_reply
@@ -90,10 +91,18 @@ def create_app(rag_chain: RagChain, limiter: TokenBucket | None = None) -> Flask
     # under gunicorn. Setting it explicitly is what makes them appear.
     app.logger.setLevel(LOG_LEVEL)
 
+    @app.before_request
+    def _assign_request_id() -> None:
+        """Tag each request so its log lines can be found from a reply."""
+        g.request_id = uuid.uuid4().hex[:8]
+
     @app.after_request
     def _add_security_headers(response: Response) -> Response:
         for header, value in SECURITY_HEADERS.items():
             response.headers.setdefault(header, value)
+        request_id = g.get("request_id")
+        if request_id:
+            response.headers.setdefault("X-Request-Id", request_id)
         return response
 
     @app.route("/")
@@ -134,12 +143,15 @@ def create_app(rag_chain: RagChain, limiter: TokenBucket | None = None) -> Flask
         # Deliberately not logging the question itself: on a public URL these
         # are strangers' health questions, and Space logs are retained and
         # readable by anyone with access to the Space.
-        app.logger.info("question received (%d chars)", len(msg))
+        app.logger.info("[%s] question received (%d chars)", g.request_id, len(msg))
         try:
             response = rag_chain.invoke({"input": msg})
         except Exception as exc:  # noqa: BLE001 - mapped to a reply below
-            app.logger.exception("the retrieval chain failed")
-            return text_reply(*failure_reply(exc))
+            app.logger.exception("[%s] the retrieval chain failed", g.request_id)
+            message, status = failure_reply(exc)
+            # The id lets a reported failure be matched to its traceback in the
+            # log, which is otherwise guesswork on a shared deployment.
+            return text_reply(f"{message} (ref {g.request_id})", status)
 
         answer = strip_reasoning(response.get("answer", ""))
         return text_reply(answer or NO_ANSWER)

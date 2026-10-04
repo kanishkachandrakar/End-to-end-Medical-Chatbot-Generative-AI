@@ -143,7 +143,7 @@ def test_a_chain_failure_becomes_a_readable_reply(client_for):
     chain = StubChain(raises=ValueError("pinecone is down"))
     response = client_for(chain).post("/get", data={"msg": "q"})
     assert response.status_code == 502
-    assert response.data.decode() == UNAVAILABLE
+    assert response.data.decode().startswith(UNAVAILABLE)
     assert b"Traceback" not in response.data
 
 
@@ -154,7 +154,7 @@ def test_a_rate_limit_is_passed_through_as_429(client_for):
     chain = StubChain(raises=RateLimited())
     response = client_for(chain).post("/get", data={"msg": "q"})
     assert response.status_code == 429
-    assert response.data.decode() == RATE_LIMITED
+    assert response.data.decode().startswith(RATE_LIMITED)
 
 
 def test_every_reply_is_plain_text(client_for):
@@ -202,3 +202,30 @@ def test_the_input_carries_the_server_side_limit(client_for):
     """Without this the browser lets you type a question the server refuses."""
     page = client_for(StubChain()).get("/")
     assert f'maxlength="{MAX_QUESTION_CHARS}"'.encode() in page.data
+
+
+def test_every_response_carries_a_request_id(client_for):
+    client = client_for(StubChain())
+    for response in (client.get("/"), client.post("/get", data={"msg": "q"})):
+        assert len(response.headers["X-Request-Id"]) == 8
+
+
+def test_each_request_gets_a_different_id(client_for):
+    client = client_for(StubChain())
+    first = client.post("/get", data={"msg": "a"}).headers["X-Request-Id"]
+    second = client.post("/get", data={"msg": "b"}).headers["X-Request-Id"]
+    assert first != second
+
+
+def test_a_failure_reply_quotes_the_request_id(client_for):
+    """So a user can report 'ref ab12cd34' and it can be found in the log."""
+    chain = StubChain(raises=ValueError("boom"))
+    response = client_for(chain).post("/get", data={"msg": "q"})
+    reference = response.headers["X-Request-Id"]
+    assert f"(ref {reference})" in response.data.decode()
+
+
+def test_a_successful_answer_is_not_cluttered_with_the_id(client_for):
+    """It is in the header either way; the chat bubble should stay clean."""
+    response = client_for(StubChain()).post("/get", data={"msg": "q"})
+    assert "ref" not in response.data.decode()
