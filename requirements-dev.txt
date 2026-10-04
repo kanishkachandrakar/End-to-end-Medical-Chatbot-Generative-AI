@@ -7,5 +7,7 @@ python-dotenv
 
 # Light enough to test against directly: pure Python, no torch, no network.
 flask
+langchain-community
 langchain-core
 langchain-text-splitters
+pypdf

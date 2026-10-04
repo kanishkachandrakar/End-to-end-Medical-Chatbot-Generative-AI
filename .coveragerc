@@ -1,14 +1,15 @@
 [run]
 source = src
 
-# src/helper.py is the one module that needs torch and langchain-community.
-# CI deliberately installs neither -- the whole point of keeping the suite
-# light -- so it cannot be exercised here and would only depress the number.
-omit =
-    src/helper.py
+# Nothing is omitted: load_pdf is covered against generated PDFs, and the one
+# function that needs torch (download_hugging_face_embeddings) is excluded by
+# the report rule below rather than the whole module.
 
 [report]
 show_missing = True
 exclude_also =
     if TYPE_CHECKING:
     ^\s*\.\.\.$
+    # Constructing HuggingFaceEmbeddings loads torch and downloads weights;
+    # CI installs neither, by design.
+    def download_hugging_face_embeddings

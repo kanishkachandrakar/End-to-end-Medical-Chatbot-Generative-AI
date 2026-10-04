@@ -142,9 +142,16 @@ pip install -r requirements-dev.txt
 python -m pytest
 ```
 
-The suite covers the pure helpers in `src/text.py` and the defaults in
-`src/config.py`. It needs no API keys, no network and no embedding model, so it
-runs in a second — which is also why CI does not install torch.
+The suite needs no API keys, no network and no embedding model — which is also
+why CI does not install torch. Everything in `src/` is covered; the floor is
+enforced at 95% in CI.
+
+One file (`tests/test_load_pdf.py`) pays about ten seconds to import
+`langchain_community`. Skip it while iterating:
+
+```bash
+python -m pytest -m "not slow"
+```
 
 ## Configuration
 
