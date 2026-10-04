@@ -59,6 +59,9 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
+      # Without a cache every run re-downloads the torch wheel and the model
+      # weights, which is most of the build time. gha scopes the cache per
+      # branch and falls back to main's.
       - name: Build the image
         uses: docker/build-push-action@v6
         with:
@@ -66,6 +69,8 @@ jobs:
           push: false
           load: true
           tags: medibot:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       # Proves the entrypoint resolves and gunicorn can parse its config,
       # without needing API keys: app:app is only imported by a real worker.
