@@ -48,3 +48,46 @@ jobs:
           context: .
           push: false
           call: check
+
+  # Separate job: this one takes minutes rather than seconds, and a lint or
+  # test failure should not wait on it. It is the only check that proves the
+  # image a Space would build actually builds.
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: medibot:ci
+
+      # Proves the entrypoint resolves and gunicorn can parse its config,
+      # without needing API keys: app:app is only imported by a real worker.
+      - name: Check the container's gunicorn config
+        run: |
+          docker run --rm --entrypoint python medibot:ci -c "
+          import importlib.util
+          spec = importlib.util.spec_from_file_location('g', 'gunicorn.conf.py')
+          mod = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(mod)
+          print('bind:', mod.bind, 'workers:', mod.workers)
+          assert mod.bind.endswith(':7860')
+          "
+
+      # The weights are baked in at build time; if that layer silently stopped
+      # working, every cold start would begin with a 90MB download instead.
+      - name: Check the embedding weights are in the image
+        run: |
+          docker run --rm --entrypoint python medibot:ci -c "
+          import pathlib, os
+          cache = pathlib.Path(os.environ['HF_HOME'])
+          files = list(cache.rglob('*.safetensors')) + list(cache.rglob('*.bin'))
+          assert files, f'no model weights under {cache}'
+          print('cached weights:', [f.name for f in files][:5])
+          "
