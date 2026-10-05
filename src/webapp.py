@@ -96,6 +96,21 @@ def create_app(rag_chain: RagChain, limiter: TokenBucket | None = None) -> Flask
     # under gunicorn. Setting it explicitly is what makes them appear.
     app.logger.setLevel(LOG_LEVEL)
 
+    @app.errorhandler(404)
+    @app.errorhandler(405)
+    @app.errorhandler(500)
+    def _plain_error(error):
+        """Answer errors in text too.
+
+        Flask's defaults are HTML pages. The front end appends whatever comes
+        back to the chat log, so an HTML error document would arrive as a wall
+        of markup in a bubble -- and a client told to expect text/plain from
+        every other response has no reason to handle HTML from this one.
+        """
+        status = getattr(error, "code", 500)
+        name = getattr(error, "name", "Error")
+        return text_reply(f"{name}.", status)
+
     @app.before_request
     def _assign_request_id() -> None:
         """Tag each request so its log lines can be found from a reply."""

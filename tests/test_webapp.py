@@ -257,3 +257,23 @@ def test_a_failure_logs_how_long_it_took_to_fail(client_for, caplog):
     with caplog.at_level("ERROR"):
         client_for(chain).post("/get", data={"msg": "q"})
     assert any("failed after" in record.getMessage() for record in caplog.records)
+
+
+def test_an_unknown_path_answers_in_plain_text(client_for):
+    """Flask's default 404 is an HTML document; the UI would paste it verbatim."""
+    response = client_for(StubChain()).get("/no-such-page")
+    assert response.status_code == 404
+    assert response.mimetype == "text/plain"
+    assert b"<html" not in response.data.lower()
+
+
+def test_a_wrong_method_answers_in_plain_text(client_for):
+    response = client_for(StubChain()).get("/get?msg=hi")
+    assert response.status_code == 405
+    assert response.mimetype == "text/plain"
+    assert b"<html" not in response.data.lower()
+
+
+def test_error_pages_keep_the_security_headers(client_for):
+    response = client_for(StubChain()).get("/no-such-page")
+    assert response.headers.get("X-Content-Type-Options") == "nosniff"
