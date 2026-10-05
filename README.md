@@ -258,6 +258,13 @@ Worth knowing before judging the answers:
 - **Not medical advice**, and nothing enforces that beyond the prompt asking for
   it. Treat it as a search tool over one reference book.
 
+## Security
+
+API keys were committed to this repository's history and should be treated as
+public. [SECURITY.md](SECURITY.md) explains what to rotate, how secrets are
+handled now, and what a public deployment of this does and does not defend
+against.
+
 ## Changelog
 
 [CHANGELOG.md](CHANGELOG.md) records the behavioural changes, including several
