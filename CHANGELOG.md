@@ -57,10 +57,21 @@ log.
 
 - Deployment: a `Dockerfile` serving the app through gunicorn, a Hugging Face
   Space configuration, `scripts/deploy_space.sh`, and `DEPLOY.md`.
-- `GET /healthz`, `GET /robots.txt`, security headers including a CSP, and
-  `python store_index.py --dry-run`.
-- A test suite covering everything in `src/`, with lint, coverage and a real
-  image build in CI.
+- `GET /healthz`, which reports the revision the running image was built from,
+  and `GET /robots.txt`.
+- Security headers including a CSP, with tests that hold the policy to the
+  origins the page actually loads from — in both directions.
+- Errors answer in plain text rather than Flask's HTML pages, which the chat log
+  would otherwise paste verbatim into a bubble.
+- Each request gets an id, returned in `X-Request-Id`, written to the log beside
+  how long the answer took, and quoted in failure replies so it can be reported.
+- `python store_index.py --dry-run` reports what a rebuild would produce without
+  touching Pinecone; `--limit N` runs the whole pipeline over the first N chunks
+  as a cheap end-to-end check.
+- A test suite covering everything in `src/`, with lint, coverage, a real image
+  build, and the JavaScript and shell script checked, on Python 3.10 and 3.12.
+- [SECURITY.md](SECURITY.md), recording the exposed keys and what a public
+  deployment of this does and does not defend against.
 
 ### Known limitations
 
