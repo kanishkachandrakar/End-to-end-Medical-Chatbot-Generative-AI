@@ -42,6 +42,19 @@ jobs:
       - name: Byte-compile every module
         run: python -m compileall -q app.py store_index.py template.py setup.py src
 
+      # Neither of these files is Python, so nothing above looks at them:
+      # static/chat.js is the whole chat UI and scripts/deploy_space.sh is how
+      # the Space gets updated. A syntax error in either is silent until use.
+      - name: Check the JavaScript parses
+        run: node --check static/chat.js
+
+      - name: Check the shell script
+        run: |
+          bash -n scripts/deploy_space.sh
+          # --severity=error only: style findings should not fail a build that
+          # nobody has had the chance to read yet.
+          shellcheck --severity=error scripts/deploy_space.sh
+
       - name: Validate the Dockerfile
         uses: docker/build-push-action@v6
         with:
