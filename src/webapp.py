@@ -9,6 +9,7 @@ this module lives in src/ and would otherwise look for them there.
 """
 
 import pathlib
+import time
 import uuid
 from typing import Any, Protocol
 
@@ -153,16 +154,29 @@ def create_app(rag_chain: RagChain, limiter: TokenBucket | None = None) -> Flask
         # are strangers' health questions, and Space logs are retained and
         # readable by anyone with access to the Space.
         app.logger.info("[%s] question received (%d chars)", g.request_id, len(msg))
+        started = time.perf_counter()
         try:
             response = rag_chain.invoke({"input": msg})
         except Exception as exc:  # noqa: BLE001 - mapped to a reply below
-            app.logger.exception("[%s] the retrieval chain failed", g.request_id)
+            app.logger.exception(
+                "[%s] the retrieval chain failed after %.1fs",
+                g.request_id,
+                time.perf_counter() - started,
+            )
             message, status = failure_reply(exc)
             # The id lets a reported failure be matched to its traceback in the
             # log, which is otherwise guesswork on a shared deployment.
             return text_reply(f"{message} (ref {g.request_id})", status)
 
         answer = strip_reasoning(response.get("answer", ""))
+        # Retrieval plus generation, which is the only number that explains a
+        # slow demo -- and the reasoning tokens that get stripped are part of it.
+        app.logger.info(
+            "[%s] answered in %.1fs (%d chars)",
+            g.request_id,
+            time.perf_counter() - started,
+            len(answer),
+        )
         return text_reply(answer or NO_ANSWER)
 
     return app

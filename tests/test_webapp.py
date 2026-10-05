@@ -243,3 +243,17 @@ def test_robots_txt_does_not_touch_the_chain(client_for):
     chain = StubChain()
     client_for(chain).get("/robots.txt")
     assert chain.calls == []
+
+
+def test_the_time_taken_is_logged(client_for, caplog):
+    """A slow demo is unexplainable without this; it is most of the latency."""
+    with caplog.at_level("INFO"):
+        client_for(StubChain()).post("/get", data={"msg": "q"})
+    assert any("answered in" in record.getMessage() for record in caplog.records)
+
+
+def test_a_failure_logs_how_long_it_took_to_fail(client_for, caplog):
+    chain = StubChain(raises=ValueError("boom"))
+    with caplog.at_level("ERROR"):
+        client_for(chain).post("/get", data={"msg": "q"})
+    assert any("failed after" in record.getMessage() for record in caplog.records)
