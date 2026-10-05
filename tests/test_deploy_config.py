@@ -112,3 +112,16 @@ def test_the_deploy_script_stamps_the_revision():
     script = (ROOT / "scripts" / "deploy_space.sh").read_text()
     assert "ARG APP_REVISION=" in script
     assert "rev-parse --short HEAD" in script
+
+
+def test_workers_are_recycled():
+    """One worker holding torch allocations forever is a slow memory climb."""
+    config = _load_gunicorn_config()
+    assert config.max_requests > 0
+    assert config.max_requests_jitter > 0
+
+
+def test_the_graceful_timeout_is_shorter_than_the_hard_timeout():
+    """A worker being replaced must not block its successor for two minutes."""
+    config = _load_gunicorn_config()
+    assert 0 < config.graceful_timeout < config.timeout

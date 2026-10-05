@@ -23,3 +23,16 @@ timeout = 120
 # Both logs to stdout, which is where Spaces, Cloud Run and docker logs read.
 accesslog = "-"
 errorlog = "-"
+
+# Restart the worker periodically. torch and sentence-transformers hold on to
+# allocator arenas across requests, and on a 16GB free tier a slow climb is
+# cheaper to pre-empt than to diagnose. The jitter stops a restart landing at a
+# predictable moment; with one worker a recycle is a brief pause, so it should
+# not be frequent.
+max_requests = 1000
+max_requests_jitter = 100
+
+# Give in-flight requests time to finish on a restart, which happens whenever a
+# Space secret is edited. Shorter than `timeout` on purpose: a worker being
+# replaced should not hold the new one off for the full two minutes.
+graceful_timeout = 30
