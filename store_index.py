@@ -27,6 +27,14 @@ def parse_args(argv=None) -> argparse.Namespace:
         description="Chunk the PDFs in Data/ and upsert them into Pinecone."
     )
     parser.add_argument(
+        "--limit",
+        type=int,
+        metavar="N",
+        help="index only the first N chunks. A cheap end-to-end check of the "
+        "whole pipeline -- embedding and upsert included -- before committing "
+        "to a full rebuild.",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="load and chunk the PDFs, report the counts, and touch nothing "
@@ -50,6 +58,12 @@ def main(argv=None) -> None:
     extracted_data = load_pdf("Data/")
     text_chunks = text_split(extracted_data)
     print(f"loaded {len(extracted_data)} pages -> {len(text_chunks)} chunks")
+
+    if args.limit is not None:
+        if args.limit < 1:
+            raise SystemExit("--limit must be at least 1")
+        text_chunks = text_chunks[: args.limit]
+        print(f"limiting to the first {len(text_chunks)} chunks")
 
     ids = chunk_ids(text_chunks)
     unique = len(set(ids))

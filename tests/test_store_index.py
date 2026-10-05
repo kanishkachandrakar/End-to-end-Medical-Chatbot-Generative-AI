@@ -230,3 +230,45 @@ def test_the_api_key_reaches_the_client(indexer):
     calls["existing"] = [module.INDEX_NAME]
     module.main([])
     assert calls["api_key"] == "test-key"
+
+
+def test_limit_restricts_what_is_upserted(indexer):
+    module, calls = indexer
+    calls["existing"] = [module.INDEX_NAME]
+    module.main(["--limit", "2"])
+    sent = [text for docs, _ in calls["upserts"] for text in docs]
+    assert sent == ["a", "b"]
+
+
+def test_limit_above_the_chunk_count_is_harmless(indexer):
+    module, calls = indexer
+    calls["existing"] = [module.INDEX_NAME]
+    module.main(["--limit", "500"])
+    sent = [text for docs, _ in calls["upserts"] for text in docs]
+    assert sent == list("abcdefa")
+
+
+def test_limit_is_reported(indexer, capsys):
+    module, calls = indexer
+    calls["existing"] = [module.INDEX_NAME]
+    module.main(["--limit", "2"])
+    assert "limiting to the first 2 chunks" in capsys.readouterr().out
+
+
+def test_a_nonsensical_limit_is_rejected(indexer):
+    module, _ = indexer
+    with pytest.raises(SystemExit, match="--limit"):
+        module.main(["--limit", "0"])
+
+
+def test_limit_combines_with_dry_run(indexer, capsys, monkeypatch):
+    """Check the chunking of the first few without touching Pinecone."""
+    module, calls = indexer
+    module.main(["--limit", "3", "--dry-run"])
+    assert calls["upserts"] == []
+    assert "would upsert 3 unique chunks" in capsys.readouterr().out
+
+
+def test_limit_defaults_to_everything(indexer):
+    module, _ = indexer
+    assert module.parse_args([]).limit is None
