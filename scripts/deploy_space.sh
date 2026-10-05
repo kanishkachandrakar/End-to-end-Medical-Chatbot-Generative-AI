@@ -47,6 +47,15 @@ for item in "${PAYLOAD[@]}"; do
 done
 
 cd "$work/space"
+
+# Stamp the revision into the Dockerfile before comparing. The Space builds the
+# image itself, so there is no --build-arg to pass; baking the default in is the
+# only way the running app can report which commit it came from. Doing it before
+# the diff also means deploying a new commit always registers as a change.
+source_rev="$(git -C "$repo_root" rev-parse --short HEAD)"
+sed -i.bak "s/^ARG APP_REVISION=.*/ARG APP_REVISION=$source_rev/" Dockerfile
+rm -f Dockerfile.bak
+
 git add -A
 
 if git diff --cached --quiet; then
@@ -54,7 +63,6 @@ if git diff --cached --quiet; then
     exit 0
 fi
 
-source_rev="$(git -C "$repo_root" rev-parse --short HEAD)"
 git commit --quiet -m "Deploy $source_rev"
 git push --quiet
 

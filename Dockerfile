@@ -7,7 +7,12 @@ FROM python:3.10-slim
 # home the model cache can be written to.
 RUN useradd --create-home --uid 1000 user
 
-ENV HOME=/home/user \
+# Which commit this image was built from. Passed by the deploy script; the
+# default makes a hand-built image say so rather than claim a revision.
+ARG APP_REVISION=unknown
+
+ENV APP_REVISION=${APP_REVISION} \
+    HOME=/home/user \
     HF_HOME=/home/user/.cache/huggingface \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1

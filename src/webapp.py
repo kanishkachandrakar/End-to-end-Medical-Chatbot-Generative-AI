@@ -8,6 +8,7 @@ Flask is pointed at the project's templates/ and static/ explicitly, because
 this module lives in src/ and would otherwise look for them there.
 """
 
+import os
 import pathlib
 import time
 import uuid
@@ -21,6 +22,11 @@ from src.ratelimit import TokenBucket
 from src.text import strip_reasoning
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+# Set at image build time. Without it there is no way to tell which revision a
+# running Space is serving, which matters most when a deploy appears not to
+# have taken effect.
+APP_REVISION = os.environ.get("APP_REVISION", "unknown")
 
 
 class RagChain(Protocol):
@@ -139,8 +145,11 @@ def create_app(rag_chain: RagChain, limiter: TokenBucket | None = None) -> Flask
 
     @app.route("/healthz")
     def healthz() -> Response:
-        """Liveness probe: a reply means the chain was built and the app is up."""
-        return text_reply("ok")
+        """Liveness probe: a reply means the chain was built and the app is up.
+
+        Also names the revision, so a deploy can be confirmed without a log.
+        """
+        return text_reply(f"ok {APP_REVISION}")
 
     @app.route("/get", methods=["POST"])
     def chat() -> Response:

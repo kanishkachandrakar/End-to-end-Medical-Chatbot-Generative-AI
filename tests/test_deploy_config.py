@@ -101,3 +101,14 @@ def test_the_timeout_exceeds_the_apps_own_groq_timeout():
 
 def test_threads_are_configured_for_a_waiting_workload():
     assert _load_gunicorn_config().threads > 1
+
+
+def test_the_dockerfile_declares_the_revision_build_arg():
+    """The deploy script rewrites this line; it has to be there to rewrite."""
+    assert re.search(r"^ARG APP_REVISION=", DOCKERFILE, re.MULTILINE)
+
+
+def test_the_deploy_script_stamps_the_revision():
+    script = (ROOT / "scripts" / "deploy_space.sh").read_text()
+    assert "ARG APP_REVISION=" in script
+    assert "rev-parse --short HEAD" in script

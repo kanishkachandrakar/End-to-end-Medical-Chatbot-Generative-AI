@@ -42,7 +42,7 @@ def test_index_serves_the_chat_page(client_for):
 def test_healthz_is_plain_ok(client_for):
     response = client_for(StubChain()).get("/healthz")
     assert response.status_code == 200
-    assert response.data == b"ok"
+    assert response.data.decode().startswith("ok")
     assert response.mimetype == "text/plain"
 
 
@@ -277,3 +277,24 @@ def test_a_wrong_method_answers_in_plain_text(client_for):
 def test_error_pages_keep_the_security_headers(client_for):
     response = client_for(StubChain()).get("/no-such-page")
     assert response.headers.get("X-Content-Type-Options") == "nosniff"
+
+
+def test_healthz_names_the_revision(client_for, monkeypatch):
+    """So a deploy can be confirmed without opening the Space's log."""
+    import importlib
+
+    import src.webapp as webapp
+
+    monkeypatch.setenv("APP_REVISION", "deadbee")
+    reloaded = importlib.reload(webapp)
+    try:
+        client = reloaded.create_app(StubChain()).test_client()
+        assert client.get("/healthz").data == b"ok deadbee"
+    finally:
+        monkeypatch.delenv("APP_REVISION", raising=False)
+        importlib.reload(webapp)
+
+
+def test_healthz_still_says_ok_without_a_revision(client_for):
+    body = client_for(StubChain()).get("/healthz").data.decode()
+    assert body.startswith("ok ")
