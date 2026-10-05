@@ -1,3 +1,15 @@
+"""One-shot scaffold that created this project's initial file layout.
+
+It has already been run. Running it again is safe: it only opens a path that is
+missing or already zero-length, so nothing with content in it is ever lost.
+(``src/__init__.py`` is legitimately empty, so that one would be re-created --
+with the same empty contents.)
+
+Kept as a record of how the project was laid out, not as a tool to use. Note
+that it creates ``.env``: an empty one, which is harmless, but the real one is
+gitignored and must not be committed. See SECURITY.md.
+"""
+
 import logging
 import os
 from pathlib import Path
