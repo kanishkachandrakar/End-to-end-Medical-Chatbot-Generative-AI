@@ -14,12 +14,20 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.10 is what the Dockerfile and setup.py's python_requires target, so
+        # it is the version that has to pass. 3.12 is there to catch the project
+        # drifting onto behaviour that only an older interpreter allows, since
+        # that is what a contributor is most likely to have installed.
+        python-version: ["3.10", "3.12"]
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: ${{ matrix.python-version }}
           cache: pip
 
       # Only the dev requirements: the suite is designed to run without the
