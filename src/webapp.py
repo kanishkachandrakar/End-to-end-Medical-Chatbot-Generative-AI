@@ -54,6 +54,10 @@ CSP = "; ".join(
         "form-action 'self'",
         "frame-ancestors 'none'",
         "base-uri 'none'",
+        # Nothing here embeds a plugin or another document, and both are
+        # routes an injected tag would otherwise still have.
+        "object-src 'none'",
+        "frame-src 'none'",
     ]
 )
 
@@ -66,6 +70,12 @@ SECURITY_HEADERS = {
     "X-Frame-Options": "DENY",
     # Questions are in the URL on a GET, so do not leak them to the CDNs.
     "Referrer-Policy": "no-referrer",
+    # A text box and a button need none of these. Listing them denies the
+    # permission rather than leaving it to the browser's default.
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    # Cross-origin isolation for the page itself; harmless for the CDN assets,
+    # which are loaded as subresources rather than documents.
+    "Cross-Origin-Opener-Policy": "same-origin",
 }
 
 # Crawlers cannot reach /get now that it is POST-only, but indexing the page

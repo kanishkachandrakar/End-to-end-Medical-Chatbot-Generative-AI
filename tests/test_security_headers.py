@@ -67,3 +67,28 @@ def test_the_page_cannot_be_framed():
 
 def test_the_default_is_restrictive():
     assert CSP.startswith("default-src 'self'")
+
+
+def test_plugins_and_frames_are_denied():
+    """An injected <object> or <iframe> should have nowhere to point."""
+    assert "object-src 'none'" in CSP
+    assert "frame-src 'none'" in CSP
+
+
+def test_device_permissions_are_denied():
+    policy = SECURITY_HEADERS["Permissions-Policy"]
+    for feature in ("camera", "microphone", "geolocation"):
+        assert f"{feature}=()" in policy
+
+
+def test_the_page_is_cross_origin_isolated():
+    assert SECURITY_HEADERS["Cross-Origin-Opener-Policy"] == "same-origin"
+
+
+def test_the_policy_still_permits_only_what_the_page_uses():
+    """The directives added here must not smuggle in a new origin."""
+    import re
+
+    allowed = set(re.findall(r"https://[a-z0-9.-]+", CSP))
+    used = set(re.findall(r"https://[a-z0-9.-]+", PAGE_SOURCES))
+    assert allowed == used
