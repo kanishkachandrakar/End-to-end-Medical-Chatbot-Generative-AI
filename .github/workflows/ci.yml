@@ -106,6 +106,24 @@ jobs:
           assert mod.bind.endswith(':7860')
           "
 
+      # The one check the unit suite cannot make: it never loads the model, so
+      # nothing else would notice an embedding library upgrade changing the
+      # output size -- which silently invalidates every vector in the index,
+      # since Pinecone rejects upserts of the wrong dimension and retrieval
+      # returns nothing. The image has torch and the weights already.
+      - name: Check the embedding dimension still matches the index
+        run: |
+          docker run --rm --entrypoint python medibot:ci -c "
+          from src.config import EMBED_DIM, EMBED_MODEL
+          from src.helper import download_hugging_face_embeddings
+          vector = download_hugging_face_embeddings().embed_query('hypertension')
+          print(f'{EMBED_MODEL} -> {len(vector)} dimensions, expected {EMBED_DIM}')
+          assert len(vector) == EMBED_DIM, (
+              f'{EMBED_MODEL} now returns {len(vector)} dimensions, not {EMBED_DIM}: '
+              'the existing Pinecone index cannot be used with it'
+          )
+          "
+
       # The weights are baked in at build time; if that layer silently stopped
       # working, every cold start would begin with a 90MB download instead.
       - name: Check the embedding weights are in the image
