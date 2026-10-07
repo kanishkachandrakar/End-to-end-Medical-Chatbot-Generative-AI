@@ -93,6 +93,20 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # The CPU wheel is about a fifth the size of the CUDA one, and the way
+      # that regresses is silent: a dependency pulling plain `torch` from PyPI
+      # builds fine and works fine, just four times larger and far slower to
+      # deploy. 3GB leaves room to grow without hiding that.
+      - name: Guard the image size
+        run: |
+          bytes=$(docker image inspect medibot:ci --format '{{.Size}}')
+          budget=$((3 * 1024 * 1024 * 1024))
+          printf 'image is %s MB, budget %s MB\n' "$((bytes / 1024 / 1024))" "$((budget / 1024 / 1024))"
+          if [ "$bytes" -gt "$budget" ]; then
+            echo "::error::the image has grown past its budget -- is a CUDA torch back?"
+            exit 1
+          fi
+
       # Everything else about the image is checked statically. This runs the
       # real Flask app out of the real image and asks it for a page: it needs
       # no keys, because create_app() takes the chain as an argument.
