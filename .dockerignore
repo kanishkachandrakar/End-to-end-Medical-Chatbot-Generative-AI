@@ -16,8 +16,12 @@ __pycache__/
 .venv/
 venv/
 
+# README.md carries the Space's configuration frontmatter, so the Space repo
+# needs it -- but the running container has no use for any of this.
 README.md
 DEPLOY.md
+CHANGELOG.md
+SECURITY.md
 LICENSE
 
 # Development-only: tests, tooling config and the deploy script are not part of
