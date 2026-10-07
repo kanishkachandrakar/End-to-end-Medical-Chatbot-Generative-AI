@@ -19,18 +19,18 @@ duplicates embed to identical vectors, a top-3 search returns the same chunk
 three times. Delete the index and rebuild it now that ids are derived from the
 chunk text:
 
-```python
-from pinecone import Pinecone
-Pinecone(api_key="<your new key>").delete_index("medicalbot")
-```
-
 ```bash
 pip install -r requirements.txt
-python store_index.py
+python store_index.py --recreate
 ```
 
-Expect roughly 5,900 unique chunks. `store_index.py` recreates the index and
-is safe to re-run.
+`--recreate` deletes the index before rebuilding, which is what clears the
+duplicates — they were written under random ids, so a plain re-run cannot
+overwrite them. Expect roughly 5,900 unique chunks.
+
+Check it first if you like: `--dry-run` reports what a rebuild would produce
+without touching Pinecone, and `--limit 50` exercises the whole pipeline in
+seconds.
 
 ## Create the Space
 

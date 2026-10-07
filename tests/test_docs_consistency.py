@@ -62,3 +62,30 @@ def test_the_rate_limit_is_explained_where_it_is_documented():
     """Its being global rather than per-visitor is the surprising part."""
     assert "RATE_LIMIT_PER_MINUTE" in DEPLOY
     assert "global" in DEPLOY
+
+
+def _indexer_flags():
+    """Flags argparse actually defines, read out of store_index.py's source."""
+    source = (ROOT / "store_index.py").read_text()
+    return set(re.findall(r'add_argument\(\s*"(--[a-z-]+)"', source))
+
+
+def test_the_flags_are_found():
+    assert len(_indexer_flags()) >= 3
+
+
+def test_every_indexer_flag_is_documented():
+    undocumented = {f for f in _indexer_flags() if f"`{f}" not in README}
+    assert not undocumented, (
+        f"store_index.py accepts flags the README omits: {undocumented}"
+    )
+
+
+def test_the_readme_documents_no_flag_that_does_not_exist():
+    documented = set(re.findall(r"^\| `(--[a-z-]+)", README, re.MULTILINE))
+    assert documented <= _indexer_flags(), f"invented: {documented - _indexer_flags()}"
+
+
+def test_the_deployment_guide_uses_recreate_for_the_rebuild():
+    """A plain re-run cannot clear ids this script no longer generates."""
+    assert "--recreate" in DEPLOY

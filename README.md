@@ -181,9 +181,20 @@ This loads and chunks `Data/Medical_book.pdf`, downloads the embedding model,
 creates a serverless Pinecone index called `medicalbot` (384 dimensions, cosine
 metric, AWS `us-east-1`) and upserts every chunk into it.
 
-The script is safe to re-run: index creation is skipped if `medicalbot` already
-exists. Note that re-running it upserts the chunks again under fresh ids, so
-delete the index first if you want a clean rebuild.
+The script is safe to re-run. Vector ids are derived from the chunk text, so a
+second run overwrites rather than duplicates.
+
+| Flag | What it does |
+|---|---|
+| `--dry-run` | Load and chunk the PDFs, report the counts, touch nothing. Needs no API key. |
+| `--limit N` | Run the whole pipeline over the first N chunks — a cheap end-to-end check before a full rebuild. |
+| `--recreate` | Delete the index first, then rebuild. Needed to clear vectors written under ids this script no longer generates. |
+
+```bash
+python store_index.py --dry-run          # what would a rebuild produce?
+python store_index.py --limit 50         # does the whole pipeline work?
+python store_index.py --recreate         # clean rebuild
+```
 
 ## Run the chatbot
 
