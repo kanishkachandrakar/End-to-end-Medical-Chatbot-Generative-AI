@@ -93,6 +93,29 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # Everything else about the image is checked statically. This runs the
+      # real Flask app out of the real image and asks it for a page: it needs
+      # no keys, because create_app() takes the chain as an argument.
+      - name: Check the app inside the image can serve a request
+        run: |
+          docker run --rm --entrypoint python medibot:ci -c "
+          from src.webapp import create_app
+
+          class Chain:
+              def invoke(self, payload):
+                  return {'answer': 'a stubbed answer'}
+
+          client = create_app(Chain()).test_client()
+          health = client.get('/healthz')
+          assert health.status_code == 200, health.status_code
+          page = client.get('/')
+          assert page.status_code == 200 and b'messageArea' in page.data
+          answer = client.post('/get', data={'msg': 'what is acne?'})
+          assert answer.data == b'a stubbed answer', answer.data
+          assert answer.mimetype == 'text/plain'
+          print('image serves /, /healthz and /get')
+          "
+
       # Proves the entrypoint resolves and gunicorn can parse its config,
       # without needing API keys: app:app is only imported by a real worker.
       - name: Check the container's gunicorn config
