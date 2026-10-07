@@ -27,6 +27,13 @@ def parse_args(argv=None) -> argparse.Namespace:
         description="Chunk the PDFs in Data/ and upsert them into Pinecone."
     )
     parser.add_argument(
+        "--recreate",
+        action="store_true",
+        help="delete the index first, then rebuild it. The only way to clear "
+        "vectors written under ids this script no longer generates -- notably "
+        "the duplicates left by the notebook's upsert cell.",
+    )
+    parser.add_argument(
         "--limit",
         type=int,
         metavar="N",
@@ -78,7 +85,18 @@ def main(argv=None) -> None:
 
     pc = Pinecone(api_key=api_key)
 
-    if INDEX_NAME in pc.list_indexes().names():
+    exists = INDEX_NAME in pc.list_indexes().names()
+
+    if exists and args.recreate:
+        # Deterministic ids make a re-run an overwrite, but only for ids this
+        # script would generate. Anything upserted under a random uuid -- every
+        # duplicate the notebook left behind -- can only be removed with the
+        # index itself.
+        print(f"deleting index {INDEX_NAME!r}")
+        pc.delete_index(INDEX_NAME)
+        exists = False
+
+    if exists:
         print(f"index {INDEX_NAME!r} already exists, skipping creation")
     else:
         print(f"creating index {INDEX_NAME!r}")

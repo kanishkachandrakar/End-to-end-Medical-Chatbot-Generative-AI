@@ -130,6 +130,10 @@ def indexer(monkeypatch):
         def create_index(self, **kwargs):
             calls["created"].append(kwargs)
 
+        def delete_index(self, name):
+            calls.setdefault("deleted", []).append(name)
+            calls["existing"] = [n for n in calls["existing"] if n != name]
+
     pinecone = types.ModuleType("pinecone")
     pinecone.ServerlessSpec = lambda **kw: ("spec", kw)
     grpc = types.ModuleType("pinecone.grpc")
@@ -272,3 +276,45 @@ def test_limit_combines_with_dry_run(indexer, capsys, monkeypatch):
 def test_limit_defaults_to_everything(indexer):
     module, _ = indexer
     assert module.parse_args([]).limit is None
+
+
+def test_recreate_deletes_then_rebuilds(indexer):
+    """The only way to clear vectors written under ids we no longer generate."""
+    module, calls = indexer
+    calls["existing"] = [module.INDEX_NAME]
+    module.main(["--recreate"])
+    assert calls.get("deleted") == [module.INDEX_NAME]
+    assert len(calls["created"]) == 1
+    assert calls["upserts"], "it must repopulate what it deleted"
+
+
+def test_recreate_on_a_missing_index_just_creates_it(indexer):
+    module, calls = indexer
+    calls["existing"] = []
+    module.main(["--recreate"])
+    assert calls.get("deleted") is None
+    assert len(calls["created"]) == 1
+
+
+def test_without_recreate_the_index_is_left_alone(indexer):
+    module, calls = indexer
+    calls["existing"] = [module.INDEX_NAME]
+    module.main([])
+    assert calls.get("deleted") is None
+    assert calls["created"] == []
+
+
+def test_recreate_reports_the_deletion(indexer, capsys):
+    module, calls = indexer
+    calls["existing"] = [module.INDEX_NAME]
+    module.main(["--recreate"])
+    assert "deleting index" in capsys.readouterr().out
+
+
+def test_a_dry_run_never_deletes(indexer):
+    """--dry-run returns before Pinecone is contacted at all."""
+    module, calls = indexer
+    calls["existing"] = [module.INDEX_NAME]
+    module.main(["--recreate", "--dry-run"])
+    assert calls.get("deleted") is None
+    assert calls["upserts"] == []
