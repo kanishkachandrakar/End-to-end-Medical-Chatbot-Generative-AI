@@ -5,7 +5,8 @@ import re
 
 import pytest
 
-from src.webapp import CSP, SECURITY_HEADERS, create_app
+from src.headers import CSP, SECURITY_HEADERS
+from src.webapp import create_app
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 PAGE_SOURCES = (
