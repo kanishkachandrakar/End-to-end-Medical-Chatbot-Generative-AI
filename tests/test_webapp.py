@@ -1,5 +1,7 @@
 """The request path, driven through Flask's test client with a stub chain."""
 
+import pathlib
+
 import pytest
 
 from src.config import MAX_QUESTION_CHARS
@@ -317,3 +319,40 @@ def test_the_body_ceiling_is_well_above_the_question_limit(client_for):
     from src.config import MAX_CONTENT_BYTES, MAX_QUESTION_CHARS
 
     assert MAX_CONTENT_BYTES > MAX_QUESTION_CHARS * 10
+
+
+def test_static_urls_are_fingerprinted(client_for):
+    """Needed before a long cache lifetime is safe to set."""
+    page = client_for(StubChain()).get("/").data.decode()
+    assert "chat.js?v=" in page
+    assert "style.css?v=" in page
+
+
+def test_the_fingerprint_changes_when_the_file_does(tmp_path, monkeypatch):
+    """Otherwise an edit would never reach a visitor who has the old copy."""
+    import os
+
+    from src.webapp import _static_version, create_app
+
+    app = create_app(StubChain())
+    asset = pathlib.Path(app.static_folder) / "chat.js"
+    before = _static_version(app, "chat.js")
+    os.utime(asset, (asset.stat().st_atime, asset.stat().st_mtime + 60))
+    try:
+        assert _static_version(app, "chat.js") != before
+    finally:
+        os.utime(asset, (asset.stat().st_atime, asset.stat().st_mtime - 60))
+
+
+def test_a_missing_static_file_does_not_break_the_page(client_for):
+    """url_for is called during render; an OSError there would be a 500."""
+    from src.webapp import _static_version, create_app
+
+    app = create_app(StubChain())
+    assert _static_version(app, "no-such-file.js") == ""
+
+
+def test_static_assets_are_sent_with_a_long_cache_lifetime(client_for):
+    response = client_for(StubChain()).get("/static/chat.js")
+    assert response.status_code == 200
+    assert "max-age=" in response.headers.get("Cache-Control", "")
