@@ -37,25 +37,15 @@ PINECONE_API_KEY = _keys["PINECONE_API_KEY"]
 GROQ_API_KEY = _keys["GROQ_API_KEY"]
 
 
-def report_index_size(logger) -> None:
-    """Say how many vectors are in the index, so an empty one is obvious."""
+def read_index_size() -> int | None:
+    """Vector count for the index, or None if it could not be read."""
     try:
         from pinecone import Pinecone
 
         index = Pinecone(api_key=PINECONE_API_KEY).Index(INDEX_NAME)
-        count = index.describe_index_stats().get("total_vector_count") or 0
+        return index.describe_index_stats().get("total_vector_count") or 0
     except Exception:
-        logger.warning("could not read stats for index %r", INDEX_NAME, exc_info=True)
-        return
-
-    if count:
-        logger.info("index %r holds %s vectors", INDEX_NAME, count)
-    else:
-        logger.warning(
-            "index %r is empty -- run 'python store_index.py' first, or every "
-            "answer will be produced with no retrieved context",
-            INDEX_NAME,
-        )
+        return None
 
 
 def build_chain():
@@ -89,8 +79,23 @@ def build_chain():
     return create_retrieval_chain(retriever, create_stuff_documents_chain(llm, prompt))
 
 
-app = create_app(build_chain(), limiter=per_minute(RATE_LIMIT_PER_MINUTE))
-report_index_size(app.logger)
+_index_size = read_index_size()
+app = create_app(
+    build_chain(),
+    limiter=per_minute(RATE_LIMIT_PER_MINUTE),
+    index_size=_index_size,
+)
+
+if _index_size is None:
+    app.logger.warning("could not read stats for index %r", INDEX_NAME)
+elif _index_size:
+    app.logger.info("index %r holds %s vectors", INDEX_NAME, _index_size)
+else:
+    app.logger.warning(
+        "index %r is empty -- run 'python store_index.py' first, or every "
+        "answer will be produced with no retrieved context",
+        INDEX_NAME,
+    )
 
 
 if __name__ == "__main__":

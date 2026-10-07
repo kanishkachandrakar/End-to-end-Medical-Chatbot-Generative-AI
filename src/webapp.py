@@ -110,11 +110,18 @@ def _static_version(app: Flask, filename: str) -> str:
         return ""
 
 
-def create_app(rag_chain: RagChain, limiter: TokenBucket | None = None) -> Flask:
+def create_app(
+    rag_chain: RagChain,
+    limiter: TokenBucket | None = None,
+    index_size: int | None = None,
+) -> Flask:
     """Build the Flask app around an object exposing .invoke({"input": ...}).
 
     ``limiter`` is an optional TokenBucket spending one token per answered
     question. None means no limit, which is what the tests use.
+
+    ``index_size`` is the vector count read once at startup, reported by
+    /healthz. None means it could not be determined.
     """
     app = Flask(
         __name__,
@@ -188,9 +195,14 @@ def create_app(rag_chain: RagChain, limiter: TokenBucket | None = None) -> Flask
     def healthz() -> Response:
         """Liveness probe: a reply means the chain was built and the app is up.
 
-        Also names the revision, so a deploy can be confirmed without a log.
+        Also names the revision, so a deploy can be confirmed without a log,
+        and flags an empty index -- the failure that otherwise looks like
+        success, since every request still returns a fluent answer.
         """
-        return text_reply(f"ok {APP_REVISION}")
+        if index_size == 0:
+            return text_reply(f"degraded {APP_REVISION} index-empty", 503)
+        vectors = "unknown" if index_size is None else str(index_size)
+        return text_reply(f"ok {APP_REVISION} vectors={vectors}")
 
     @app.route("/get", methods=["POST"])
     def chat() -> Response:

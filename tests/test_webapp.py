@@ -291,7 +291,7 @@ def test_healthz_names_the_revision(client_for, monkeypatch):
     reloaded = importlib.reload(webapp)
     try:
         client = reloaded.create_app(StubChain()).test_client()
-        assert client.get("/healthz").data == b"ok deadbee"
+        assert client.get("/healthz").data.decode().startswith("ok deadbee")
     finally:
         monkeypatch.delenv("APP_REVISION", raising=False)
         importlib.reload(webapp)
@@ -356,3 +356,36 @@ def test_static_assets_are_sent_with_a_long_cache_lifetime(client_for):
     response = client_for(StubChain()).get("/static/chat.js")
     assert response.status_code == 200
     assert "max-age=" in response.headers.get("Cache-Control", "")
+
+
+def test_healthz_reports_the_vector_count():
+    from src.webapp import create_app
+
+    client = create_app(StubChain(), index_size=5860).test_client()
+    assert b"vectors=5860" in client.get("/healthz").data
+
+
+def test_healthz_is_degraded_when_the_index_is_empty():
+    """The failure that looks like success: fluent answers, no retrieval."""
+    from src.webapp import create_app
+
+    response = create_app(StubChain(), index_size=0).test_client().get("/healthz")
+    assert response.status_code == 503
+    assert b"index-empty" in response.data
+
+
+def test_healthz_says_unknown_when_the_count_could_not_be_read():
+    from src.webapp import create_app
+
+    response = create_app(StubChain(), index_size=None).test_client().get("/healthz")
+    assert response.status_code == 200
+    assert b"vectors=unknown" in response.data
+
+
+def test_the_fingerprint_is_empty_without_a_static_folder():
+    """An app configured without static files must not raise during render."""
+    import types
+
+    from src.webapp import _static_version
+
+    assert _static_version(types.SimpleNamespace(static_folder=None), "chat.js") == ""
