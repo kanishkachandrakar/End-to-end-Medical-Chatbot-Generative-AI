@@ -298,3 +298,22 @@ def test_healthz_names_the_revision(client_for, monkeypatch):
 def test_healthz_still_says_ok_without_a_revision(client_for):
     body = client_for(StubChain()).get("/healthz").data.decode()
     assert body.startswith("ok ")
+
+
+def test_an_enormous_body_is_refused(client_for):
+    """MAX_QUESTION_CHARS only applies after parsing; this refuses it earlier."""
+    from src.config import MAX_CONTENT_BYTES
+
+    chain = StubChain()
+    response = client_for(chain).post(
+        "/get", data={"msg": "x" * (MAX_CONTENT_BYTES + 1024)}
+    )
+    assert response.status_code == 413
+    assert chain.calls == []
+
+
+def test_the_body_ceiling_is_well_above_the_question_limit(client_for):
+    """It is a backstop, not the limit a user should ever meet."""
+    from src.config import MAX_CONTENT_BYTES, MAX_QUESTION_CHARS
+
+    assert MAX_CONTENT_BYTES > MAX_QUESTION_CHARS * 10

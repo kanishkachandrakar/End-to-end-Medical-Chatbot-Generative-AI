@@ -27,6 +27,9 @@ CHUNK_OVERLAP = int(os.environ.get("CHUNK_OVERLAP", "20"))
 # Retrieval and generation.
 TOP_K = int(os.environ.get("TOP_K", "3"))
 MAX_QUESTION_CHARS = int(os.environ.get("MAX_QUESTION_CHARS", "500"))
+# Hard ceiling on a request body, applied by Flask before it is parsed.
+# Generous next to MAX_QUESTION_CHARS: this is the last line, not the limit.
+MAX_CONTENT_BYTES = int(os.environ.get("MAX_CONTENT_BYTES", str(64 * 1024)))
 # Questions answered per minute across the whole app; 0 disables the limit.
 RATE_LIMIT_PER_MINUTE = int(os.environ.get("RATE_LIMIT_PER_MINUTE", "30"))
 GROQ_MODEL = os.environ.get("GROQ_MODEL", "deepseek-r1-distill-qwen-32b")

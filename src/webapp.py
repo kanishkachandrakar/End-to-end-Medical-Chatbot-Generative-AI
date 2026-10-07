@@ -16,7 +16,7 @@ from typing import Any, Protocol
 
 from flask import Flask, Response, g, render_template, request
 
-from src.config import LOG_LEVEL, MAX_QUESTION_CHARS
+from src.config import LOG_LEVEL, MAX_CONTENT_BYTES, MAX_QUESTION_CHARS
 from src.errors import failure_reply
 from src.ratelimit import TokenBucket
 from src.text import strip_reasoning
@@ -101,6 +101,12 @@ def create_app(rag_chain: RagChain, limiter: TokenBucket | None = None) -> Flask
     # which is WARNING -- so every logger.info() call below would be dropped
     # under gunicorn. Setting it explicitly is what makes them appear.
     app.logger.setLevel(LOG_LEVEL)
+
+    # Checked by Flask before the body is read, so a huge upload is refused
+    # rather than buffered. MAX_QUESTION_CHARS only applies after parsing, by
+    # which point the bytes are already in memory -- and the worker has four
+    # threads sharing a free tier's RAM.
+    app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_BYTES
 
     @app.errorhandler(404)
     @app.errorhandler(405)
