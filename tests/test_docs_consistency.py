@@ -89,3 +89,21 @@ def test_the_readme_documents_no_flag_that_does_not_exist():
 def test_the_deployment_guide_uses_recreate_for_the_rebuild():
     """A plain re-run cannot clear ids this script no longer generates."""
     assert "--recreate" in DEPLOY
+
+
+def test_the_makefile_runs_what_ci_runs():
+    """A local `make check` that diverges from CI is worse than no shortcut."""
+    makefile = (ROOT / "Makefile").read_text()
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    commands = ("ruff check .", "node --check static/chat.js", "--cov-fail-under=95")
+    for command in commands:
+        assert command in makefile, f"Makefile omits {command!r}"
+        assert command in workflow, f"CI omits {command!r}"
+
+
+def test_every_makefile_target_is_documented():
+    """`make help` reads the ## comments, so an undocumented target is hidden."""
+    makefile = (ROOT / "Makefile").read_text()
+    declared = set(re.findall(r"^\.PHONY: (.+)$", makefile, re.MULTILINE)[0].split())
+    documented = set(re.findall(r"^([a-z-]+):.*?## ", makefile, re.MULTILINE))
+    assert declared == documented, f"undocumented: {declared - documented}"

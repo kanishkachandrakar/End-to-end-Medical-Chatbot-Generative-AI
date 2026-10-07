@@ -142,6 +142,9 @@ pip install -r requirements-dev.txt
 python -m pytest
 ```
 
+`make check` runs the lint and the suite exactly as CI does; `make help` lists
+the rest.
+
 The suite needs no API keys, no network and no embedding model — which is also
 why CI does not install torch. Everything in `src/` is covered; the floor is
 enforced at 95% in CI.
