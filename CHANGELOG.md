@@ -72,6 +72,26 @@ log.
   build, and the JavaScript and shell script checked, on Python 3.10 and 3.12.
 - [SECURITY.md](SECURITY.md), recording the exposed keys and what a public
   deployment of this does and does not defend against.
+- `python store_index.py --recreate` deletes the index before rebuilding, which
+  is the only way to clear vectors written under ids the script no longer
+  generates — the notebook's duplicates.
+- `GET /healthz` reports the vector count and answers 503 `index-empty` when
+  there is nothing to retrieve from, so the failure that looks like success is
+  visible to a monitor.
+- A `Makefile` wrapping the checks CI runs.
+
+### Changed — infrastructure
+
+- CI builds the image and then uses it: the app is served out of it and asked
+  for a page, the embedding dimension is checked against `EMBED_DIM`, and the
+  image size is held to a budget. The dimension check exists because the unit
+  suite never loads the model, so nothing else would notice an embedding
+  library upgrade invalidating every vector in the index.
+- The suite runs on Python 3.10 and 3.12, and the JavaScript and shell script
+  are checked.
+- Static assets are fingerprinted by modification time and cached for a year.
+- Request bodies above `MAX_CONTENT_BYTES` are refused by Flask before being
+  parsed, rather than after.
 
 ### Known limitations
 
