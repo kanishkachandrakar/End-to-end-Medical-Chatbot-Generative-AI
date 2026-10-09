@@ -247,8 +247,20 @@ repository's history, and rebuilding the index to clear duplicate chunks.
   `all-MiniLM-L6-v2` from HuggingFace on the first run; later runs use the cache.
 - **`Missing required environment variable(s)` on startup** – `.env` is absent
   or a key is blank. Copy `.env.example` and fill both values in.
-- **Empty or off-topic answers** – confirm the `medicalbot` index actually
-  contains vectors (see the note under *Build the vector index*).
+- **Empty or off-topic answers** – ask `/healthz`. `degraded … index-empty`
+  means the index has no vectors, so nothing is being retrieved and the model
+  is answering from its own knowledge; rebuild with
+  `python store_index.py --recreate`.
+- **`degraded … chain-unavailable` from `/healthz`** – the app started but the
+  retrieval chain did not build: usually a wrong or missing key, or Pinecone
+  unreachable. The traceback is in the log. The app stays up on purpose so that
+  this is reportable rather than a restart loop.
+- **The page loads but every question fails** – check `/healthz` first; if that
+  is `ok`, the failure is per-request, and the reply quotes a `ref` that appears
+  in the log next to the traceback.
+- **Index dimension errors** – `store_index.py` refuses up front if the
+  existing index's dimension does not match the embedding model, and names
+  both. Changing `EMBED_MODEL` means rebuilding with `--recreate`.
 - **Changing the model** – edit the `ChatGroq(...)` call in `app.py`. If you
   switch to a model that doesn't emit `<think>` tags the regex cleanup in
   `chat()` is harmless.
