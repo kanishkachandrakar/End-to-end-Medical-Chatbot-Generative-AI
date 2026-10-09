@@ -29,12 +29,15 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["src"]
+# app.py is in here now that create() made it importable without keys.
+source = ["src", "app"]
 
 [tool.coverage.report]
 show_missing = true
 exclude_also = [
     "if TYPE_CHECKING:",
+    # Only runs under `python app.py`, which is the development server.
+    'if __name__ == .__main__.:',
     "^\\s*\\.\\.\\.$",
     # Constructing HuggingFaceEmbeddings loads torch and downloads weights;
     # CI installs neither, by design.
