@@ -47,10 +47,22 @@ def test_the_healthcheck_uses_the_same_fallback():
     assert fallback and fallback.group(1) == _frontmatter()["app_port"]
 
 
-def test_the_container_runs_the_app_module_gunicorn_expects():
-    assert "app:app" in DOCKERFILE
+def test_the_container_runs_the_factory_app_py_defines():
+    """Gunicorn is told app:create(); app.py has to define create()."""
+    assert "app:create()" in DOCKERFILE
     app_py = (ROOT / "app.py").read_text()
-    assert re.search(r"^app = create_app\(", app_py, re.MULTILINE)
+    assert re.search(r"^def create\(\)", app_py, re.MULTILINE)
+
+
+def test_nothing_runs_when_app_py_is_imported():
+    """The factory exists so that importing app.py has no side effects."""
+    import ast
+
+    tree = ast.parse((ROOT / "app.py").read_text())
+    top_level = [type(node).__name__ for node in tree.body]
+    assert set(top_level) <= {"Expr", "Import", "ImportFrom", "FunctionDef", "If"}, (
+        f"app.py runs something at import: {top_level}"
+    )
 
 
 def test_gunicorn_logs_to_stdout():

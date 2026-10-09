@@ -56,4 +56,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
 
 # Settings live in gunicorn.conf.py, which also resolves $PORT -- so this is
 # the exec form with no shell in between, and gunicorn is PID 1.
-CMD ["gunicorn", "--config", "gunicorn.conf.py", "app:app"]
+# app:create() -- the trailing parentheses make gunicorn treat it as an
+# application factory and call it, rather than looking for a module-level
+# variable. Nothing then runs when app.py is merely imported.
+CMD ["gunicorn", "--config", "gunicorn.conf.py", "app:create()"]
