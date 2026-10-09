@@ -9,6 +9,7 @@ from pinecone.grpc import PineconeGRPC as Pinecone
 from src.chunking import text_split
 from src.config import (
     EMBED_DIM,
+    EMBED_MODEL,
     INDEX_NAME,
     PINECONE_CLOUD,
     PINECONE_REGION,
@@ -98,6 +99,17 @@ def main(argv=None) -> None:
 
     if exists:
         print(f"index {INDEX_NAME!r} already exists, skipping creation")
+        # Upserting a differently-sized vector is rejected by Pinecone per
+        # batch, after the PDF has been parsed and the model loaded, with an
+        # error that names neither side of the mismatch. Check it up front.
+        existing_dim = pc.describe_index(INDEX_NAME).dimension
+        if existing_dim != EMBED_DIM:
+            raise SystemExit(
+                f"index {INDEX_NAME!r} has {existing_dim} dimensions but "
+                f"{EMBED_MODEL} produces {EMBED_DIM}. Either point EMBED_MODEL "
+                f"at a {existing_dim}-dimensional model, or rebuild the index "
+                f"with --recreate."
+            )
     else:
         print(f"creating index {INDEX_NAME!r}")
         pc.create_index(

@@ -130,6 +130,11 @@ def indexer(monkeypatch):
         def create_index(self, **kwargs):
             calls["created"].append(kwargs)
 
+        def describe_index(self, name):
+            return types.SimpleNamespace(
+                dimension=calls.get("dimension", 384), name=name
+            )
+
         def delete_index(self, name):
             calls.setdefault("deleted", []).append(name)
             calls["existing"] = [n for n in calls["existing"] if n != name]
@@ -318,3 +323,49 @@ def test_a_dry_run_never_deletes(indexer):
     module.main(["--recreate", "--dry-run"])
     assert calls.get("deleted") is None
     assert calls["upserts"] == []
+
+
+def test_a_dimension_mismatch_stops_before_upserting(indexer):
+    """Pinecone would reject each batch instead, after all the slow work."""
+    module, calls = indexer
+    calls["existing"] = [module.INDEX_NAME]
+    calls["dimension"] = 768
+    with pytest.raises(SystemExit) as caught:
+        module.main([])
+    message = str(caught.value)
+    assert "768" in message and str(module.EMBED_DIM) in message
+    assert calls["upserts"] == [], "nothing may be written on a mismatch"
+
+
+def test_the_mismatch_message_says_what_to_do(indexer):
+    module, calls = indexer
+    calls["existing"] = [module.INDEX_NAME]
+    calls["dimension"] = 1024
+    with pytest.raises(SystemExit, match="--recreate"):
+        module.main([])
+
+
+def test_a_matching_dimension_proceeds(indexer):
+    module, calls = indexer
+    calls["existing"] = [module.INDEX_NAME]
+    calls["dimension"] = module.EMBED_DIM
+    module.main([])
+    assert calls["upserts"]
+
+
+def test_the_dimension_is_not_checked_on_a_fresh_index(indexer):
+    """There is nothing to disagree with; it is created at EMBED_DIM."""
+    module, calls = indexer
+    calls["existing"] = []
+    calls["dimension"] = 768
+    module.main([])
+    assert calls["created"][0]["dimension"] == module.EMBED_DIM
+
+
+def test_recreate_sidesteps_a_mismatch(indexer):
+    """The documented escape: delete the old index and build it correctly."""
+    module, calls = indexer
+    calls["existing"] = [module.INDEX_NAME]
+    calls["dimension"] = 768
+    module.main(["--recreate"])
+    assert calls["created"][0]["dimension"] == module.EMBED_DIM
