@@ -33,6 +33,11 @@ log.
   doctype, **jQuery loaded three times**, and **HTML injection** in the chat log,
   which built bubbles by string concatenation and passed them through
   `$.parseHTML`.
+- **A crash loop when a dependency was down at startup.** If Pinecone or
+  HuggingFace was unreachable as the worker booted, building the retrieval
+  chain raised, the worker died, gunicorn restarted it and it raised again —
+  a Space that never came up, with `/healthz` unreachable so nothing could say
+  why. It now starts anyway and reports `degraded … chain-unavailable`.
 
 ### Changed — behaviour
 
@@ -78,7 +83,11 @@ log.
 - `GET /healthz` reports the vector count and answers 503 `index-empty` when
   there is nothing to retrieve from, so the failure that looks like success is
   visible to a monitor.
-- A `Makefile` wrapping the checks CI runs.
+- A `Makefile` wrapping the checks CI runs, and a pre-commit configuration for
+  the fast half of them.
+- `--yes` skips the confirmation `--recreate` now asks for before deleting an
+  index, and `store_index.py` refuses up front if the existing index's
+  dimension does not match the embedding model.
 
 ### Changed — infrastructure
 
@@ -92,6 +101,13 @@ log.
 - Static assets are fingerprinted by modification time and cached for a year.
 - Request bodies above `MAX_CONTENT_BYTES` are refused by Flask before being
   parsed, rather than after.
+- Gunicorn calls `app:create()` as an application factory, so importing
+  `app.py` runs nothing — which is what finally brought it under test.
+- CI boots the container and requests `/healthz` over HTTP, which is the only
+  check that exercises gunicorn, its config and the factory together. It needs
+  no credentials because the app degrades rather than refusing to start.
+- mypy runs over `src/`, `app.py` and `store_index.py`.
+- `/healthz` reports one of three states; see [DEPLOY.md](DEPLOY.md).
 
 ### Known limitations
 
