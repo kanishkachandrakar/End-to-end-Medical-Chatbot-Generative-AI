@@ -130,6 +130,37 @@ jobs:
           print('image serves /, /healthz and /get')
           "
 
+      # The only check that starts the container the way a host does: gunicorn,
+      # its config, and app:create() resolving to a callable factory. None of
+      # that is exercised by running python inside the image.
+      #
+      # It needs no real credentials because create() degrades rather than
+      # raising when the chain cannot be built -- so a container with junk keys
+      # still binds the port and answers /healthz, with 503 and the reason.
+      - name: Boot the container and ask it for /healthz
+        run: |
+          docker run -d --name medibot-boot -p 7860:7860 \
+            -e PINECONE_API_KEY=not-a-real-key \
+            -e GROQ_API_KEY=not-a-real-key \
+            medibot:ci
+
+          for attempt in $(seq 1 30); do
+            code=$(curl -s -o /tmp/healthz -w '%{http_code}' http://127.0.0.1:7860/healthz || true)
+            case "$code" in
+              200|503) echo "answered $code: $(cat /tmp/healthz)"; break ;;
+            esac
+            sleep 2
+          done
+
+          docker logs medibot-boot
+          docker rm -f medibot-boot >/dev/null
+
+          case "$code" in
+            200|503) ;;
+            *) echo "::error::the container never answered /healthz (last: ${code:-none})"
+               exit 1 ;;
+          esac
+
       # Proves the entrypoint resolves and gunicorn can parse its config,
       # without needing API keys: app:app is only imported by a real worker.
       - name: Check the container's gunicorn config
