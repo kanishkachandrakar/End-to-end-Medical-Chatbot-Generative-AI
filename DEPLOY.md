@@ -84,8 +84,22 @@ index 'medicalbot' holds 5900 vectors
 If it says the index is empty, the app will answer with no retrieved context —
 go back to *Rebuild the index*.
 
-Then open the Space and ask something like *What is hypertension?*. There is
-also `GET /healthz`, which returns `ok` without spending a Groq call.
+Then open the Space and ask something like *What is hypertension?*.
+
+`GET /healthz` answers without spending a Groq call, and says which of three
+states the app is in:
+
+| Response | Status | Meaning |
+|---|---|---|
+| `ok <rev> vectors=5860` | 200 | Working. `<rev>` is the commit the image was built from, so you can confirm a deploy took effect. |
+| `degraded <rev> index-empty` | 503 | Running, but the index has no vectors — every answer will be ungrounded. Rebuild it. |
+| `degraded <rev> chain-unavailable` | 503 | Running, but the retrieval chain could not be built at startup: a bad key, or Pinecone unreachable. The reason is in the runtime log. |
+| no response at all | — | The container is not serving. Check the build log, then the runtime log. |
+
+The third row is why the app starts even when its dependencies are down: it
+would otherwise crash, restart, crash again, and tell you nothing. A transient
+outage at boot also recovers on the next restart rather than needing a manual
+one.
 
 ## Optional settings
 
