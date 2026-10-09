@@ -23,8 +23,9 @@ test:  ## Run the whole suite with the coverage gate CI applies
 fast:  ## Run the suite without the ten-second langchain_community import
 	$(PYTHON) -m pytest -m "not slow" --no-cov
 
-lint:  ## Check formatting, imports and the non-Python files
+lint:  ## Check formatting, imports, types and the non-Python files
 	ruff check .
+	$(PYTHON) -m mypy src app.py store_index.py
 	node --check static/chat.js
 	bash -n scripts/deploy_space.sh
 

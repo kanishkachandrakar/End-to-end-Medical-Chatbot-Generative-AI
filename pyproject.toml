@@ -18,6 +18,15 @@ select = ["E", "F", "W", "I", "UP", "B"]
 # built; it is not maintained to the same standard as src/.
 "research/*" = ["ALL"]
 
+[tool.mypy]
+python_version = "3.10"
+# Most of the dependency tree ships no stubs; checking our own annotations is
+# the point, not re-typing langchain.
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unreachable = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # Coverage is reported locally but not enforced: the floor only makes sense over

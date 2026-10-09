@@ -43,6 +43,9 @@ jobs:
 
       # The floor belongs here rather than in pytest.ini: it is only
       # meaningful across the whole suite, which is what CI runs.
+      - name: Type-check
+        run: mypy src app.py store_index.py
+
       - name: Test
         run: python -m pytest --cov-fail-under=95
 

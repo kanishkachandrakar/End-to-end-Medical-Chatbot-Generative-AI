@@ -14,7 +14,14 @@ from src.config import EMBED_MODEL
 
 def load_pdf(data_dir: str) -> list[Document]:
     """Load every top-level *.pdf in ``data_dir``, one Document per page."""
-    loader = DirectoryLoader(data_dir, glob="*.pdf", loader_cls=PyPDFLoader)
+    # The ignore below is upstream's fault: langchain_community annotates
+    # loader_cls with a union of four loaders that excludes PyPDFLoader, even
+    # though passing it is the documented way to load PDFs.
+    loader = DirectoryLoader(
+        data_dir,
+        glob="*.pdf",
+        loader_cls=PyPDFLoader,  # type: ignore[arg-type]
+    )
     return loader.load()
 
 
