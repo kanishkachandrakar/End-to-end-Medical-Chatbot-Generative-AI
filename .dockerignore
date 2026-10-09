@@ -13,8 +13,14 @@ research/
 __pycache__/
 *.py[cod]
 *.egg-info/
+
+# A local virtualenv is gigabytes of wheels for the host's platform. Left in
+# the build context it is uploaded to the daemon on every build and, worse,
+# COPY . . would put it in the image.
 .venv/
 venv/
+env/
+.tox/
 
 # README.md carries the Space's configuration frontmatter, so the Space repo
 # needs it -- but the running container has no use for any of this.
