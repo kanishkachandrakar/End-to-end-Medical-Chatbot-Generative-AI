@@ -67,7 +67,7 @@ jobs:
           shellcheck --severity=error scripts/deploy_space.sh
 
       - name: Validate the Dockerfile
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: false
@@ -87,7 +87,7 @@ jobs:
       # weights, which is most of the build time. gha scopes the cache per
       # branch and falls back to main's.
       - name: Build the image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: false
