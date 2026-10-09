@@ -145,6 +145,9 @@ python -m pytest
 `make check` runs the lint and the suite exactly as CI does; `make help` lists
 the rest.
 
+Optionally, `pip install pre-commit && pre-commit install` runs the fast checks
+before each commit.
+
 The suite needs no API keys, no network and no embedding model — which is also
 why CI does not install torch. Everything in `src/` is covered; the floor is
 enforced at 95% in CI.
