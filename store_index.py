@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 
 from dotenv import load_dotenv
 from langchain_pinecone import PineconeVectorStore
@@ -33,6 +34,12 @@ def parse_args(argv=None) -> argparse.Namespace:
         help="delete the index first, then rebuild it. The only way to clear "
         "vectors written under ids this script no longer generates -- notably "
         "the duplicates left by the notebook's upsert cell.",
+    )
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="skip the confirmation that --recreate asks for. Required when "
+        "running without a terminal, such as in a script.",
     )
     parser.add_argument(
         "--limit",
@@ -87,6 +94,16 @@ def main(argv=None) -> None:
     pc = Pinecone(api_key=api_key)
 
     exists = INDEX_NAME in pc.list_indexes().names()
+
+    if exists and args.recreate and not args.yes:
+        if not sys.stdin.isatty():
+            raise SystemExit(
+                f"--recreate would delete the index {INDEX_NAME!r} and there is "
+                "no terminal to confirm at. Pass --yes if that is intended."
+            )
+        print(f"This deletes the index {INDEX_NAME!r} and everything in it.")
+        if input("Type the index name to confirm: ").strip() != INDEX_NAME:
+            raise SystemExit("not confirmed, nothing was changed")
 
     if exists and args.recreate:
         # Deterministic ids make a re-run an overwrite, but only for ids this

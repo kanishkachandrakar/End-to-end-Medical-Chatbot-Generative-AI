@@ -191,12 +191,13 @@ second run overwrites rather than duplicates.
 |---|---|
 | `--dry-run` | Load and chunk the PDFs, report the counts, touch nothing. Needs no API key. |
 | `--limit N` | Run the whole pipeline over the first N chunks — a cheap end-to-end check before a full rebuild. |
-| `--recreate` | Delete the index first, then rebuild. Needed to clear vectors written under ids this script no longer generates. |
+| `--recreate` | Delete the index first, then rebuild. Needed to clear vectors written under ids this script no longer generates. Asks you to type the index name. |
+| `--yes` | Skip that confirmation. Required when running without a terminal. |
 
 ```bash
 python store_index.py --dry-run          # what would a rebuild produce?
 python store_index.py --limit 50         # does the whole pipeline work?
-python store_index.py --recreate         # clean rebuild
+python store_index.py --recreate         # clean rebuild (asks to confirm)
 ```
 
 ## Run the chatbot

@@ -24,6 +24,9 @@ pip install -r requirements.txt
 python store_index.py --recreate
 ```
 
+It asks you to type the index name first, since it is deleting 5,860 vectors;
+add `--yes` to skip that if you are scripting it.
+
 `--recreate` deletes the index before rebuilding, which is what clears the
 duplicates — they were written under random ids, so a plain re-run cannot
 overwrite them. Expect roughly 5,900 unique chunks.

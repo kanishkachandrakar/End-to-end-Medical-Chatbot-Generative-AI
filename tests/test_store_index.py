@@ -287,7 +287,7 @@ def test_recreate_deletes_then_rebuilds(indexer):
     """The only way to clear vectors written under ids we no longer generate."""
     module, calls = indexer
     calls["existing"] = [module.INDEX_NAME]
-    module.main(["--recreate"])
+    module.main(["--recreate", "--yes"])
     assert calls.get("deleted") == [module.INDEX_NAME]
     assert len(calls["created"]) == 1
     assert calls["upserts"], "it must repopulate what it deleted"
@@ -296,7 +296,7 @@ def test_recreate_deletes_then_rebuilds(indexer):
 def test_recreate_on_a_missing_index_just_creates_it(indexer):
     module, calls = indexer
     calls["existing"] = []
-    module.main(["--recreate"])
+    module.main(["--recreate", "--yes"])
     assert calls.get("deleted") is None
     assert len(calls["created"]) == 1
 
@@ -312,7 +312,7 @@ def test_without_recreate_the_index_is_left_alone(indexer):
 def test_recreate_reports_the_deletion(indexer, capsys):
     module, calls = indexer
     calls["existing"] = [module.INDEX_NAME]
-    module.main(["--recreate"])
+    module.main(["--recreate", "--yes"])
     assert "deleting index" in capsys.readouterr().out
 
 
@@ -367,5 +367,78 @@ def test_recreate_sidesteps_a_mismatch(indexer):
     module, calls = indexer
     calls["existing"] = [module.INDEX_NAME]
     calls["dimension"] = 768
-    module.main(["--recreate"])
+    module.main(["--recreate", "--yes"])
     assert calls["created"][0]["dimension"] == module.EMBED_DIM
+
+
+class TestRecreateConfirmation:
+    """--recreate deletes a live index; it should be hard to do by accident."""
+
+    def test_a_matching_index_name_confirms(self, indexer, monkeypatch):
+        module, calls = indexer
+        calls["existing"] = [module.INDEX_NAME]
+        monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+        monkeypatch.setattr("builtins.input", lambda *a: module.INDEX_NAME)
+        module.main(["--recreate"])
+        assert calls.get("deleted") == [module.INDEX_NAME]
+
+    def test_anything_else_aborts_without_deleting(self, indexer, monkeypatch):
+        module, calls = indexer
+        calls["existing"] = [module.INDEX_NAME]
+        monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+        monkeypatch.setattr("builtins.input", lambda *a: "yes")
+        with pytest.raises(SystemExit, match="not confirmed"):
+            module.main(["--recreate"])
+        assert calls.get("deleted") is None
+
+    def test_an_empty_answer_aborts(self, indexer, monkeypatch):
+        module, calls = indexer
+        calls["existing"] = [module.INDEX_NAME]
+        monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+        monkeypatch.setattr("builtins.input", lambda *a: "")
+        with pytest.raises(SystemExit):
+            module.main(["--recreate"])
+        assert calls.get("deleted") is None
+
+    def test_yes_skips_the_prompt(self, indexer, monkeypatch):
+        def refuse(*args):
+            raise AssertionError("--yes must not prompt")
+
+        module, calls = indexer
+        calls["existing"] = [module.INDEX_NAME]
+        monkeypatch.setattr("builtins.input", refuse)
+        module.main(["--recreate", "--yes"])
+        assert calls.get("deleted") == [module.INDEX_NAME]
+
+    def test_without_a_terminal_it_refuses_rather_than_hanging(
+        self, indexer, monkeypatch
+    ):
+        """A script piping stdin would otherwise block on input() forever."""
+        module, calls = indexer
+        calls["existing"] = [module.INDEX_NAME]
+        monkeypatch.setattr("sys.stdin.isatty", lambda: False)
+        with pytest.raises(SystemExit, match="--yes"):
+            module.main(["--recreate"])
+        assert calls.get("deleted") is None
+
+    def test_nothing_is_asked_when_there_is_no_index_to_delete(
+        self, indexer, monkeypatch
+    ):
+        def refuse(*args):
+            raise AssertionError("there is nothing to confirm")
+
+        module, calls = indexer
+        calls["existing"] = []
+        monkeypatch.setattr("builtins.input", refuse)
+        module.main(["--recreate"])
+        assert calls["created"]
+
+    def test_a_plain_run_never_prompts(self, indexer, monkeypatch):
+        def refuse(*args):
+            raise AssertionError("only --recreate is destructive")
+
+        module, calls = indexer
+        calls["existing"] = [module.INDEX_NAME]
+        monkeypatch.setattr("builtins.input", refuse)
+        module.main([])
+        assert calls["upserts"]
