@@ -389,3 +389,42 @@ def test_the_fingerprint_is_empty_without_a_static_folder():
     from src.webapp import _static_version
 
     assert _static_version(types.SimpleNamespace(static_folder=None), "chat.js") == ""
+
+
+def test_an_unavailable_chain_still_serves_the_page():
+    """A crash loop makes a Space that never comes up; this one comes up."""
+    from src.webapp import create_app
+
+    client = create_app(StubChain(), unavailable="chain-unavailable").test_client()
+    assert client.get("/").status_code == 200
+
+
+def test_an_unavailable_chain_reports_itself_at_healthz():
+    from src.webapp import create_app
+
+    client = create_app(StubChain(), unavailable="chain-unavailable").test_client()
+    response = client.get("/healthz")
+    assert response.status_code == 503
+    assert b"chain-unavailable" in response.data
+
+
+def test_an_unavailable_chain_refuses_questions_without_calling_it():
+    from src.errors import UNAVAILABLE
+    from src.webapp import create_app
+
+    chain = StubChain()
+    client = create_app(chain, unavailable="chain-unavailable").test_client()
+    response = client.post("/get", data={"msg": "what is acne?"})
+    assert response.status_code == 503
+    assert response.data.decode() == UNAVAILABLE
+    assert chain.calls == []
+
+
+def test_unavailability_outranks_an_empty_index_at_healthz():
+    """Both are degraded; the one that stops it working at all is the news."""
+    from src.webapp import create_app
+
+    client = create_app(
+        StubChain(), index_size=0, unavailable="chain-unavailable"
+    ).test_client()
+    assert b"chain-unavailable" in client.get("/healthz").data

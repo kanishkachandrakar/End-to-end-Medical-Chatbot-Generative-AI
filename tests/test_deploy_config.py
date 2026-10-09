@@ -60,8 +60,10 @@ def test_nothing_runs_when_app_py_is_imported():
 
     tree = ast.parse((ROOT / "app.py").read_text())
     top_level = [type(node).__name__ for node in tree.body]
-    assert set(top_level) <= {"Expr", "Import", "ImportFrom", "FunctionDef", "If"}, (
-        f"app.py runs something at import: {top_level}"
+    # Definitions and imports are not side effects; anything else is.
+    allowed = {"Expr", "Import", "ImportFrom", "FunctionDef", "ClassDef", "If"}
+    assert set(top_level) <= allowed, (
+        f"app.py runs something at import: {sorted(set(top_level) - allowed)}"
     )
 
 

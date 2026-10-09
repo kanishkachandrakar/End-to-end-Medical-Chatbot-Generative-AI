@@ -17,7 +17,7 @@ from typing import Any, Protocol
 from flask import Flask, Response, g, render_template, request
 
 from src.config import LOG_LEVEL, MAX_CONTENT_BYTES, MAX_QUESTION_CHARS
-from src.errors import failure_reply
+from src.errors import UNAVAILABLE, failure_reply
 from src.headers import SECURITY_HEADERS
 from src.ratelimit import TokenBucket
 from src.text import strip_reasoning
@@ -75,6 +75,7 @@ def create_app(
     rag_chain: RagChain,
     limiter: TokenBucket | None = None,
     index_size: int | None = None,
+    unavailable: str | None = None,
 ) -> Flask:
     """Build the Flask app around an object exposing .invoke({"input": ...}).
 
@@ -83,6 +84,10 @@ def create_app(
 
     ``index_size`` is the vector count read once at startup, reported by
     /healthz. None means it could not be determined.
+
+    ``unavailable`` names the reason the chain could not be built, if it could
+    not be. The app still serves, so the container does not crash-loop and
+    /healthz can say what is wrong, but questions are refused.
     """
     app = Flask(
         __name__,
@@ -160,6 +165,8 @@ def create_app(
         and flags an empty index -- the failure that otherwise looks like
         success, since every request still returns a fluent answer.
         """
+        if unavailable:
+            return text_reply(f"degraded {APP_REVISION} {unavailable}", 503)
         if index_size == 0:
             return text_reply(f"degraded {APP_REVISION} index-empty", 503)
         vectors = "unknown" if index_size is None else str(index_size)
@@ -173,6 +180,10 @@ def create_app(
         limit, which is a side effect -- so it does not belong behind a verb
         that crawlers follow and browsers prefetch.
         """
+        if unavailable:
+            app.logger.error("[%s] refusing: %s", g.request_id, unavailable)
+            return text_reply(UNAVAILABLE, 503)
+
         msg = (request.form.get("msg") or "").strip()
         if not msg:
             return text_reply(NO_QUESTION, 400)

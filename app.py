@@ -88,18 +88,48 @@ def log_index_size(logger: logging.Logger, index_size: int | None) -> None:
         )
 
 
+class _Refusing:
+    """Stands in for the chain when it could not be built.
+
+    The routes never reach it -- create_app refuses questions outright when
+    ``unavailable`` is set -- but a chain-shaped object keeps the type honest.
+    """
+
+    def __init__(self, error: BaseException):
+        self.error = error
+
+    def invoke(self, payload: dict[str, str]) -> dict[str, str]:
+        raise RuntimeError("the retrieval chain is unavailable") from self.error
+
+
 def create() -> Flask:
     """Build the application. Gunicorn calls this; see gunicorn.conf.py."""
     load_dotenv()
     keys = require_env("PINECONE_API_KEY", "GROQ_API_KEY")
 
     index_size = read_index_size(keys["PINECONE_API_KEY"])
+
+    # A Pinecone or HuggingFace blip at boot used to raise here, which means
+    # gunicorn's worker dies, which means the container restarts and tries
+    # again -- a crash loop whose only symptom is a Space that never comes up.
+    # Serving a degraded app instead keeps /healthz answering, with the reason.
+    chain, unavailable = None, None
+    try:
+        chain = build_chain(keys["PINECONE_API_KEY"], keys["GROQ_API_KEY"])
+    except Exception as exc:
+        unavailable = "chain-unavailable"
+        logging.getLogger(__name__).exception("could not build the retrieval chain")
+        chain = _Refusing(exc)
+
     app = create_app(
-        build_chain(keys["PINECONE_API_KEY"], keys["GROQ_API_KEY"]),
+        chain,
         limiter=per_minute(RATE_LIMIT_PER_MINUTE),
         index_size=index_size,
+        unavailable=unavailable,
     )
     log_index_size(app.logger, index_size)
+    if unavailable:
+        app.logger.error("serving in a degraded state: %s", unavailable)
     return app
 
 
