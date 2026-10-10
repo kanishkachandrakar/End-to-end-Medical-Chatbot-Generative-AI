@@ -3,7 +3,7 @@
 # cached_download; langchain 1.0 moving langchain.chains to langchain-classic.
 # Both were only noticed from a clean install. Dependabot proposes the bumps;
 # the image build and the dimension check in CI judge them.
-sentence-transformers>=3.0,<7
+sentence-transformers>=6.1.0,<7
 langchain>=1.0,<2
 # create_retrieval_chain and create_stuff_documents_chain moved here in
 # langchain 1.0; it is a dependency of langchain but listed because we import it.
