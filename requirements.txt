@@ -3,6 +3,9 @@ langchain
 # create_retrieval_chain and create_stuff_documents_chain moved here in
 # langchain 1.0; it is a dependency of langchain but listed because we import it.
 langchain-classic
+# Imported directly for ChatPromptTemplate; it arrives transitively via
+# langchain too, but a transitive dependency is not a declared one.
+langchain-core
 flask
 pypdf
 python-dotenv

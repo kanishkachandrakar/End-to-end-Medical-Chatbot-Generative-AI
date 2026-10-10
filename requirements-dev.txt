@@ -8,7 +8,14 @@ python-dotenv
 
 # Light enough to test against directly: pure Python, no torch, no network.
 flask
+langchain
+langchain-classic
 langchain-community
 langchain-core
+langchain-groq
+langchain-pinecone
+# The grpc extra, matching requirements.txt: store_index.py imports
+# pinecone.grpc, which needs it.
+pinecone[grpc]
 langchain-text-splitters
 pypdf
