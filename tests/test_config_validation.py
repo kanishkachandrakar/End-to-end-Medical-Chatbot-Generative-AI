@@ -79,3 +79,33 @@ def test_the_message_lists_every_problem_at_once(monkeypatch):
 def test_valid_overrides_still_load(monkeypatch):
     config = _reload_with(monkeypatch, TOP_K="5", CHUNK_SIZE="800", CHUNK_OVERLAP="100")
     assert (config.TOP_K, config.CHUNK_SIZE, config.CHUNK_OVERLAP) == (5, 800, 100)
+
+
+def test_a_negative_rate_limit_is_rejected(monkeypatch):
+    """0 disables the limit on purpose; -1 would disable it by accident."""
+    with pytest.raises(ValueError, match="RATE_LIMIT_PER_MINUTE"):
+        _reload_with(monkeypatch, RATE_LIMIT_PER_MINUTE="-1")
+
+
+def test_a_zero_rate_limit_is_allowed(monkeypatch):
+    config = _reload_with(monkeypatch, RATE_LIMIT_PER_MINUTE="0")
+    assert config.RATE_LIMIT_PER_MINUTE == 0
+
+
+def test_a_body_ceiling_below_the_question_limit_is_rejected(monkeypatch):
+    """Otherwise a question inside the documented limit is refused as too big."""
+    with pytest.raises(ValueError, match="MAX_CONTENT_BYTES"):
+        _reload_with(monkeypatch, MAX_CONTENT_BYTES="100", MAX_QUESTION_CHARS="500")
+
+
+def test_an_equal_body_ceiling_is_also_rejected(monkeypatch):
+    """Form encoding means the body is always larger than the question."""
+    with pytest.raises(ValueError, match="MAX_CONTENT_BYTES"):
+        _reload_with(monkeypatch, MAX_CONTENT_BYTES="500", MAX_QUESTION_CHARS="500")
+
+
+def test_the_shipped_defaults_satisfy_the_cross_checks():
+    import src.config as config
+
+    assert config.MAX_CONTENT_BYTES > config.MAX_QUESTION_CHARS
+    assert config.RATE_LIMIT_PER_MINUTE >= 0

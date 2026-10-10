@@ -68,6 +68,22 @@ def _validate() -> None:
         problems.append(f"GROQ_TIMEOUT ({GROQ_TIMEOUT}) must be positive")
     if not 1 <= PORT <= 65535:
         problems.append(f"PORT ({PORT}) is outside 1-65535")
+    if RATE_LIMIT_PER_MINUTE < 0:
+        # 0 disables the limit deliberately; a negative is a typo that would
+        # disable it silently, which is the opposite of what was meant.
+        problems.append(
+            f"RATE_LIMIT_PER_MINUTE ({RATE_LIMIT_PER_MINUTE}) cannot be negative; "
+            "use 0 to disable the limit"
+        )
+    if MAX_CONTENT_BYTES <= MAX_QUESTION_CHARS:
+        # The body ceiling is a backstop above the question limit. Below it,
+        # a valid question is refused by Flask before the clearer message
+        # about length is ever reached.
+        problems.append(
+            f"MAX_CONTENT_BYTES ({MAX_CONTENT_BYTES}) must exceed "
+            f"MAX_QUESTION_CHARS ({MAX_QUESTION_CHARS}), or questions within "
+            "the documented limit are refused as oversized requests"
+        )
 
     if problems:
         raise ValueError("Invalid configuration: " + "; ".join(problems))
