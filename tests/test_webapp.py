@@ -428,3 +428,28 @@ def test_unavailability_outranks_an_empty_index_at_healthz():
         StubChain(), index_size=0, unavailable="chain-unavailable"
     ).test_client()
     assert b"chain-unavailable" in client.get("/healthz").data
+
+
+def test_the_page_is_not_cached(client_for):
+    """It names fingerprinted asset URLs, so a stale page keeps stale names."""
+    response = client_for(StubChain()).get("/")
+    assert response.headers["Cache-Control"] == "no-store"
+
+
+def test_the_assets_are_still_cached(client_for):
+    """The opposite policy for the files the page points at."""
+    response = client_for(StubChain()).get("/static/chat.js")
+    assert "max-age=" in response.headers.get("Cache-Control", "")
+
+
+def test_favicon_ico_is_served(client_for):
+    """Requested by every browser whatever the page declares."""
+    response = client_for(StubChain()).get("/favicon.ico")
+    assert response.status_code == 200
+    assert int(response.headers["Content-Length"]) > 0
+
+
+def test_favicon_does_not_touch_the_chain(client_for):
+    chain = StubChain()
+    client_for(chain).get("/favicon.ico")
+    assert chain.calls == []

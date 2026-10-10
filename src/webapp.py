@@ -14,7 +14,7 @@ import time
 import uuid
 from typing import Any, Protocol
 
-from flask import Flask, Response, g, render_template, request
+from flask import Flask, Response, g, make_response, render_template, request
 
 from src.config import LOG_LEVEL, MAX_CONTENT_BYTES, MAX_QUESTION_CHARS
 from src.errors import UNAVAILABLE, failure_reply
@@ -146,11 +146,27 @@ def create_app(
         return response
 
     @app.route("/")
-    def index() -> str:
+    def index() -> Response:
         """Serve the chat page."""
         # The template mirrors the server limit in a maxlength attribute, so
         # the two cannot drift apart.
-        return render_template("chat.html", max_question_chars=MAX_QUESTION_CHARS)
+        page = make_response(
+            render_template("chat.html", max_question_chars=MAX_QUESTION_CHARS)
+        )
+        # The static assets are fingerprinted and cached for a year; the page
+        # that references them must not be, or a deploy changing a filename
+        # would never reach anyone holding the old HTML.
+        page.headers["Cache-Control"] = "no-store"
+        return page
+
+    @app.route("/favicon.ico")
+    def favicon() -> Response:
+        """Browsers ask for this path whatever the page declares.
+
+        Redirecting to the declared icon keeps one copy of the file and stops
+        a 404 per visitor in the log, where it reads like a broken route.
+        """
+        return app.send_static_file("medicalbotpic.jpeg")
 
     @app.route("/robots.txt")
     def robots() -> Response:
