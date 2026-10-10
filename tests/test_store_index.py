@@ -130,6 +130,14 @@ def indexer(monkeypatch):
         def create_index(self, **kwargs):
             calls["created"].append(kwargs)
 
+        def Index(self, name):  # noqa: N802 - matches the real client
+            calls.setdefault("stats_reads", []).append(name)
+            return types.SimpleNamespace(
+                describe_index_stats=lambda: {
+                    "total_vector_count": calls.get("reported", 6)
+                }
+            )
+
         def describe_index(self, name):
             return types.SimpleNamespace(
                 dimension=calls.get("dimension", 384), name=name
@@ -442,3 +450,46 @@ class TestRecreateConfirmation:
         monkeypatch.setattr("builtins.input", refuse)
         module.main([])
         assert calls["upserts"]
+
+
+class TestConfirmUpsert:
+    """The script's last word should be what arrived, not what it sent."""
+
+    def test_it_reports_the_count_once_it_matches(self, indexer, capsys):
+        module, calls = indexer
+        calls["existing"] = [module.INDEX_NAME]
+        calls["reported"] = 6
+        module.main([])
+        assert "now reports 6 vectors" in capsys.readouterr().out
+
+    def test_a_lagging_count_is_explained_not_treated_as_failure(
+        self, indexer, capsys, monkeypatch
+    ):
+        """Pinecone is eventually consistent; a short count is usually normal."""
+        module, calls = indexer
+        monkeypatch.setattr(module.time, "sleep", lambda s: None)
+        client = module.Pinecone(api_key="k")
+        calls["reported"] = 0
+        module.confirm_upsert(client, expected=6, timeout=0.01)
+        output = capsys.readouterr().out
+        assert "0 of 6 vectors" in output
+        assert "eventually consistent" in output
+
+    def test_it_does_not_raise_on_a_short_count(self, indexer, monkeypatch):
+        module, calls = indexer
+        monkeypatch.setattr(module.time, "sleep", lambda s: None)
+        calls["reported"] = 1
+        module.confirm_upsert(module.Pinecone(api_key="k"), expected=99, timeout=0.01)
+
+    def test_a_higher_count_than_expected_is_accepted(self, indexer, capsys):
+        """An index with other data in it is not this script's business."""
+        module, calls = indexer
+        calls["reported"] = 100
+        module.confirm_upsert(module.Pinecone(api_key="k"), expected=6, timeout=1)
+        assert "now reports 100 vectors" in capsys.readouterr().out
+
+    def test_a_dry_run_never_asks(self, indexer, calls_check=None):
+        module, calls = indexer
+        calls["existing"] = [module.INDEX_NAME]
+        module.main(["--dry-run"])
+        assert calls.get("stats_reads") is None

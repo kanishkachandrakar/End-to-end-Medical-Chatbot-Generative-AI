@@ -1,6 +1,7 @@
 import argparse
 import os
 import sys
+import time
 
 from dotenv import load_dotenv
 from langchain_pinecone import PineconeVectorStore
@@ -155,6 +156,36 @@ def main(argv=None) -> None:
         print(f"  {done}/{total} chunks", flush=True)
 
     print(f"upserted {unique} unique chunks into {INDEX_NAME!r}")
+    confirm_upsert(pc, unique)
+
+
+def confirm_upsert(pc, expected: int, timeout: float = 60.0) -> None:
+    """Report the index's vector count, waiting briefly for it to settle.
+
+    Upserts return before the vectors are queryable, so the count lags. Without
+    this the script's last word is what it sent, not what arrived -- and an
+    empty index is the failure this project has already shipped once.
+
+    Reports rather than raises: a count still catching up is normal, and
+    exiting non-zero on it would make a successful rebuild look broken.
+    """
+    index = pc.Index(INDEX_NAME)
+    deadline = time.monotonic() + timeout
+    count = None
+
+    while time.monotonic() < deadline:
+        count = index.describe_index_stats().get("total_vector_count") or 0
+        if count >= expected:
+            print(f"index {INDEX_NAME!r} now reports {count} vectors")
+            return
+        time.sleep(2)
+
+    print(
+        f"index {INDEX_NAME!r} reports {count} of {expected} vectors after "
+        f"{timeout:.0f}s. Pinecone is eventually consistent, so this is "
+        f"probably still settling -- check /healthz or re-run with --dry-run "
+        f"to compare."
+    )
 
 
 if __name__ == "__main__":
