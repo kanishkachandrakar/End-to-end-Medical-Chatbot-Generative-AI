@@ -9,10 +9,13 @@ both do.
 import hashlib
 import re
 from collections.abc import Iterable, Iterator, Sequence
+from typing import TypeVar
 
 # deepseek-r1 wraps its chain of thought in <think>...</think>. It is useful in
 # a log and should never reach the user.
 THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL)
+
+T = TypeVar("T")
 
 
 def strip_reasoning(answer: str) -> str:
@@ -34,7 +37,7 @@ def chunk_ids(chunks: Iterable) -> list[str]:
     ]
 
 
-def batched(items: Sequence, size: int) -> Iterator[Sequence]:
+def batched(items: Sequence[T], size: int) -> Iterator[list[T]]:
     """Yield consecutive slices of ``items`` of at most ``size`` entries.
 
     Used to upsert the book a few hundred chunks at a time rather than in one
@@ -43,4 +46,4 @@ def batched(items: Sequence, size: int) -> Iterator[Sequence]:
     if size < 1:
         raise ValueError("size must be at least 1")
     for start in range(0, len(items), size):
-        yield items[start : start + size]
+        yield list(items[start : start + size])
