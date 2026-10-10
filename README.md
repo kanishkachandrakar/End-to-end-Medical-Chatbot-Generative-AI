@@ -76,7 +76,7 @@ Data/Medical_book.pdf
 | Vector store | Pinecone serverless (AWS `us-east-1`), cosine metric |
 | PDF parsing | `pypdf` through LangChain's `PyPDFLoader` |
 | Front end | Jinja template + jQuery + Bootstrap-style CSS |
-| Config | `python-dotenv` (`.env`) |
+| Config | `python-dotenv` (`.env`), validated at import by `src/config.py` |
 
 ## Project structure
 
@@ -196,6 +196,11 @@ second run overwrites rather than duplicates.
 | `--limit N` | Run the whole pipeline over the first N chunks — a cheap end-to-end check before a full rebuild. |
 | `--recreate` | Delete the index first, then rebuild. Needed to clear vectors written under ids this script no longer generates. Asks you to type the index name. |
 | `--yes` | Skip that confirmation. Required when running without a terminal. |
+
+After upserting, the script reads the index back and waits up to a minute for
+the vector count to match what it sent — Pinecone acknowledges an upsert before
+the vectors are queryable, so the count lags. A short count after the wait is
+reported, not treated as a failure.
 
 ```bash
 python store_index.py --dry-run          # what would a rebuild produce?

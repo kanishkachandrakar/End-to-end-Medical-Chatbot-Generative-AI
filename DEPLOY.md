@@ -134,6 +134,24 @@ would be trivially spoofed. One busy visitor can therefore make others wait.
 - **Request logs appear in the runtime log**, one line per request, so you can
   tell a question that failed from one that never arrived.
 
+## Why the dependencies are pinned
+
+`requirements.txt` carries version bounds rather than bare package names, and
+the comments say which breakage each one is for. Two are worth knowing about,
+because both produced an image that built cleanly and then would not start:
+
+- **An upper bound missing** let `langchain` 1.0 move `langchain.chains` out
+  from under `app.py`.
+- **A lower bound missing** was worse. Resolving `pinecone[grpc]` constrains
+  the `pinecone` version, and rather than report a conflict, pip walked
+  `langchain-pinecone` backwards until something fit — settling on 0.0.1, from
+  2023, with no `PineconeVectorStore` in it.
+
+Neither is visible from a working checkout, because an existing virtualenv
+already has the right versions. They only appear in a clean resolve, which is
+what the image build does. If you loosen a bound, let CI build the image before
+believing it.
+
 ## Other hosts
 
 The `Dockerfile` is not Spaces-specific — it reads `$PORT` and falls back to
