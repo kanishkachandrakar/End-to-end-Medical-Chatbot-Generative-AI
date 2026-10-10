@@ -1,5 +1,8 @@
 sentence-transformers>=3.0
 langchain
+# create_retrieval_chain and create_stuff_documents_chain moved here in
+# langchain 1.0; it is a dependency of langchain but listed because we import it.
+langchain-classic
 flask
 pypdf
 python-dotenv

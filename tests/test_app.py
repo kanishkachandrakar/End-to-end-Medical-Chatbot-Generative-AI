@@ -16,8 +16,8 @@ import pytest
 def app_module(monkeypatch):
     """Import app.py with its third-party dependencies stubbed out."""
     stubs = {
-        "langchain.chains": {"create_retrieval_chain": lambda *a: "chain"},
-        "langchain.chains.combine_documents": {
+        "langchain_classic.chains": {"create_retrieval_chain": lambda *a: "chain"},
+        "langchain_classic.chains.combine_documents": {
             "create_stuff_documents_chain": lambda *a: "qa"
         },
         "langchain_core.prompts": {
