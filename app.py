@@ -26,7 +26,7 @@ from src.config import (
     RATE_LIMIT_PER_MINUTE,
     TOP_K,
 )
-from src.env import require_env
+from src.env import require_env, warn_on_suspicious_keys
 from src.helper import download_hugging_face_embeddings
 from src.prompt import system_prompt
 from src.ratelimit import per_minute
@@ -111,6 +111,8 @@ def create() -> Flask:
     """Build the application. Gunicorn calls this; see gunicorn.conf.py."""
     load_dotenv()
     keys = require_env("PINECONE_API_KEY", "GROQ_API_KEY")
+    for complaint in warn_on_suspicious_keys(keys):
+        logging.getLogger(__name__).warning("%s", complaint)
 
     index_size = read_index_size(keys["PINECONE_API_KEY"])
 
