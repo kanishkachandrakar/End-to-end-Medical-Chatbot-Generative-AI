@@ -1,7 +1,12 @@
 # Runs on anything that takes a container: Hugging Face Spaces, Cloud Run,
 # Railway, Fly, or a plain VM. The port is read from $PORT at start-up and
 # defaults to 7860, which is what Spaces expects.
-FROM python:3.10-slim
+# Pinned by digest so the base is identical on every build. The tag moves
+# whenever Debian or CPython is patched, which is how a build that worked
+# yesterday fails today with nothing in this repository having changed.
+# This is the multi-arch index digest, so it still resolves per platform.
+# Dependabot proposes digest updates; CI's build decides them.
+FROM python:3.10-slim@sha256:6ff506466f8b1e981719b468cc0023b8ef000b983cdec0eafe119d01f379e31d
 
 # Spaces runs the container as uid 1000, so create that user and give it a
 # home the model cache can be written to.
