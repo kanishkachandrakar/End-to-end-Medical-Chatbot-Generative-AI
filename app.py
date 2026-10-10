@@ -16,6 +16,7 @@ from langchain_classic.chains.combine_documents import create_stuff_documents_ch
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from langchain_pinecone import PineconeVectorStore
+from pydantic import SecretStr
 
 from src.config import (
     GROQ_MODEL,
@@ -57,8 +58,12 @@ def build_chain(pinecone_api_key: str, groq_api_key: str):
 
     llm = ChatGroq(
         temperature=0,
-        groq_api_key=groq_api_key,
-        model_name=GROQ_MODEL,
+        # api_key and model are the field names; groq_api_key and model_name
+        # are pydantic aliases that still work, but mypy cannot see an alias.
+        # SecretStr is the declared type, and it keeps the key from appearing
+        # in a repr of this object or a traceback that includes one.
+        api_key=SecretStr(groq_api_key),
+        model=GROQ_MODEL,
         # Without this a stalled call occupies a gunicorn thread until the
         # worker timeout kills it at 120s, and there are only four threads.
         timeout=GROQ_TIMEOUT,

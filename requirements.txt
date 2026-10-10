@@ -12,6 +12,8 @@ langchain-classic>=1.0,<2
 # langchain too, but a transitive dependency is not a declared one.
 langchain-core
 flask
+# Imported for SecretStr; transitive via langchain, but we import it.
+pydantic
 pypdf
 python-dotenv
 pinecone[grpc]
