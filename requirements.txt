@@ -10,15 +10,21 @@ langchain>=1.0,<2
 langchain-classic>=1.0,<2
 # Imported directly for ChatPromptTemplate; it arrives transitively via
 # langchain too, but a transitive dependency is not a declared one.
-langchain-core
+langchain-core>=1.0,<2
 flask
 # Imported for SecretStr; transitive via langchain, but we import it.
 pydantic
 pypdf
 python-dotenv
+# The grpc extra only exists up to a point: pip warns that newer pinecone
+# releases do not provide it and backtracks to one that does. store_index.py
+# imports pinecone.grpc, so the extra has to resolve.
 pinecone[grpc]
-langchain-pinecone
-langchain_community
-langchain-groq
+# Lower bounds matter more here than upper ones. Without this, resolving
+# pinecone[grpc] made pip walk langchain-pinecone backwards to 0.0.1 -- a 2023
+# release with no PineconeVectorStore -- and the image installed it silently.
+langchain-pinecone>=0.2,<1
+langchain-community>=0.3,<1
+langchain-groq>=1.0,<2
 gunicorn
 -e .
