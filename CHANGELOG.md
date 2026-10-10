@@ -33,6 +33,16 @@ log.
   doctype, **jQuery loaded three times**, and **HTML injection** in the chat log,
   which built bubbles by string concatenation and passed them through
   `$.parseHTML`.
+- **The app could not start at all on a clean install**, twice over, and both
+  times the image built successfully first. `langchain` 1.0 moved
+  `create_retrieval_chain` into a separate `langchain-classic` package, and
+  separately pip resolved `langchain-pinecone` *backwards* to 0.0.1 — a 2023
+  release with no `PineconeVectorStore` — because `pinecone[grpc]` constrained
+  the `pinecone` version and backtracking was easier than failing. Neither was
+  reproducible from an existing virtualenv. `requirements.txt` now carries
+  bounds in both directions, with the reason beside each.
+- **`langchain-core` and `pydantic` were imported but never declared**, working
+  only because something else pulled them in.
 - **A crash loop when a dependency was down at startup.** If Pinecone or
   HuggingFace was unreachable as the worker booted, building the retrieval
   chain raised, the worker died, gunicorn restarted it and it raised again —
@@ -85,6 +95,12 @@ log.
   visible to a monitor.
 - A `Makefile` wrapping the checks CI runs, and a pre-commit configuration for
   the fast half of them.
+- `store_index.py` reads the index back after upserting and waits for the count
+  to settle, so its last word is what arrived rather than what it sent.
+- A warning at startup when the two API keys look swapped — both are set and
+  non-empty in that case, so nothing else notices until the first request.
+- `GET /favicon.ico`, and `no-store` on the page that names the year-cached
+  asset URLs.
 - `--yes` skips the confirmation `--recreate` now asks for before deleting an
   index, and `store_index.py` refuses up front if the existing index's
   dimension does not match the embedding model.
@@ -106,7 +122,15 @@ log.
 - CI boots the container and requests `/healthz` over HTTP, which is the only
   check that exercises gunicorn, its config and the factory together. It needs
   no credentials because the app degrades rather than refusing to start.
-- mypy runs over `src/`, `app.py` and `store_index.py`.
+- mypy runs over `src/`, `app.py` and `store_index.py`, with the real langchain
+  packages installed in CI rather than stubbed — which is what surfaced two
+  wrong `ChatGroq` argument names and a loose `Sequence` annotation.
+- Tests resolve every name `app.py` imports against the installed packages, so
+  the next time a library moves something it fails in the unit suite rather
+  than three minutes into the image job.
+- The base image is pinned by digest.
+- `src/config.py` cross-checks the settings whose meaning is relative to each
+  other, and `--recreate` asks for confirmation before deleting an index.
 - `/healthz` reports one of three states; see [DEPLOY.md](DEPLOY.md).
 
 ### Known limitations
