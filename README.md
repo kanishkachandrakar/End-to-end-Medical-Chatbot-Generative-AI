@@ -230,7 +230,14 @@ a crawler or a link prefetch should be able to trigger.
 curl -X POST http://localhost:8080/get -d "msg=What is hypertension?"
 ```
 
-`GET /healthz` returns `ok` without spending an LLM call.
+`GET /healthz` answers without spending an LLM call, and reports the running
+revision, the vector count, and whether the service is degraded — the chat page
+asks it on load and shows a banner if answers would not be grounded. See
+[DEPLOY.md](DEPLOY.md) for the states it can return.
+
+The resolved configuration is logged in one line at startup, so a deploy
+reading the wrong index or retrieving the wrong number of passages is visible
+without comparing environment variables by hand.
 
 ## Deploying
 
