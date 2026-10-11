@@ -107,3 +107,15 @@ def test_every_makefile_target_is_documented():
     declared = set(re.findall(r"^\.PHONY: (.+)$", makefile, re.MULTILINE)[0].split())
     documented = set(re.findall(r"^([a-z-]+):.*?## ", makefile, re.MULTILINE))
     assert declared == documented, f"undocumented: {declared - documented}"
+
+
+def test_contributing_points_at_the_commands_that_exist():
+    """A setup guide naming a target that was renamed is worse than none."""
+    contributing = (ROOT / "CONTRIBUTING.md").read_text()
+    makefile = (ROOT / "Makefile").read_text()
+    for target in re.findall(r"`make ([a-z-]+)`", contributing):
+        assert re.search(rf"^{target}:", makefile, re.MULTILINE), f"no make {target}"
+
+
+def test_the_readme_links_the_contributing_guide():
+    assert "CONTRIBUTING.md" in README

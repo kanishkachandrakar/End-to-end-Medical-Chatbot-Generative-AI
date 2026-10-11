@@ -293,6 +293,11 @@ Worth knowing before judging the answers:
 - **Not medical advice**, and nothing enforces that beyond the prompt asking for
   it. Treat it as a search tool over one reference book.
 
+## Contributing
+
+[CONTRIBUTING.md](CONTRIBUTING.md) covers the setup, what each CI check is for,
+and the handful of design choices that look odd until you know why.
+
 ## Security
 
 API keys were committed to this repository's history and should be treated as
