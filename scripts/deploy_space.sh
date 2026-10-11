@@ -4,10 +4,16 @@
 #
 #   ./scripts/deploy_space.sh <hf-username>/<space-name>
 #
+# SPACES_BASE overrides where the Space is cloned from. It exists so the script
+# can be run against a local repository in a test; there is no other reason to
+# set it.
+#
 # Only the files the container needs are copied. Data/Medical_book.pdf is
 # deliberately left behind: the app never reads it (only store_index.py does,
 # and that runs locally), and at 15MB it would need Git LFS on the Hub.
 set -euo pipefail
+
+SPACES_BASE="${SPACES_BASE:-https://huggingface.co/spaces}"
 
 SPACE="${1:-}"
 if [ -z "$SPACE" ]; then
@@ -38,8 +44,8 @@ for item in "${PAYLOAD[@]}"; do
     fi
 done
 
-echo "==> cloning https://huggingface.co/spaces/$SPACE"
-git clone --quiet "https://huggingface.co/spaces/$SPACE" "$work/space"
+echo "==> cloning $SPACES_BASE/$SPACE"
+git clone --quiet "$SPACES_BASE/$SPACE" "$work/space"
 
 echo "==> copying $(( ${#PAYLOAD[@]} )) entries"
 for item in "${PAYLOAD[@]}"; do
@@ -67,4 +73,4 @@ git commit --quiet -m "Deploy $source_rev"
 git push --quiet
 
 echo "==> pushed $source_rev"
-echo "    build log: https://huggingface.co/spaces/$SPACE?logs=build"
+echo "    build log: $SPACES_BASE/$SPACE?logs=build"
