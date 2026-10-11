@@ -16,6 +16,12 @@ bind = f"0.0.0.0:{os.environ.get('PORT', '7860')}"
 workers = 1
 threads = 4
 
+# Gunicorn switches to gthread by itself when threads > 1, which means the
+# threads setting above silently depends on that behaviour. Naming the class
+# makes the pairing explicit: a sync worker would ignore `threads` entirely and
+# serve one request at a time.
+worker_class = "gthread"
+
 # Long enough for a slow reasoning model. The app's own Groq timeout is 60s, so
 # this is the backstop rather than the normal limit.
 timeout = 120

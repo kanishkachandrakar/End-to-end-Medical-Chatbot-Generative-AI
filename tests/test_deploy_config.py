@@ -139,3 +139,10 @@ def test_the_graceful_timeout_is_shorter_than_the_hard_timeout():
     """A worker being replaced must not block its successor for two minutes."""
     config = _load_gunicorn_config()
     assert 0 < config.graceful_timeout < config.timeout
+
+
+def test_the_worker_class_matches_the_thread_count():
+    """A sync worker ignores `threads` and would serve one request at a time."""
+    config = _load_gunicorn_config()
+    assert config.worker_class == "gthread"
+    assert config.threads > 1
