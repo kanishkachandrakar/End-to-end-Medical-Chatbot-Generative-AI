@@ -39,6 +39,35 @@ first.
 - Nothing logs a key, and questions are not logged either — on a public
   deployment those are strangers' health questions.
 
+## Supply chain
+
+The dependencies are the part of this project most likely to change without
+anyone deciding to change it, and twice they have broken it outright. Both
+times the install succeeded and the image built; only starting the app showed
+the problem.
+
+What is in place now:
+
+- **Every requirement has a lower and, where a major release has broken us
+  before, an upper bound** — with the reason beside it in `requirements.txt`. A
+  bare package name lets the resolver pick anything, which is how
+  `langchain-pinecone` 0.0.1 came to be installed.
+- **The base image is pinned by digest**, so a rebuilt tag cannot change the
+  foundation underneath a build.
+- **Dependabot proposes every bump as a pull request**, and CI builds the image
+  and boots it before the bump is believed. Bounds are only tolerable because
+  the updates still arrive.
+- **A test fails on any tracked file containing a key-shaped string**, so a
+  pasted secret is caught at commit time.
+- **`requirements.txt` and `requirements-dev.txt` are held to identical bounds**
+  on shared packages. Testing against versions the container will not install
+  is how both failures stayed hidden.
+
+What is not in place: there is no lock file, so two builds a month apart can
+install different patch versions. For a demo that is the right trade — the
+alternative is a file that must be regenerated on every change — but it does
+mean a build is reproducible only to the precision of the bounds.
+
 ## Reporting something
 
 Open an issue, or email the address in `setup.py`. This is a learning project
