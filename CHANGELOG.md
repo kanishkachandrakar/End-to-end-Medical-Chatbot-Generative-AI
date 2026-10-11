@@ -43,6 +43,11 @@ log.
   bounds in both directions, with the reason beside each.
 - **`langchain-core` and `pydantic` were imported but never declared**, working
   only because something else pulled them in.
+- **Startup could hang indefinitely.** Reading the index size happens before the
+  port is bound and the Pinecone client has no timeout of its own, so a network
+  that accepted the connection and then went quiet would stall the boot — which
+  from outside is a crash loop that never recovers. It is now abandoned after
+  fifteen seconds and `/healthz` reports `vectors=unknown`.
 - **A crash loop when a dependency was down at startup.** If Pinecone or
   HuggingFace was unreachable as the worker booted, building the retrieval
   chain raised, the worker died, gunicorn restarted it and it raised again —
@@ -101,6 +106,15 @@ log.
   non-empty in that case, so nothing else notices until the first request.
 - `GET /favicon.ico`, and `no-store` on the page that names the year-cached
   asset URLs.
+- The chat page asks `/healthz` on load and shows a banner when answers would
+  not be grounded, rather than letting the first question come back as an error.
+- The resolved configuration is logged in one line at startup; ten of those
+  settings are environment-overridable and a wrong one was invisible.
+- `Retry-After` on a rate-limited reply, computed from the bucket rather than
+  guessed.
+- [CONTRIBUTING.md](CONTRIBUTING.md), and a supply-chain section in
+  [SECURITY.md](SECURITY.md) that says what is *not* in place as well as what
+  is.
 - `--yes` skips the confirmation `--recreate` now asks for before deleting an
   index, and `store_index.py` refuses up front if the existing index's
   dimension does not match the embedding model.
@@ -128,7 +142,12 @@ log.
 - Tests resolve every name `app.py` imports against the installed packages, so
   the next time a library moves something it fails in the unit suite rather
   than three minutes into the image job.
-- The base image is pinned by digest.
+- The base image is pinned by digest, and every requirement has a lower bound,
+  enforced by a test — a bare package name is what let pip resolve backwards.
+- The deploy script is executed in the suite against a local repository
+  standing in for the Space. It had never been run by anything.
+- A test fails on any tracked file containing a key-shaped string.
+- Gunicorn's worker class is named rather than inferred from the thread count.
 - `src/config.py` cross-checks the settings whose meaning is relative to each
   other, and `--recreate` asks for confirmation before deleting an index.
 - `/healthz` reports one of three states; see [DEPLOY.md](DEPLOY.md).
