@@ -114,3 +114,30 @@ def test_values_only_the_server_knows_arrive_as_data_attributes():
     """The script is static, so the avatar path cannot be templated into it."""
     assert "data-bot-avatar=" in MARKUP
     assert "document.body.dataset.botAvatar" in SCRIPT
+
+
+def test_the_degraded_banner_exists_and_starts_hidden():
+    """It must not occupy the page when nothing is wrong."""
+    assert 'id="serviceBanner"' in MARKUP
+    banner = re.search(r'<div id="serviceBanner"[^>]*>', MARKUP).group(0)
+    assert "hidden" in banner
+    assert 'role="status"' in banner
+
+
+def test_the_banner_is_styled():
+    css = (ROOT / "static" / "style.css").read_text()
+    assert ".service_banner" in css
+
+
+def test_the_script_asks_healthz_on_load():
+    assert '"/healthz"' in SCRIPT
+
+
+def test_the_banner_recognises_both_degraded_states():
+    for state in ("chain-unavailable", "index-empty"):
+        assert state in SCRIPT, state
+
+
+def test_the_banner_text_is_set_as_text():
+    """Same rule as the chat log: no markup from a server response."""
+    assert re.search(r'\$\("#serviceBanner"\)\.text\(', SCRIPT)

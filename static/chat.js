@@ -55,6 +55,39 @@ $(document).ready(function () {
         $("#send").prop("disabled", busy);
     }
 
+    // The page loads and looks working even when nothing can be answered:
+    // /healthz knows, so ask it once rather than letting the first question
+    // come back as an error.
+    function showBanner(text) {
+        $("#serviceBanner").text(text).prop("hidden", false);
+    }
+
+    $.ajax({ type: "GET", url: "/healthz", dataType: "text" })
+        .done(function (body) {
+            if (String(body).indexOf("index-empty") !== -1) {
+                showBanner(
+                    "The reference index is empty, so answers are not grounded " +
+                    "in the book. Rebuilding it is a server-side fix."
+                );
+            }
+        })
+        .fail(function (jqXHR) {
+            var body = String(jqXHR.responseText || "");
+            if (body.indexOf("chain-unavailable") !== -1) {
+                showBanner(
+                    "The service cannot reach its search index right now, so " +
+                    "questions will not be answered. Please try again later."
+                );
+            } else if (body.indexOf("index-empty") !== -1) {
+                showBanner(
+                    "The reference index is empty, so answers are not grounded " +
+                    "in the book. Rebuilding it is a server-side fix."
+                );
+            } else {
+                showBanner("The service is not responding. Please try again later.");
+            }
+        });
+
     $("#messageArea").on("submit", function (event) {
         event.preventDefault();
 
