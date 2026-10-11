@@ -90,3 +90,19 @@ def _validate() -> None:
 
 
 _validate()
+
+
+def summary() -> str:
+    """One line naming the settings that change what answers look like.
+
+    A misconfigured deploy is otherwise invisible: the app starts, answers
+    questions, and nothing says it is reading a different index or retrieving
+    one passage instead of three. Secrets are not here -- this module never
+    reads them.
+    """
+    return (
+        f"index={INDEX_NAME} model={EMBED_MODEL} dim={EMBED_DIM} "
+        f"chunk={CHUNK_SIZE}/{CHUNK_OVERLAP} top_k={TOP_K} "
+        f"llm={GROQ_MODEL} timeout={GROQ_TIMEOUT:g}s "
+        f"rate_limit={RATE_LIMIT_PER_MINUTE}/min max_chars={MAX_QUESTION_CHARS}"
+    )

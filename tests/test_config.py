@@ -77,3 +77,30 @@ def test_no_secrets_are_read_here(reload_config):
     config = reload_config()
     assert not hasattr(config, "PINECONE_API_KEY")
     assert not hasattr(config, "GROQ_API_KEY")
+
+
+class TestSummary:
+    """One log line that makes a misconfigured deploy visible."""
+
+    def test_it_names_the_settings_that_change_the_answers(self):
+        line = src.config.summary()
+        for expected in ("index=", "model=", "dim=", "top_k=", "llm=", "chunk="):
+            assert expected in line
+
+    def test_it_reports_the_actual_values(self):
+        line = src.config.summary()
+        assert f"index={src.config.INDEX_NAME}" in line
+        assert f"top_k={src.config.TOP_K}" in line
+        assert f"dim={src.config.EMBED_DIM}" in line
+
+    def test_it_contains_no_secret(self):
+        """src.config reads no keys; this asserts the output cannot leak one."""
+        line = src.config.summary().lower()
+        for forbidden in ("key", "pcsk", "gsk_", "secret", "token"):
+            assert forbidden not in line
+
+    def test_it_is_a_single_line(self):
+        assert "\n" not in src.config.summary()
+
+    def test_it_follows_an_override(self, reload_config):
+        assert "top_k=9" in reload_config(TOP_K="9").summary()
