@@ -453,3 +453,26 @@ def test_favicon_does_not_touch_the_chain(client_for):
     chain = StubChain()
     client_for(chain).get("/favicon.ico")
     assert chain.calls == []
+
+
+def test_a_rate_limited_reply_says_when_to_retry():
+    """A 429 without Retry-After leaves the client guessing."""
+    chain = StubChain()
+    app = create_app(chain, limiter=TokenBucket(capacity=1, rate=0.5))
+    client = app.test_client()
+
+    assert client.post("/get", data={"msg": "first"}).status_code == 200
+    refused = client.post("/get", data={"msg": "second"})
+    assert refused.status_code == 429
+    assert int(refused.headers["Retry-After"]) >= 1
+
+
+def test_the_retry_after_is_never_zero():
+    """Retry-After: 0 invites an immediate retry that would also be refused."""
+    chain = StubChain()
+    app = create_app(chain, limiter=TokenBucket(capacity=1, rate=1000))
+    client = app.test_client()
+    client.post("/get", data={"msg": "first"})
+    refused = client.post("/get", data={"msg": "second"})
+    if refused.status_code == 429:
+        assert int(refused.headers["Retry-After"]) >= 1

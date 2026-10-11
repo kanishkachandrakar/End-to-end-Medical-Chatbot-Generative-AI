@@ -29,6 +29,20 @@ class TokenBucket:
         self._updated = clock()
         self._lock = threading.Lock()
 
+    def seconds_until(self, tokens: float = 1) -> float:
+        """How long until ``tokens`` would be available. 0 if they are now.
+
+        Rounded up by the caller into a Retry-After, so a client is told when
+        to come back rather than left to guess.
+        """
+        with self._lock:
+            now = self._clock()
+            elapsed = max(0.0, now - self._updated)
+            available = min(self.capacity, self._tokens + elapsed * self.rate)
+            if available >= tokens:
+                return 0.0
+            return (tokens - available) / self.rate
+
     def take(self, tokens: float = 1) -> bool:
         """Spend a token if one is available. Thread-safe; never blocks."""
         with self._lock:

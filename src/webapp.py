@@ -8,6 +8,7 @@ Flask is pointed at the project's templates/ and static/ explicitly, because
 this module lives in src/ and would otherwise look for them there.
 """
 
+import math
 import os
 import pathlib
 import time
@@ -213,7 +214,12 @@ def create_app(
         # Checked after validation so a rejected question costs no budget.
         if limiter is not None and not limiter.take():
             app.logger.warning("rate limit reached, question refused")
-            return text_reply(TOO_BUSY, 429)
+            refusal = text_reply(TOO_BUSY, 429)
+            # Correct for a 429, and it saves a client guessing: at this rate
+            # the next token is a known number of seconds away.
+            wait = math.ceil(limiter.seconds_until())
+            refusal.headers["Retry-After"] = str(max(1, wait))
+            return refusal
 
         # Deliberately not logging the question itself: on a public URL these
         # are strangers' health questions, and Space logs are retained and

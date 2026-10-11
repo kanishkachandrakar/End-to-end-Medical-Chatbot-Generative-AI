@@ -113,3 +113,37 @@ def test_per_minute_allows_the_stated_number_in_a_minute():
 @pytest.mark.parametrize("disabled", [0, -5])
 def test_per_minute_returns_none_when_disabled(disabled):
     assert per_minute(disabled) is None
+
+
+class TestSecondsUntil:
+    """What a Retry-After header is computed from."""
+
+    def test_zero_when_a_token_is_available(self):
+        assert TokenBucket(capacity=2, rate=1, clock=FakeClock()).seconds_until() == 0.0
+
+    def test_the_wait_after_the_burst_is_one_over_the_rate(self):
+        clock = FakeClock()
+        bucket = TokenBucket(capacity=1, rate=2, clock=clock)
+        bucket.take()
+        assert bucket.seconds_until() == pytest.approx(0.5)
+
+    def test_the_wait_shrinks_as_time_passes(self):
+        clock = FakeClock()
+        bucket = TokenBucket(capacity=1, rate=1, clock=clock)
+        bucket.take()
+        before = bucket.seconds_until()
+        clock.advance(0.5)
+        assert bucket.seconds_until() < before
+
+    def test_asking_does_not_spend_a_token(self):
+        """A client told to wait must not be charged for being told."""
+        bucket = TokenBucket(capacity=1, rate=0.001, clock=FakeClock())
+        bucket.seconds_until()
+        bucket.seconds_until()
+        assert bucket.take() is True
+
+    def test_it_accounts_for_more_than_one_token(self):
+        clock = FakeClock()
+        bucket = TokenBucket(capacity=1, rate=1, clock=clock)
+        bucket.take()
+        assert bucket.seconds_until(3) == pytest.approx(3.0)
