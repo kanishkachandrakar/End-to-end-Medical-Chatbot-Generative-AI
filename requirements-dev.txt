@@ -1,21 +1,26 @@
-# Test tooling, kept out of requirements.txt so the container does not carry
-# it. The suite touches no network and loads no model, so it needs only pytest
-# plus python-dotenv, which src/config.py imports.
+# Test tooling, kept out of requirements.txt so the container does not carry it.
+# The suite touches no network and loads no model.
 pytest>=8.0
-pytest-cov
-mypy
-python-dotenv
+pytest-cov>=5.0
+mypy>=1.10
 
-# Light enough to test against directly: pure Python, no torch, no network.
-flask
-langchain
-langchain-classic
-langchain-community
-langchain-core
-langchain-groq
-langchain-pinecone
+# Shared with requirements.txt, and deliberately at identical bounds. Testing
+# against versions the container will not install is how both of this project's
+# start-up failures stayed hidden: the suite stubbed or had different versions
+# of the very packages that had moved.
+flask>=3.0
+langchain>=1.0,<2
+langchain-classic>=1.0,<2
+langchain-community>=0.3,<1
+langchain-core>=1.0,<2
+langchain-groq>=1.0,<2
+langchain-pinecone>=0.2,<1
 # The grpc extra, matching requirements.txt: store_index.py imports
 # pinecone.grpc, which needs it.
-pinecone[grpc]
-langchain-text-splitters
-pypdf
+pinecone[grpc]>=5.0
+pypdf>=4.0
+python-dotenv>=1.0
+
+# Dev-only. langchain-text-splitters is a langchain dependency rather than a
+# direct requirement, but the suite imports it, so it is declared here.
+langchain-text-splitters>=1.0
