@@ -6,6 +6,7 @@ application factory (``app:create()``). Nothing happens on import, so this
 module can be imported, inspected and tested without keys or a network.
 """
 
+import concurrent.futures
 import logging
 import os
 
@@ -34,15 +35,30 @@ from src.ratelimit import per_minute
 from src.webapp import create_app
 
 
-def read_index_size(api_key: str) -> int | None:
-    """Vector count for the index, or None if it could not be read."""
-    try:
+def read_index_size(api_key: str, timeout: float = 15.0) -> int | None:
+    """Vector count for the index, or None if it could not be read in time.
+
+    Run on a worker thread with a deadline. The Pinecone client has no timeout
+    of its own, so a network that accepts the connection and then says nothing
+    would hang here -- before the port is bound, which looks exactly like the
+    crash loop this startup path was changed to avoid. A statistic is not worth
+    that, so it is abandoned rather than waited on.
+    """
+
+    def read() -> int:
         from pinecone import Pinecone
 
         index = Pinecone(api_key=api_key).Index(INDEX_NAME)
         return index.describe_index_stats().get("total_vector_count") or 0
-    except Exception:
-        return None
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(read)
+        try:
+            return future.result(timeout=timeout)
+        except Exception:
+            # Includes TimeoutError. The thread is left to finish on its own;
+            # it holds nothing the app needs.
+            return None
 
 
 def build_chain(pinecone_api_key: str, groq_api_key: str):

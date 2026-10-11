@@ -168,3 +168,27 @@ class StubChain:
 
     def invoke(self, payload):
         return {"answer": "an answer"}
+
+    def test_a_hanging_pinecone_is_abandoned(self, app_module, monkeypatch):
+        """It runs before the port is bound; waiting there is a crash loop."""
+        import sys
+        import time
+        import types
+
+        module = types.ModuleType("pinecone")
+
+        class Client:
+            def __init__(self, api_key=None):
+                pass
+
+            def Index(self, name):  # noqa: N802 - matches the real client
+                return types.SimpleNamespace(
+                    describe_index_stats=lambda: time.sleep(30) or {}
+                )
+
+        module.Pinecone = Client
+        monkeypatch.setitem(sys.modules, "pinecone", module)
+
+        started = time.monotonic()
+        assert app_module.read_index_size("key", timeout=0.2) is None
+        assert time.monotonic() - started < 5, "it waited for the hang"

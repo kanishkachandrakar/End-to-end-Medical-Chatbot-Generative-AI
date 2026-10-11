@@ -88,9 +88,28 @@ def test_the_old_location_is_really_gone():
 def test_everything_imported_is_declared_as_a_dependency():
     """A module that happens to be installed transitively is not a dependency."""
     declared = (ROOT / "requirements.txt").read_text().replace("-", "_").lower()
-    skip = {"src", "flask", "dotenv", "os", "sys", "logging", "re", "hashlib",
-            "argparse", "pathlib", "time", "uuid", "threading", "typing",
-            "collections"}
+    # The project's own package, and the standard library -- neither belongs
+    # in requirements.txt. Listed rather than detected because sys.stdlib_
+    # module_names would also excuse a third-party package shadowing a
+    # stdlib name, which is exactly the mistake worth catching.
+    skip = {
+        "src",
+        "flask",
+        "dotenv",
+        "argparse",
+        "collections",
+        "concurrent",
+        "hashlib",
+        "logging",
+        "os",
+        "pathlib",
+        "re",
+        "sys",
+        "threading",
+        "time",
+        "typing",
+        "uuid",
+    }
     top_level = {
         module.split(".")[0]
         for filename in MODULES
