@@ -506,3 +506,26 @@ def test_healthz_still_reports_degraded():
     client = create_app(StubChain(), index_size=0).test_client()
     assert client.get("/livez").status_code == 200
     assert client.get("/healthz").status_code == 503
+
+
+def test_an_answer_reports_the_remaining_budget():
+    """So a client can pace itself rather than discovering the limit."""
+    app = create_app(StubChain(), limiter=TokenBucket(capacity=5, rate=0.001))
+    response = app.test_client().post("/get", data={"msg": "q"})
+    assert response.headers["X-RateLimit-Limit"] == "5"
+    assert response.headers["X-RateLimit-Remaining"] == "4"
+
+
+def test_a_refusal_reports_nothing_remaining():
+    app = create_app(StubChain(), limiter=TokenBucket(capacity=1, rate=0.001))
+    client = app.test_client()
+    client.post("/get", data={"msg": "first"})
+    refused = client.post("/get", data={"msg": "second"})
+    assert refused.status_code == 429
+    assert refused.headers["X-RateLimit-Remaining"] == "0"
+
+
+def test_no_budget_headers_when_there_is_no_limiter(client_for):
+    """The tests use an unlimited app; it should not claim a budget."""
+    response = client_for(StubChain()).post("/get", data={"msg": "q"})
+    assert "X-RateLimit-Limit" not in response.headers

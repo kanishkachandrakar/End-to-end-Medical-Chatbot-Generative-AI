@@ -29,6 +29,16 @@ class TokenBucket:
         self._updated = clock()
         self._lock = threading.Lock()
 
+    def tokens_available(self) -> float:
+        """Tokens that could be spent now, without spending one.
+
+        Reported in a header so a client can pace itself rather than learning
+        the limit by being refused.
+        """
+        with self._lock:
+            elapsed = max(0.0, self._clock() - self._updated)
+            return min(self.capacity, self._tokens + elapsed * self.rate)
+
     def seconds_until(self, tokens: float = 1) -> float:
         """How long until ``tokens`` would be available. 0 if they are now.
 

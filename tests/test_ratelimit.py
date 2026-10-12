@@ -147,3 +147,36 @@ class TestSecondsUntil:
         bucket = TokenBucket(capacity=1, rate=1, clock=clock)
         bucket.take()
         assert bucket.seconds_until(3) == pytest.approx(3.0)
+
+
+class TestTokensAvailable:
+    """What the X-RateLimit-Remaining header reports."""
+
+    def test_a_fresh_bucket_is_full(self):
+        bucket = TokenBucket(capacity=5, rate=1, clock=FakeClock())
+        assert bucket.tokens_available() == 5
+
+    def test_it_drops_as_tokens_are_spent(self):
+        bucket = TokenBucket(capacity=3, rate=0.001, clock=FakeClock())
+        bucket.take()
+        assert bucket.tokens_available() == pytest.approx(2)
+
+    def test_asking_does_not_spend_one(self):
+        bucket = TokenBucket(capacity=1, rate=0.001, clock=FakeClock())
+        bucket.tokens_available()
+        bucket.tokens_available()
+        assert bucket.take() is True
+
+    def test_it_accounts_for_refill(self):
+        clock = FakeClock()
+        bucket = TokenBucket(capacity=2, rate=1, clock=clock)
+        bucket.take()
+        bucket.take()
+        clock.advance(1)
+        assert bucket.tokens_available() == pytest.approx(1)
+
+    def test_it_never_exceeds_the_capacity(self):
+        clock = FakeClock()
+        bucket = TokenBucket(capacity=2, rate=1, clock=clock)
+        clock.advance(3600)
+        assert bucket.tokens_available() == 2

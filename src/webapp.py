@@ -229,6 +229,8 @@ def create_app(
             # the next token is a known number of seconds away.
             wait = math.ceil(limiter.seconds_until())
             refusal.headers["Retry-After"] = str(max(1, wait))
+            refusal.headers["X-RateLimit-Limit"] = str(int(limiter.capacity))
+            refusal.headers["X-RateLimit-Remaining"] = "0"
             return refusal
 
         # Deliberately not logging the question itself: on a public URL these
@@ -258,6 +260,13 @@ def create_app(
             time.perf_counter() - started,
             len(answer),
         )
-        return text_reply(answer or NO_ANSWER)
+        reply = text_reply(answer or NO_ANSWER)
+        if limiter is not None:
+            # A client that can see the budget can pace itself instead of
+            # discovering the limit by being refused.
+            reply.headers["X-RateLimit-Limit"] = str(int(limiter.capacity))
+            remaining = int(limiter.tokens_available())
+            reply.headers["X-RateLimit-Remaining"] = str(remaining)
+        return reply
 
     return app
