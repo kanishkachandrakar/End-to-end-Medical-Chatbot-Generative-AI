@@ -1,0 +1,30 @@
+# Mirrors what ruff and the tests already enforce, for editors that read this
+# before anyone runs a check.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.py]
+indent_style = space
+indent_size = 4
+max_line_length = 88
+
+[*.{js,css,json,yml,yaml,toml}]
+indent_style = space
+indent_size = 2
+
+# The chat template and stylesheet are tab-indented throughout, and the
+# contract tests match on that whitespace.
+[{templates/*.html,static/*.css}]
+indent_style = tab
+
+[Makefile]
+indent_style = tab
+
+[*.md]
+# Two trailing spaces are a line break in Markdown.
+trim_trailing_whitespace = false
