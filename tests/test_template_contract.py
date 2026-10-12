@@ -141,3 +141,16 @@ def test_the_banner_recognises_both_degraded_states():
 def test_the_banner_text_is_set_as_text():
     """Same rule as the chat log: no markup from a server response."""
     assert re.search(r'\$\("#serviceBanner"\)\.text\(', SCRIPT)
+
+
+def test_an_unexplained_healthz_failure_is_confirmed_before_alarming():
+    """One blip should not tell every visitor the service is down."""
+    assert '"/livez"' in SCRIPT
+    # the liveness check sits inside the /healthz failure path
+    healthz_block = SCRIPT[SCRIPT.index('url: "/healthz"') :]
+    assert '"/livez"' in healthz_block
+
+
+def test_the_banner_only_claims_an_outage_on_a_real_failure():
+    """A 4xx from /healthz is not an outage, so it must not say so."""
+    assert "jqXHR.status === 0 || jqXHR.status >= 500" in SCRIPT

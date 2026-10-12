@@ -83,8 +83,19 @@ $(document).ready(function () {
                     "The reference index is empty, so answers are not grounded " +
                     "in the book. Rebuilding it is a server-side fix."
                 );
-            } else {
-                showBanner("The service is not responding. Please try again later.");
+            } else if (jqXHR.status === 0 || jqXHR.status >= 500) {
+                // No useful body: either the request never arrived or the
+                // server failed in a way /healthz cannot describe. A single
+                // blip is not worth a banner, so ask /livez before claiming
+                // the service is down -- if the process is answering, the
+                // page is fine and the first question will say otherwise.
+                $.ajax({ type: "GET", url: "/livez", dataType: "text" }).fail(
+                    function () {
+                        showBanner(
+                            "The service is not responding. Please try again later."
+                        );
+                    }
+                );
             }
         });
 
