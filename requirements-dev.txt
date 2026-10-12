@@ -1,6 +1,6 @@
 # Test tooling, kept out of requirements.txt so the container does not carry it.
 # The suite touches no network and loads no model.
-pytest>=8.0
+pytest>=9.1
 pytest-cov>=5.0
 mypy>=1.10
 
