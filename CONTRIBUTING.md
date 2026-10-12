@@ -48,6 +48,14 @@ Worth knowing before changing them:
   prototyped; `src/` is the code that runs.
 - **The rate limit is global, not per visitor.** Behind a proxy every request
   shares one address, so a per-IP limit would be one bucket anyway.
+- **`/livez` and `/healthz` are deliberately different.** Liveness knows nothing
+  about the index or the chain; readiness reports both. A restart cannot
+  repopulate an index, so anything that restarts on failure must watch the
+  former. A test asserts `/livez` mentions neither.
+- **`store_index.py` does everything that can refuse before it reads the PDF.**
+  Connecting, the existence check, the confirmation and the dimension
+  comparison all come first, so a misconfiguration costs seconds rather than
+  the minutes it takes to parse and embed the book.
 
 ## Secrets
 
