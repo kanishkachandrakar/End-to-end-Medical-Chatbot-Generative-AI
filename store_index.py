@@ -71,6 +71,61 @@ def main(argv=None) -> None:
             "PINECONE_API_KEY is not set. Copy .env.example to .env and fill it in."
         )
 
+    # A dry run answers a question about the PDF, so it stops before any of
+    # this: no connection, no index created, no confirmation prompt.
+    if not args.dry_run:
+        # Everything that can refuse happens first: connecting, the existence
+        # check, the confirmation, and the dimension comparison. Each of them used
+        # to run after the PDF had been parsed and the model loaded, so a wrong
+        # EMBED_MODEL or an unreachable Pinecone cost minutes before saying so.
+        pc = Pinecone(api_key=api_key)
+
+        exists = INDEX_NAME in pc.list_indexes().names()
+
+        if exists and args.recreate and not args.yes:
+            if not sys.stdin.isatty():
+                raise SystemExit(
+                    f"--recreate would delete the index {INDEX_NAME!r} and there is "
+                    "no terminal to confirm at. Pass --yes if that is intended."
+                )
+            print(f"This deletes the index {INDEX_NAME!r} and everything in it.")
+            if input("Type the index name to confirm: ").strip() != INDEX_NAME:
+                raise SystemExit("not confirmed, nothing was changed")
+
+        if exists and args.recreate:
+            # Deterministic ids make a re-run an overwrite, but only for ids this
+            # script would generate. Anything upserted under a random uuid -- every
+            # duplicate the notebook left behind -- can only be removed with the
+            # index itself.
+            print(f"deleting index {INDEX_NAME!r}")
+            pc.delete_index(INDEX_NAME)
+            exists = False
+
+        if exists:
+            print(f"index {INDEX_NAME!r} already exists, skipping creation")
+            # Upserting a differently-sized vector is rejected by Pinecone per
+            # batch, after the PDF has been parsed and the model loaded, with an
+            # error that names neither side of the mismatch. Check it up front.
+            existing_dim = pc.describe_index(INDEX_NAME).dimension
+            if existing_dim != EMBED_DIM:
+                raise SystemExit(
+                    f"index {INDEX_NAME!r} has {existing_dim} dimensions but "
+                    f"{EMBED_MODEL} produces {EMBED_DIM}. Either point EMBED_MODEL "
+                    f"at a {existing_dim}-dimensional model, or rebuild the index "
+                    f"with --recreate."
+                )
+        else:
+            print(f"creating index {INDEX_NAME!r}")
+            pc.create_index(
+                name=INDEX_NAME,
+                dimension=EMBED_DIM,
+                metric="cosine",
+                spec=ServerlessSpec(
+                    cloud=PINECONE_CLOUD,
+                    region=PINECONE_REGION
+                )
+            )
+
     extracted_data = load_pdf("Data/")
     text_chunks = text_split(extracted_data)
     print(f"loaded {len(extracted_data)} pages -> {len(text_chunks)} chunks")
@@ -91,55 +146,6 @@ def main(argv=None) -> None:
         return
 
     embeddings = download_hugging_face_embeddings()
-
-    pc = Pinecone(api_key=api_key)
-
-    exists = INDEX_NAME in pc.list_indexes().names()
-
-    if exists and args.recreate and not args.yes:
-        if not sys.stdin.isatty():
-            raise SystemExit(
-                f"--recreate would delete the index {INDEX_NAME!r} and there is "
-                "no terminal to confirm at. Pass --yes if that is intended."
-            )
-        print(f"This deletes the index {INDEX_NAME!r} and everything in it.")
-        if input("Type the index name to confirm: ").strip() != INDEX_NAME:
-            raise SystemExit("not confirmed, nothing was changed")
-
-    if exists and args.recreate:
-        # Deterministic ids make a re-run an overwrite, but only for ids this
-        # script would generate. Anything upserted under a random uuid -- every
-        # duplicate the notebook left behind -- can only be removed with the
-        # index itself.
-        print(f"deleting index {INDEX_NAME!r}")
-        pc.delete_index(INDEX_NAME)
-        exists = False
-
-    if exists:
-        print(f"index {INDEX_NAME!r} already exists, skipping creation")
-        # Upserting a differently-sized vector is rejected by Pinecone per
-        # batch, after the PDF has been parsed and the model loaded, with an
-        # error that names neither side of the mismatch. Check it up front.
-        existing_dim = pc.describe_index(INDEX_NAME).dimension
-        if existing_dim != EMBED_DIM:
-            raise SystemExit(
-                f"index {INDEX_NAME!r} has {existing_dim} dimensions but "
-                f"{EMBED_MODEL} produces {EMBED_DIM}. Either point EMBED_MODEL "
-                f"at a {existing_dim}-dimensional model, or rebuild the index "
-                f"with --recreate."
-            )
-    else:
-        print(f"creating index {INDEX_NAME!r}")
-        pc.create_index(
-            name=INDEX_NAME,
-            dimension=EMBED_DIM,
-            metric="cosine",
-            spec=ServerlessSpec(
-                cloud=PINECONE_CLOUD,
-                region=PINECONE_REGION
-            )
-        )
-
 
     store = PineconeVectorStore.from_existing_index(
         index_name=INDEX_NAME,
