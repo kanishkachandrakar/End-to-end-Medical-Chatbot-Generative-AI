@@ -43,6 +43,20 @@ log.
   bounds in both directions, with the reason beside each.
 - **`langchain-core` and `pydantic` were imported but never declared**, working
   only because something else pulled them in.
+- **A degraded index marked the container unhealthy.** `/healthz` was changed
+  to answer 503 when the index is empty or the chain could not be built, and the
+  container's `HEALTHCHECK` still pointed at it — so an app serving perfectly
+  well with nothing to retrieve from was reported unhealthy, and anything
+  watching container health would restart it. Repeatedly, since a restart
+  cannot repopulate an index. Liveness and readiness are now separate: `/livez`
+  for "is it up", `/healthz` for "can it answer".
+- **The indexer did its checks after the slow work.** The dimension comparison
+  claimed to run up front and ran after the 15MB PDF had been parsed and the
+  embedding model loaded. Everything that can refuse now happens before the PDF
+  is opened.
+- **The degraded banner cried wolf.** Any failed `/healthz` — including one
+  dropped request — told every visitor the service was down. An unexplained
+  failure is now confirmed against `/livez` first.
 - **Startup could hang indefinitely.** Reading the index size happens before the
   port is bound and the Pinecone client has no timeout of its own, so a network
   that accepted the connection and then went quiet would stall the boot — which
@@ -111,7 +125,11 @@ log.
 - The resolved configuration is logged in one line at startup; ten of those
   settings are environment-overridable and a wrong one was invisible.
 - `Retry-After` on a rate-limited reply, computed from the bucket rather than
-  guessed.
+  guessed, plus `X-RateLimit-Limit` and `X-RateLimit-Remaining` on every answer
+  so a client can pace itself instead of discovering the limit.
+- `GET /livez`.
+- Progress while rebuilding the index: a rate and an estimate per batch, with
+  the PDF load and the model load timed separately.
 - [CONTRIBUTING.md](CONTRIBUTING.md), and a supply-chain section in
   [SECURITY.md](SECURITY.md) that says what is *not* in place as well as what
   is.
@@ -148,6 +166,14 @@ log.
   standing in for the Space. It had never been run by anything.
 - A test fails on any tracked file containing a key-shaped string.
 - Gunicorn's worker class is named rather than inferred from the thread count.
+- A test derives the set of states `/healthz` can report and requires the chat
+  page and DEPLOY.md to cover every one, in both directions.
+- The GitHub Actions are current, the dependency floors are raised to what is
+  actually installed, and the five dependabot pull requests those bumps came
+  from are closed.
+- An `.editorconfig`, checked against the tree rather than asserted: three
+  indentation conventions here are deliberate and one of them is load-bearing
+  for the template contract tests.
 - `src/config.py` cross-checks the settings whose meaning is relative to each
   other, and `--recreate` asks for confirmation before deleting an index.
 - `/healthz` reports one of three states; see [DEPLOY.md](DEPLOY.md).
