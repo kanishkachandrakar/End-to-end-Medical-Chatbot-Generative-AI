@@ -230,8 +230,10 @@ a crawler or a link prefetch should be able to trigger.
 curl -X POST http://localhost:8080/get -d "msg=What is hypertension?"
 ```
 
-`GET /healthz` answers without spending an LLM call, and reports the running
-revision, the vector count, and whether the service is degraded — the chat page
+`GET /livez` answers `alive` whenever the process is serving — that is what the
+container's health check uses. `GET /healthz` answers without spending an LLM
+call, and reports the running revision, the vector count, and whether the
+service is degraded — the chat page
 asks it on load and shows a banner if answers would not be grounded. See
 [DEPLOY.md](DEPLOY.md) for the states it can return.
 
@@ -270,6 +272,11 @@ repository's history, and rebuilding the index to clear duplicate chunks.
 - **The page loads but every question fails** – check `/healthz` first; if that
   is `ok`, the failure is per-request, and the reply quotes a `ref` that appears
   in the log next to the traceback.
+- **Questions are refused with a 429** – the demo answers at most
+  `RATE_LIMIT_PER_MINUTE` a minute across all visitors, and the reply says when
+  to retry. `X-RateLimit-Remaining` on a successful answer shows what is left,
+  so a script can pace itself instead of being refused. Raise the limit, or set
+  it to `0` to remove it, if you are running this privately.
 - **Index dimension errors** – `store_index.py` refuses up front if the
   existing index's dimension does not match the embedding model, and names
   both. Changing `EMBED_MODEL` means rebuilding with `--recreate`.
