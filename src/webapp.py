@@ -174,6 +174,16 @@ def create_app(
         """Ask crawlers to stay away; this is a demo, not a resource to index."""
         return text_reply(ROBOTS_TXT)
 
+    @app.route("/livez")
+    def livez() -> Response:
+        """Liveness: is this process serving at all.
+
+        Deliberately knows nothing about the index or the chain. Restarting a
+        container cannot repopulate an index or fix a revoked key, so a
+        readiness problem must not read as "kill me" to whatever is watching.
+        """
+        return text_reply("alive")
+
     @app.route("/healthz")
     def healthz() -> Response:
         """Liveness probe: a reply means the chain was built and the app is up.

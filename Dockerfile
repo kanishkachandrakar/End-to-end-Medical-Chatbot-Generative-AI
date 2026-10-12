@@ -56,8 +56,13 @@ EXPOSE 7860
 
 # Generous start period: the first boot loads the embedding model before the
 # port opens.
+# Points at /livez, not /healthz. /healthz answers 503 when the index is empty
+# or the chain could not be built -- real problems, but ones a restart cannot
+# fix, and urlopen raises on 503. Pointed there, this check would mark the
+# container unhealthy for a degraded-but-serving app and invite whatever is
+# watching to restart it in a loop.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
-    CMD python -c "import os,urllib.request; urllib.request.urlopen(f\"http://127.0.0.1:{os.environ.get('PORT','7860')}/healthz\").read()"
+    CMD python -c "import os,urllib.request; urllib.request.urlopen(f\"http://127.0.0.1:{os.environ.get('PORT','7860')}/livez\").read()"
 
 # Settings live in gunicorn.conf.py, which also resolves $PORT -- so this is
 # the exec form with no shell in between, and gunicorn is PID 1.

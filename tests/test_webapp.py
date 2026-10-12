@@ -476,3 +476,33 @@ def test_the_retry_after_is_never_zero():
     refused = client.post("/get", data={"msg": "second"})
     if refused.status_code == 429:
         assert int(refused.headers["Retry-After"]) >= 1
+
+
+def test_livez_is_alive_even_when_degraded():
+    """A restart cannot repopulate an index; this must not say "kill me"."""
+    from src.webapp import create_app
+
+    for kwargs in (
+        {"index_size": 0},
+        {"unavailable": "chain-unavailable"},
+        {"index_size": 0, "unavailable": "chain-unavailable"},
+    ):
+        client = create_app(StubChain(), **kwargs).test_client()
+        response = client.get("/livez")
+        assert response.status_code == 200, kwargs
+        assert response.data == b"alive"
+
+
+def test_livez_does_not_touch_the_chain(client_for):
+    chain = StubChain()
+    client_for(chain).get("/livez")
+    assert chain.calls == []
+
+
+def test_healthz_still_reports_degraded():
+    """The split is the point: liveness always 200, readiness can 503."""
+    from src.webapp import create_app
+
+    client = create_app(StubChain(), index_size=0).test_client()
+    assert client.get("/livez").status_code == 200
+    assert client.get("/healthz").status_code == 503

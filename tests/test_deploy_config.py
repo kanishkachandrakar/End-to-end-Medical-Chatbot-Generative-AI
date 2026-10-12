@@ -146,3 +146,10 @@ def test_the_worker_class_matches_the_thread_count():
     config = _load_gunicorn_config()
     assert config.worker_class == "gthread"
     assert config.threads > 1
+
+
+def test_the_container_healthcheck_uses_liveness_not_readiness():
+    """urlopen raises on 503, so /healthz here would restart a degraded app."""
+    assert "/livez" in DOCKERFILE
+    healthcheck = re.search(r"HEALTHCHECK.*?\n(.*?)\n\n", DOCKERFILE, re.DOTALL)
+    assert healthcheck and "/healthz" not in healthcheck.group(1)
