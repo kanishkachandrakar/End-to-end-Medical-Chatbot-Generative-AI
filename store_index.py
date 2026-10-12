@@ -126,9 +126,13 @@ def main(argv=None) -> None:
                 )
             )
 
+    started = time.monotonic()
     extracted_data = load_pdf("Data/")
     text_chunks = text_split(extracted_data)
-    print(f"loaded {len(extracted_data)} pages -> {len(text_chunks)} chunks")
+    print(
+        f"loaded {len(extracted_data)} pages -> {len(text_chunks)} chunks "
+        f"in {time.monotonic() - started:.0f}s"
+    )
 
     if args.limit is not None:
         if args.limit < 1:
@@ -145,7 +149,9 @@ def main(argv=None) -> None:
         print(f"dry run: would upsert {unique} unique chunks into {INDEX_NAME!r}")
         return
 
+    started = time.monotonic()
     embeddings = download_hugging_face_embeddings()
+    print(f"embedding model ready in {time.monotonic() - started:.0f}s")
 
     store = PineconeVectorStore.from_existing_index(
         index_name=INDEX_NAME,
@@ -154,12 +160,21 @@ def main(argv=None) -> None:
 
     total = len(text_chunks)
     done = 0
+    started = time.monotonic()
     for chunks, batch_ids in zip(
         batched(text_chunks, BATCH_SIZE), batched(ids, BATCH_SIZE), strict=True
     ):
         store.add_documents(chunks, ids=batch_ids)
         done += len(chunks)
-        print(f"  {done}/{total} chunks", flush=True)
+        elapsed = time.monotonic() - started
+        rate = done / elapsed if elapsed else 0
+        remaining = (total - done) / rate if rate else 0
+        # A rebuild is minutes long and silent otherwise; a rate and an
+        # estimate are the difference between waiting and wondering.
+        print(
+            f"  {done}/{total} chunks  {rate:.0f}/s  ~{remaining:.0f}s left",
+            flush=True,
+        )
 
     print(f"upserted {unique} unique chunks into {INDEX_NAME!r}")
     confirm_upsert(pc, unique)

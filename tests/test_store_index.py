@@ -493,3 +493,43 @@ class TestConfirmUpsert:
         calls["existing"] = [module.INDEX_NAME]
         module.main(["--dry-run"])
         assert calls.get("stats_reads") is None
+
+
+class TestProgressReporting:
+    """A rebuild takes minutes; silence for minutes is indistinguishable
+    from being stuck."""
+
+    def test_the_load_reports_how_long_it_took(self, indexer, capsys):
+        module, calls = indexer
+        calls["existing"] = [module.INDEX_NAME]
+        module.main([])
+        assert "chunks in " in capsys.readouterr().out
+
+    def test_each_batch_reports_a_rate_and_an_estimate(self, indexer, capsys):
+        module, calls = indexer
+        calls["existing"] = [module.INDEX_NAME]
+        module.main([])
+        output = capsys.readouterr().out
+        assert "/s" in output and "s left" in output
+
+    def test_the_counts_still_add_up_to_the_total(self, indexer, capsys):
+        module, calls = indexer
+        calls["existing"] = [module.INDEX_NAME]
+        module.main([])
+        lines = [ln for ln in capsys.readouterr().out.splitlines() if "chunks  " in ln]
+        assert lines, "no progress lines"
+        assert lines[-1].strip().startswith("7/7")
+
+    def test_the_model_load_is_timed_separately(self, indexer, capsys):
+        """It is the slow part of a first run and worth distinguishing."""
+        module, calls = indexer
+        calls["existing"] = [module.INDEX_NAME]
+        module.main([])
+        assert "embedding model ready in" in capsys.readouterr().out
+
+    def test_a_dry_run_times_the_load_but_not_the_model(self, indexer, capsys):
+        module, calls = indexer
+        module.main(["--dry-run"])
+        output = capsys.readouterr().out
+        assert "chunks in " in output
+        assert "embedding model ready" not in output
