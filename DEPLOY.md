@@ -96,6 +96,14 @@ states the app is in:
 | `degraded <rev> chain-unavailable` | 503 | Running, but the retrieval chain could not be built at startup: a bad key, or Pinecone unreachable. The reason is in the runtime log. |
 | no response at all | — | The container is not serving. Check the build log, then the runtime log. |
 
+There is also `GET /livez`, which answers `alive` whenever the process is
+serving and knows nothing about the index or the chain. That is what the
+container's `HEALTHCHECK` uses, and the distinction matters: a restart cannot
+repopulate an index or replace a revoked key, so pointing a restart-on-unhealthy
+supervisor at `/healthz` would turn a degraded-but-working app into a loop.
+
+Use `/livez` for "is it up" and `/healthz` for "can it answer".
+
 The third row is why the app starts even when its dependencies are down: it
 would otherwise crash, restart, crash again, and tell you nothing. A transient
 outage at boot also recovers on the next restart rather than needing a manual
@@ -133,6 +141,13 @@ would be trivially spoofed. One busy visitor can therefore make others wait.
   number of questions a minute". That one is `RATE_LIMIT_PER_MINUTE`, not Groq.
 - **Request logs appear in the runtime log**, one line per request, so you can
   tell a question that failed from one that never arrived.
+- **The chat page says so when answers would not be grounded.** It asks
+  `/healthz` on load and shows a banner for either degraded state; an
+  unexplained failure is confirmed against `/livez` before it claims an outage,
+  so one dropped request does not alarm every visitor.
+- **Replies carry the rate-limit budget.** `X-RateLimit-Limit` and
+  `X-RateLimit-Remaining` on every answer, and a refused question returns 429
+  with `Retry-After` computed from the limiter rather than guessed.
 
 ## Why the dependencies are pinned
 
