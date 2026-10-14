@@ -11,11 +11,23 @@ make install        # runtime + test dependencies
 make check          # lint, types and the suite, exactly as CI runs them
 ```
 
-`make help` lists the rest. `make fast` skips the one test file that pays ten
-seconds to import `langchain_community`.
+`make help` lists the rest. `make fast` skips the files that pay for heavyweight
+imports and real git work.
+
+The suite itself takes about five seconds; coverage used to add fifteen on top,
+all of it spent tracing the langchain import tree. `make` sets `COVERAGE_CORE`
+to `sysmon` where the interpreter has `sys.monitoring` (3.12 and later), which
+removes almost all of that. If you run `pytest` directly and it feels slow,
+that is why.
 
 Optionally `pip install pre-commit && pre-commit install` runs the quick checks
-before each commit. Nothing requires it; CI is the gate.
+before each commit. CI runs the same hooks, so the only thing you lose by not
+installing them is finding out later.
+
+`ruff` is a dev requirement and the hook runs it from the environment rather
+than pinning its own copy — three places used to choose a version
+independently and the hook's was seven releases behind, which let it pass code
+CI rejected. A test fails if a pinned mirror comes back.
 
 ## What CI checks, and why each one is there
 
