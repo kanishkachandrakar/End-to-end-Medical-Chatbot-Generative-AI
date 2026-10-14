@@ -50,6 +50,36 @@ def _plain_imports(filename):
 MODULES = ["app.py", "store_index.py", "gunicorn.conf.py"]
 
 
+def _notebook_imports():
+    """(module, name) for every `from X import Y` in the notebook's code cells.
+
+    The notebook is a prototype and not maintained alongside src/, which is
+    exactly why its imports go stale unnoticed: nothing executes it. The
+    langchain 1.0 move broke app.py and the notebook together, and only app.py
+    was noticed.
+    """
+    import json
+
+    notebook = json.loads((ROOT / "research" / "trials.ipynb").read_text())
+    found = []
+    for cell in notebook["cells"]:
+        if cell["cell_type"] != "code":
+            continue
+        source = "".join(cell["source"])
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            # A cell with magics such as %pwd is not valid Python on its own.
+            continue
+        found.extend(
+            (node.module, alias.name)
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom) and node.module
+            for alias in node.names
+        )
+    return found
+
+
 def test_the_import_statements_were_found():
     """These are all absence-style checks; an empty list would pass them."""
     assert len(_imports("app.py")) >= 10
@@ -121,3 +151,22 @@ def test_everything_imported_is_declared_as_a_dependency():
     }
     for module in sorted(top_level - skip):
         assert module.lower() in declared, f"{module} is imported but not required"
+
+
+def test_the_notebook_imports_were_found():
+    assert len(_notebook_imports()) >= 5
+
+
+def test_every_notebook_import_resolves():
+    """It is a prototype, not a reason for it to reference a dead module."""
+    for module_name, name in _notebook_imports():
+        if module_name.startswith("src"):
+            continue
+        module = importlib.import_module(module_name)
+        assert hasattr(module, name), f"{module_name} has no {name!r}"
+
+
+def test_the_notebook_does_not_use_the_moved_chains_module():
+    """Named explicitly: this is the import that broke and went unnoticed."""
+    modules = {module for module, _ in _notebook_imports()}
+    assert not any(m.startswith("langchain.chains") for m in modules), modules
