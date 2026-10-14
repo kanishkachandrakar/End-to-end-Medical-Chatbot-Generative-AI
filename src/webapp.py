@@ -48,6 +48,10 @@ ROBOTS_TXT = "User-agent: *\nDisallow: /\n"
 
 NO_QUESTION = "Please type a question."
 NO_ANSWER = "I don't have an answer for that."
+# Advertised when the chain could not be built. Long enough not to invite a
+# retry storm against a service that needs a human or a restart.
+DEGRADED_RETRY_AFTER = 60
+
 TOO_BUSY = (
     "This demo answers a limited number of questions a minute -- "
     "please try again shortly."
@@ -222,7 +226,13 @@ def create_app(
         """
         if unavailable:
             app.logger.error("[%s] refusing: %s", g.request_id, unavailable)
-            return text_reply(UNAVAILABLE, 503)
+            refusal = text_reply(UNAVAILABLE, 503)
+            # Whatever broke at startup is not going to clear on its own in
+            # the next second, and a client with no hint retries immediately.
+            # A minute is a guess, but an honest one: the alternative is the
+            # client guessing, and it guesses zero.
+            refusal.headers["Retry-After"] = str(DEGRADED_RETRY_AFTER)
+            return refusal
 
         msg = (request.form.get("msg") or "").strip()
         if not msg:

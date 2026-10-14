@@ -553,3 +553,34 @@ def test_no_budget_headers_when_there_is_no_limiter(client_for):
     """The tests use an unlimited app; it should not claim a budget."""
     response = client_for(StubChain()).post("/get", data={"msg": "q"})
     assert "X-RateLimit-Limit" not in response.headers
+
+
+def test_a_degraded_refusal_says_when_to_come_back():
+    """Without it a client retries at once, against something still broken."""
+    from src.webapp import DEGRADED_RETRY_AFTER, create_app
+
+    client = create_app(StubChain(), unavailable="chain-unavailable").test_client()
+    response = client.post("/get", data={"msg": "q"})
+    assert response.status_code == 503
+    assert int(response.headers["Retry-After"]) == DEGRADED_RETRY_AFTER
+
+
+def test_the_degraded_wait_is_longer_than_the_rate_limit_wait():
+    """A rate limit clears on its own; a broken chain does not."""
+    from src.ratelimit import TokenBucket
+    from src.webapp import DEGRADED_RETRY_AFTER, create_app
+
+    limited = create_app(
+        StubChain(), limiter=TokenBucket(capacity=1, rate=1)
+    ).test_client()
+    limited.post("/get", data={"msg": "first"})
+    refused = limited.post("/get", data={"msg": "second"})
+    assert int(refused.headers["Retry-After"]) < DEGRADED_RETRY_AFTER
+
+
+def test_healthz_is_not_given_a_retry_after():
+    """It is a probe, not a request to repeat; a monitor sets its own interval."""
+    from src.webapp import create_app
+
+    client = create_app(StubChain(), unavailable="chain-unavailable").test_client()
+    assert "Retry-After" not in client.get("/healthz").headers
