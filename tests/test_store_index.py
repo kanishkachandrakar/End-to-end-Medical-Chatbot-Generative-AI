@@ -533,3 +533,70 @@ class TestProgressReporting:
         output = capsys.readouterr().out
         assert "chunks in " in output
         assert "embedding model ready" not in output
+
+
+class TestPrepareIndex:
+    """The part that refuses, called on its own rather than through main()."""
+
+    def test_it_returns_a_client_for_an_existing_index(self, indexer):
+        module, calls = indexer
+        calls["existing"] = [module.INDEX_NAME]
+        client = module.prepare_index("key", recreate=False, yes=False)
+        assert client is not None
+        assert calls["created"] == []
+
+    def test_it_creates_a_missing_index(self, indexer):
+        module, calls = indexer
+        calls["existing"] = []
+        module.prepare_index("key", recreate=False, yes=False)
+        assert calls["created"][0]["dimension"] == module.EMBED_DIM
+
+    def test_recreate_deletes_first_when_confirmation_is_skipped(self, indexer):
+        module, calls = indexer
+        calls["existing"] = [module.INDEX_NAME]
+        module.prepare_index("key", recreate=True, yes=True)
+        assert calls["deleted"] == [module.INDEX_NAME]
+        assert calls["created"]
+
+    def test_a_dimension_mismatch_refuses_here(self, indexer):
+        module, calls = indexer
+        calls["existing"] = [module.INDEX_NAME]
+        calls["dimension"] = 768
+        with pytest.raises(SystemExit, match="768"):
+            module.prepare_index("key", recreate=False, yes=False)
+
+    def test_the_api_key_is_passed_through(self, indexer):
+        module, calls = indexer
+        calls["existing"] = [module.INDEX_NAME]
+        module.prepare_index("given-key", recreate=False, yes=False)
+        assert calls["api_key"] == "given-key"
+
+
+class TestConfirmDeletion:
+    """Separated from prepare_index so the prompt can be tested as a prompt."""
+
+    def test_the_index_name_confirms(self, indexer, monkeypatch):
+        module, _ = indexer
+        monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+        monkeypatch.setattr("builtins.input", lambda *a: module.INDEX_NAME)
+        module.confirm_deletion(module.INDEX_NAME)
+
+    def test_anything_else_aborts(self, indexer, monkeypatch):
+        module, _ = indexer
+        monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+        monkeypatch.setattr("builtins.input", lambda *a: "yes")
+        with pytest.raises(SystemExit, match="not confirmed"):
+            module.confirm_deletion(module.INDEX_NAME)
+
+    def test_without_a_terminal_it_refuses_rather_than_waiting(
+        self, indexer, monkeypatch
+    ):
+        module, _ = indexer
+        monkeypatch.setattr("sys.stdin.isatty", lambda: False)
+
+        def refuse(*args):
+            raise AssertionError("it must not reach input() with no terminal")
+
+        monkeypatch.setattr("builtins.input", refuse)
+        with pytest.raises(SystemExit, match="--yes"):
+            module.confirm_deletion(module.INDEX_NAME)
