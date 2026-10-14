@@ -43,6 +43,16 @@ log.
   bounds in both directions, with the reason beside each.
 - **`langchain-core` and `pydantic` were imported but never declared**, working
   only because something else pulled them in.
+- **The base image pin had nothing watching it.** The Dockerfile was pinned by
+  digest and both the commit and SECURITY.md said dependabot proposes the
+  updates — but only the pip and github-actions ecosystems were configured, so
+  nothing watched the Dockerfile. That made the pin worse than the moving tag
+  it replaced: a tag at least collects security patches, a digest nobody
+  updates collects nothing.
+- **Three independent ruff versions.** The pre-commit hook pinned a mirror
+  seven minor releases behind the one CI and the Makefile used, so the commit
+  hook could pass code CI then rejected — the single failure a commit hook
+  exists to prevent. ruff is now a declared dev requirement that all three use.
 - **A degraded index marked the container unhealthy.** `/healthz` was changed
   to answer 503 when the index is empty or the chain could not be built, and the
   container's `HEALTHCHECK` still pointed at it — so an app serving perfectly
@@ -171,6 +181,19 @@ log.
 - The GitHub Actions are current, the dependency floors are raised to what is
   actually installed, and the five dependabot pull requests those bumps came
   from are closed.
+- Coverage uses `sys.monitoring` where the interpreter has it. It had been
+  spending about fifteen seconds tracing the langchain import tree and
+  discarding the result — a fixed cost, so it fell entirely on single-file
+  runs. `make fast` is now about a second; the full suite with the gate is
+  five.
+- CI runs the pre-commit hooks, so the whitespace, large-file and
+  private-key checks apply to everyone rather than whoever opted in.
+- The container boot check also requires `/livez` to answer 200 while
+  `/healthz` reports 503 — the asymmetry those two exist for — and reads the
+  container's own health status, which is the only thing that exercises the
+  `HEALTHCHECK` command.
+- `.dockerignore` is covered by a test in both directions: nothing the app
+  needs may be excluded, nothing it cannot use may be included.
 - An `.editorconfig`, checked against the tree rather than asserted: three
   indentation conventions here are deliberate and one of them is load-bearing
   for the template contract tests.
