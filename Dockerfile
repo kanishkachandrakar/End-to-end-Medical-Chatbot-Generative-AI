@@ -6,7 +6,7 @@
 # yesterday fails today with nothing in this repository having changed.
 # This is the multi-arch index digest, so it still resolves per platform.
 # Dependabot proposes digest updates; CI's build decides them.
-FROM python:3.10-slim@sha256:6ff506466f8b1e981719b468cc0023b8ef000b983cdec0eafe119d01f379e31d
+FROM python:3.14-slim@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170
 
 # Spaces runs the container as uid 1000, so create that user and give it a
 # home the model cache can be written to.
