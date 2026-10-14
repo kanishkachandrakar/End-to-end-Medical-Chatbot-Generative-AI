@@ -3,6 +3,9 @@
 pytest>=9.1
 pytest-cov>=5.0
 mypy>=1.10
+# Declared here so CI, the Makefile and the pre-commit hook all use one
+# version. They used three, and the hook's was seven minor releases behind.
+ruff>=0.16,<1
 
 # Shared with requirements.txt, and deliberately at identical bounds. Testing
 # against versions the container will not install is how both of this project's

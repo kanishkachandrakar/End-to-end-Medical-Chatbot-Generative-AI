@@ -6,15 +6,17 @@
 # The test suite is deliberately not here: thirteen seconds is too long for a
 # commit hook, and `make check` or CI covers it.
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.6
+  # ruff runs from the environment rather than a pinned mirror, so the hook and
+  # CI cannot disagree about what passes. The mirror's rev was v0.9.6 against
+  # 0.16 everywhere else, which meant the hook could pass code CI rejects.
+  - repo: local
     hooks:
       - id: ruff
-        args: [--fix]
-      - id: ruff-format
-        # Formatting is not enforced in CI, so this only reformats what it is
-        # given rather than failing on the rest of the tree.
-        stages: [manual]
+        name: ruff
+        entry: ruff check --fix
+        language: system
+        types: [python]
+        require_serial: true
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
