@@ -192,3 +192,20 @@ class StubChain:
         started = time.monotonic()
         assert app_module.read_index_size("key", timeout=0.2) is None
         assert time.monotonic() - started < 5, "it waited for the hang"
+
+    def test_the_revision_and_config_are_logged(self, app_module, monkeypatch, caplog):
+        """Which build, and what it was configured with, before anything else."""
+        import logging
+        import sys
+
+        monkeypatch.setenv("PINECONE_API_KEY", "pcsk_x")
+        monkeypatch.setenv("GROQ_API_KEY", "gsk_x")
+        monkeypatch.setitem(sys.modules, "pinecone", _pinecone({}))
+        monkeypatch.setattr(app_module, "build_chain", lambda p, g: StubChain())
+
+        with caplog.at_level(logging.INFO):
+            app_module.create()
+
+        text = caplog.text
+        assert "revision:" in text
+        assert "config:" in text and "index=" in text

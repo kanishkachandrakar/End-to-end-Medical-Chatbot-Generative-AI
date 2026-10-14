@@ -32,7 +32,7 @@ from src.env import require_env, warn_on_suspicious_keys
 from src.helper import download_hugging_face_embeddings
 from src.prompt import system_prompt
 from src.ratelimit import per_minute
-from src.webapp import create_app
+from src.webapp import APP_REVISION, create_app
 
 
 def read_index_size(api_key: str, timeout: float = 15.0) -> int | None:
@@ -126,12 +126,16 @@ class _Refusing:
 
 def create() -> Flask:
     """Build the application. Gunicorn calls this; see gunicorn.conf.py."""
+    logger = logging.getLogger(__name__)
     load_dotenv()
     keys = require_env("PINECONE_API_KEY", "GROQ_API_KEY")
     for complaint in warn_on_suspicious_keys(keys):
-        logging.getLogger(__name__).warning("%s", complaint)
+        logger.warning("%s", complaint)
 
-    logging.getLogger(__name__).info("config: %s", config_summary())
+    # The revision is in /healthz too, but a log line is what you have when
+    # the question is which build produced an entry further down.
+    logger.info("revision: %s", APP_REVISION)
+    logger.info("config: %s", config_summary())
 
     index_size = read_index_size(keys["PINECONE_API_KEY"])
 
