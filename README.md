@@ -152,12 +152,16 @@ The suite needs no API keys, no network and no embedding model — which is also
 why CI does not install torch. Everything in `src/` is covered; the floor is
 enforced at 95% in CI.
 
-One file (`tests/test_load_pdf.py`) pays about ten seconds to import
-`langchain_community`. Skip it while iterating:
+The suite runs in about five seconds. A few files pay for heavyweight imports
+or real git work and are marked `slow`; skip them while iterating:
 
 ```bash
-python -m pytest -m "not slow"
+make fast                      # or: python -m pytest -m "not slow" --no-cov
 ```
+
+Use `make test` rather than bare `pytest`: it sets `COVERAGE_CORE=sysmon` on
+Python 3.12 and later, which is the difference between coverage costing one
+second and fifteen.
 
 ## Configuration
 
