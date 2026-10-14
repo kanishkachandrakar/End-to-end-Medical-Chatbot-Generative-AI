@@ -28,7 +28,13 @@ README.md
 DEPLOY.md
 CHANGELOG.md
 SECURITY.md
+CONTRIBUTING.md
 LICENSE
+
+# Editor and hook configuration: of no use inside a container, and both
+# change on commits that touch nothing the container runs.
+.editorconfig
+.pre-commit-config.yaml
 
 # Development-only: tests, tooling config and the deploy script are not part of
 # the runtime image.
