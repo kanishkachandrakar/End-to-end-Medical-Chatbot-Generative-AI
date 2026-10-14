@@ -15,19 +15,19 @@ COVERAGE_CORE := $(shell $(PYTHON) -c 'import sys; print("sysmon" if sys.version
 export COVERAGE_CORE
 
 .DEFAULT_GOAL := help
-.PHONY: help install test fast lint fix check run index dry-run image clean
+.PHONY: help install test fast lint fix hooks check run index dry-run image clean
 
 help:  ## Show this list
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) \
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
 
 install:  ## Install runtime and test dependencies
-	$(PYTHON) -m pip install -r requirements.txt -r requirements-dev.txt ruff
+	$(PYTHON) -m pip install -r requirements.txt -r requirements-dev.txt pre-commit
 
 test:  ## Run the whole suite with the coverage gate CI applies
 	$(PYTHON) -m pytest --cov-fail-under=95
 
-fast:  ## Run the suite without the ten-second langchain_community import
+fast:  ## Run the suite without the slow-marked files or coverage
 	$(PYTHON) -m pytest -m "not slow" --no-cov
 
 lint:  ## Check formatting, imports, types and the non-Python files
@@ -39,7 +39,10 @@ lint:  ## Check formatting, imports, types and the non-Python files
 fix:  ## Apply the lint fixes that are safe to apply
 	ruff check --fix .
 
-check: lint test  ## Everything CI checks, except the image build
+hooks:  ## Run the pre-commit hooks, as CI does
+	SKIP=ruff $(PYTHON) -m pre_commit run --all-files
+
+check: lint hooks test  ## Everything CI checks, except the image build
 
 run:  ## Serve the app on localhost:8080
 	$(PYTHON) app.py
