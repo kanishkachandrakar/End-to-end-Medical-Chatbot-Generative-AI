@@ -29,6 +29,13 @@ than pinning its own copy — three places used to choose a version
 independently and the hook's was seven releases behind, which let it pass code
 CI rejected. A test fails if a pinned mirror comes back.
 
+More generally: **nothing in CI installs a tool that isn't in
+`requirements-dev.txt`.** Adding a step that needs a tool is the moment `pip
+install` is at hand, and the result passes while recording nothing about the
+version used — it happened with ruff, then with pre-commit three days later. A
+test reads the `pip install` lines out of the workflow and the Makefile and
+fails on any package not declared.
+
 ## What CI checks, and why each one is there
 
 The fast job is lint, mypy and the suite on Python 3.10 and 3.12. The slow job
