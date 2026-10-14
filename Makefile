@@ -35,6 +35,9 @@ lint:  ## Check formatting, imports, types and the non-Python files
 	$(PYTHON) -m mypy src app.py store_index.py
 	node --check static/chat.js
 	bash -n scripts/deploy_space.sh
+	# Catches a syntax error in a module the suite never imports, as CI does.
+	$(PYTHON) -m compileall -q app.py store_index.py template.py setup.py \
+		gunicorn.conf.py src
 
 fix:  ## Apply the lint fixes that are safe to apply
 	ruff check --fix .

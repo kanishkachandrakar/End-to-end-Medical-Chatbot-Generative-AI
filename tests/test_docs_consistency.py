@@ -95,10 +95,30 @@ def test_the_makefile_runs_what_ci_runs():
     """A local `make check` that diverges from CI is worse than no shortcut."""
     makefile = (ROOT / "Makefile").read_text()
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
-    commands = ("ruff check .", "node --check static/chat.js", "--cov-fail-under=95")
+    commands = (
+        "ruff check .",
+        "mypy src app.py store_index.py",
+        "node --check static/chat.js",
+        "bash -n scripts/deploy_space.sh",
+        "compileall",
+        # The Makefile runs `python -m pre_commit` so that PYTHON= works; CI
+        # uses the console script. Compare the operation, not the spelling.
+        "run --all-files",
+        "--cov-fail-under=95",
+    )
     for command in commands:
         assert command in makefile, f"Makefile omits {command!r}"
         assert command in workflow, f"CI omits {command!r}"
+
+
+def test_check_depends_on_every_local_gate():
+    """`make check` is the one target anyone is told to run before pushing."""
+    import re
+
+    makefile = (ROOT / "Makefile").read_text()
+    target = re.search(r"^check: (.+?)(?:  ##|$)", makefile, re.MULTILINE)
+    assert target, "no check target"
+    assert set(target.group(1).split()) == {"lint", "hooks", "test"}
 
 
 def test_every_makefile_target_is_documented():
