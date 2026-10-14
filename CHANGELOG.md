@@ -43,6 +43,19 @@ log.
   bounds in both directions, with the reason beside each.
 - **`langchain-core` and `pydantic` were imported but never declared**, working
   only because something else pulled them in.
+- **The notebook still imported the module langchain 1.0 removed.** The same
+  breakage as `app.py`, fixed there two days earlier and missed here — the
+  notebook is marked as a prototype, which is a reason not to rewrite it and
+  not a reason to leave an import in it that cannot resolve. Its imports are
+  now resolved by the test suite too.
+- **Static asset URLs were keyed on modification time.** An mtime belongs to
+  the checkout, not the file: every deploy rewrites them, so each release
+  invalidated assets whose bytes had not changed, and two replicas built
+  separately would advertise different URLs for identical content. The key is
+  now a content hash.
+- **`pre-commit` was installed ad hoc in CI** — the exact pattern removed for
+  ruff three days earlier, reintroduced by the commit that put the hooks into
+  CI. Both are declared now, and a test fails on the next one.
 - **The base image pin had nothing watching it.** The Dockerfile was pinned by
   digest and both the commit and SECURITY.md said dependabot proposes the
   updates — but only the pip and github-actions ecosystems were configured, so
@@ -138,6 +151,8 @@ log.
   guessed, plus `X-RateLimit-Limit` and `X-RateLimit-Remaining` on every answer
   so a client can pace itself instead of discovering the limit.
 - `GET /livez`.
+- `Retry-After` on a refusal while degraded, deliberately longer than the
+  rate-limit wait: that one clears by itself and this one does not.
 - Progress while rebuilding the index: a rate and an estimate per batch, with
   the PDF load and the model load timed separately.
 - [CONTRIBUTING.md](CONTRIBUTING.md), and a supply-chain section in
@@ -181,6 +196,13 @@ log.
 - The GitHub Actions are current, the dependency floors are raised to what is
   actually installed, and the five dependabot pull requests those bumps came
   from are closed.
+- CI runs with a read-only token and a timeout on every job; the defaults were
+  write access and six hours.
+- `make check` covers what CI covers, asserted by a test that compares all
+  seven commands rather than the three it used to.
+- `prepare_index()` and `confirm_deletion()` are out of `store_index.main()`
+  and tested directly, so a decision made before the PDF is opened no longer
+  needs a PDF to exercise.
 - Coverage uses `sys.monitoring` where the interpreter has it. It had been
   spending about fifteen seconds tracing the langchain import tree and
   discarding the result — a fixed cost, so it fell entirely on single-file
