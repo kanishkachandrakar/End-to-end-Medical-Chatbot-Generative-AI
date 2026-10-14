@@ -328,20 +328,44 @@ def test_static_urls_are_fingerprinted(client_for):
     assert "style.css?v=" in page
 
 
-def test_the_fingerprint_changes_when_the_file_does(tmp_path, monkeypatch):
+def test_the_fingerprint_changes_when_the_contents_do(tmp_path):
     """Otherwise an edit would never reach a visitor who has the old copy."""
+    from src.webapp import _digest
+
+    one = tmp_path / "a.js"
+    one.write_text("alert(1)")
+    before = _digest(str(one))
+    one.write_text("alert(2)")
+    _digest.cache_clear()
+    assert _digest(str(one)) != before
+
+
+def test_the_fingerprint_ignores_the_modification_time():
+    """An mtime belongs to the checkout, not the file: a deploy rewrites them
+    all, and two replicas built separately would disagree about identical
+    bytes."""
     import os
 
-    from src.webapp import _static_version, create_app
+    from src.webapp import _digest, _static_version, create_app
 
     app = create_app(StubChain())
     asset = pathlib.Path(app.static_folder) / "chat.js"
+    original = asset.stat()
     before = _static_version(app, "chat.js")
-    os.utime(asset, (asset.stat().st_atime, asset.stat().st_mtime + 60))
+    os.utime(asset, (original.st_atime, original.st_mtime + 500))
+    _digest.cache_clear()
     try:
-        assert _static_version(app, "chat.js") != before
+        assert _static_version(app, "chat.js") == before
     finally:
-        os.utime(asset, (asset.stat().st_atime, asset.stat().st_mtime - 60))
+        os.utime(asset, (original.st_atime, original.st_mtime))
+        _digest.cache_clear()
+
+
+def test_two_different_files_get_different_fingerprints():
+    from src.webapp import _static_version, create_app
+
+    app = create_app(StubChain())
+    assert _static_version(app, "chat.js") != _static_version(app, "style.css")
 
 
 def test_a_missing_static_file_does_not_break_the_page(client_for):

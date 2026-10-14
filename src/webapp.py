@@ -8,6 +8,8 @@ Flask is pointed at the project's templates/ and static/ explicitly, because
 this module lives in src/ and would otherwise look for them there.
 """
 
+import functools
+import hashlib
 import math
 import os
 import pathlib
@@ -57,19 +59,30 @@ def text_reply(body: str, status: int = 200) -> Response:
     return Response(body, status=status, mimetype="text/plain")
 
 
-def _static_version(app: Flask, filename: str) -> str:
-    """A cache key for a static file, derived from its modification time.
+@functools.lru_cache(maxsize=32)
+def _digest(path: str) -> str:
+    """Short content hash of a file, or "" if it cannot be read."""
+    try:
+        return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()[:12]
+    except OSError:
+        return ""
 
-    Flask's url_for does not fingerprint static files, so a long cache lifetime
-    would otherwise mean a visitor keeping a stale chat.js until they clear it.
-    Appending the mtime makes an edit a different URL.
+
+def _static_version(app: Flask, filename: str) -> str:
+    """A cache key for a static file, derived from its contents.
+
+    Flask's url_for does not fingerprint static files, so the year-long cache
+    lifetime set below would otherwise leave a visitor holding a stale chat.js.
+
+    Content, not modification time: an mtime is a property of the checkout
+    rather than the file. A deploy copies the files and gives them new mtimes,
+    so every release would invalidate assets that had not changed -- and two
+    replicas built separately would advertise different URLs for identical
+    bytes. A hash is the same everywhere the file is.
     """
     if not app.static_folder:
         return ""
-    try:
-        return str(int(pathlib.Path(app.static_folder, filename).stat().st_mtime))
-    except OSError:
-        return ""
+    return _digest(str(pathlib.Path(app.static_folder, filename)))
 
 
 def create_app(
