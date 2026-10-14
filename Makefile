@@ -7,6 +7,13 @@
 # `make test PYTHON=.venv/bin/python` if the right interpreter is not first.
 PYTHON ?= python
 
+# coverage traces every imported module, and importing langchain costs about
+# fourteen seconds of that under the default C tracer. sys.monitoring does the
+# same job for a fraction of it, and exists from Python 3.12 -- so pick the
+# core the interpreter supports rather than hardcoding either.
+COVERAGE_CORE := $(shell $(PYTHON) -c 'import sys; print("sysmon" if sys.version_info >= (3, 12) else "ctrace")')
+export COVERAGE_CORE
+
 .DEFAULT_GOAL := help
 .PHONY: help install test fast lint fix check run index dry-run image clean
 

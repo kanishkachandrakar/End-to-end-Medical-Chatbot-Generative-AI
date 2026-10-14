@@ -56,7 +56,14 @@ jobs:
       - name: Type-check
         run: mypy src app.py store_index.py
 
+      # COVERAGE_CORE picks sys.monitoring where it exists. Under the default
+      # tracer coverage spends about fourteen seconds tracing the langchain
+      # import tree it then discards; sysmon does the same job in one. 3.10 has
+      # no sys.monitoring, so it gets the C tracer by name rather than by
+      # default.
       - name: Test
+        env:
+          COVERAGE_CORE: ${{ matrix.python-version == '3.10' && 'ctrace' || 'sysmon' }}
         run: python -m pytest --cov-fail-under=95
 
       # Catches a syntax error in a module the unit tests do not import.
