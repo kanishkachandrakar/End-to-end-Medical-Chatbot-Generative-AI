@@ -148,6 +148,13 @@ would be trivially spoofed. One busy visitor can therefore make others wait.
 - **Replies carry the rate-limit budget.** `X-RateLimit-Limit` and
   `X-RateLimit-Remaining` on every answer, and a refused question returns 429
   with `Retry-After` computed from the limiter rather than guessed.
+- **A refusal while degraded also carries `Retry-After`**, set to a minute.
+  That one is a guess: whatever failed at startup needs a restart or a person,
+  so the number exists to stop clients retrying immediately rather than to
+  predict anything.
+- **Static assets are cached for a year** and their URLs carry a hash of the
+  file's contents, so a deploy only invalidates what actually changed. The page
+  itself is `no-store`, since it is what names those URLs.
 
 ## Why the dependencies are pinned
 
