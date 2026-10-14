@@ -12,12 +12,12 @@ ruff>=0.16,<1
 # start-up failures stayed hidden: the suite stubbed or had different versions
 # of the very packages that had moved.
 flask>=3.0
-langchain>=1.0,<2
-langchain-classic>=1.0,<2
-langchain-community>=0.3,<1
-langchain-core>=1.0,<2
-langchain-groq>=1.0,<2
-langchain-pinecone>=0.2,<1
+langchain>=1.4.4,<2
+langchain-classic>=1.0.8,<2
+langchain-community>=0.4.2,<1
+langchain-core>=1.6.9,<2
+langchain-groq>=1.1.3,<2
+langchain-pinecone>=0.2.13,<1
 # The grpc extra, matching requirements.txt: store_index.py imports
 # pinecone.grpc, which needs it.
 pinecone[grpc]>=5.0
@@ -26,4 +26,4 @@ python-dotenv>=1.0
 
 # Dev-only. langchain-text-splitters is a langchain dependency rather than a
 # direct requirement, but the suite imports it, so it is declared here.
-langchain-text-splitters>=1.0
+langchain-text-splitters>=1.1.3
