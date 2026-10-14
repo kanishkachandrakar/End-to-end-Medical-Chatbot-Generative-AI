@@ -119,3 +119,46 @@ def test_contributing_points_at_the_commands_that_exist():
 
 def test_the_readme_links_the_contributing_guide():
     assert "CONTRIBUTING.md" in README
+
+
+def test_the_documented_coverage_core_matches_the_makefile():
+    """Both documents promise this behaviour; the Makefile has to provide it."""
+    makefile = (ROOT / "Makefile").read_text()
+    assert "COVERAGE_CORE" in makefile
+    assert "sysmon" in makefile
+    for document in (README, (ROOT / "CONTRIBUTING.md").read_text()):
+        assert "COVERAGE_CORE" in document
+
+
+def test_ci_sets_the_coverage_core_too():
+    """Otherwise CI pays the overhead the docs say has been removed."""
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    assert "COVERAGE_CORE" in workflow
+    assert "sysmon" in workflow and "ctrace" in workflow
+
+
+def test_the_slow_marker_is_used_and_registered():
+    """`make fast` deselects by this marker, so it has to exist and be declared.
+
+    Detected by the module-level declaration rather than any mention of the
+    name, so that this file -- which mentions it -- is not counted.
+    """
+    import re
+
+    declared = [
+        path.name
+        for path in (ROOT / "tests").glob("test_*.py")
+        if re.search(r"^pytestmark = pytest\.mark\.slow", path.read_text(), re.M)
+    ]
+    assert len(declared) >= 2, f"only {declared} declare the slow marker"
+
+    # --strict-markers is on, so an unregistered marker is an error, not a skip.
+    config = (ROOT / "pyproject.toml").read_text()
+    assert "--strict-markers" in config
+    assert re.search(r'"slow:', config), "the marker is not registered"
+
+
+def test_the_documents_agree_on_how_to_skip_the_slow_tests():
+    contributing = (ROOT / "CONTRIBUTING.md").read_text()
+    for document in (README, contributing):
+        assert "make fast" in document
