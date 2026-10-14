@@ -47,9 +47,7 @@ jobs:
       # hook, so CI does. ruff is excluded because the step above already ran
       # it against the whole tree.
       - name: Pre-commit hooks
-        run: |
-          pip install pre-commit
-          SKIP=ruff pre-commit run --all-files --show-diff-on-failure
+        run: SKIP=ruff pre-commit run --all-files --show-diff-on-failure
 
       # The floor belongs here rather than in pytest.ini: it is only
       # meaningful across the whole suite, which is what CI runs.

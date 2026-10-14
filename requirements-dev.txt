@@ -6,6 +6,9 @@ mypy>=1.10
 # Declared here so CI, the Makefile and the pre-commit hook all use one
 # version. They used three, and the hook's was seven minor releases behind.
 ruff>=0.16,<1
+# Runs the hooks locally and in CI. Declared for the same reason as ruff:
+# installed ad hoc, it is a version nothing records.
+pre-commit>=4.0
 
 # Shared with requirements.txt, and deliberately at identical bounds. Testing
 # against versions the container will not install is how both of this project's

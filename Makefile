@@ -22,7 +22,7 @@ help:  ## Show this list
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
 
 install:  ## Install runtime and test dependencies
-	$(PYTHON) -m pip install -r requirements.txt -r requirements-dev.txt pre-commit
+	$(PYTHON) -m pip install -r requirements.txt -r requirements-dev.txt
 
 test:  ## Run the whole suite with the coverage gate CI applies
 	$(PYTHON) -m pytest --cov-fail-under=95
