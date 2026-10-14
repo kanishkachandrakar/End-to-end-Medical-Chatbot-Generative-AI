@@ -17,3 +17,12 @@ updates:
     directory: /
     schedule:
       interval: monthly
+
+  # The Dockerfile pins its base image by digest, which is only tolerable if
+  # something proposes the updates -- otherwise the pin freezes the base at
+  # whatever Debian and CPython patch level it was cut on. This is that
+  # something; without it the pin is a liability rather than a safeguard.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: monthly

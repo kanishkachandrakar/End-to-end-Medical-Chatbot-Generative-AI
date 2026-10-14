@@ -53,7 +53,8 @@ What is in place now:
   bare package name lets the resolver pick anything, which is how
   `langchain-pinecone` 0.0.1 came to be installed.
 - **The base image is pinned by digest**, so a rebuilt tag cannot change the
-  foundation underneath a build.
+  foundation underneath a build. Dependabot watches the Dockerfile, which is
+  what keeps that pin from freezing the base at an unpatched version.
 - **Dependabot proposes every bump as a pull request**, and CI builds the image
   and boots it before the bump is believed. Bounds are only tolerable because
   the updates still arrive.
