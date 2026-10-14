@@ -165,8 +165,32 @@ jobs:
             sleep 2
           done
 
+          # /livez is what the container's own HEALTHCHECK calls, so it has
+          # to answer too -- and it must answer 200 even when /healthz is
+          # reporting 503, which is the whole point of the two being separate.
+          live=$(curl -s -o /tmp/livez -w '%{http_code}' http://127.0.0.1:7860/livez || true)
+          echo "livez answered $live: $(cat /tmp/livez 2>/dev/null)"
+
+          # Docker runs the HEALTHCHECK itself; this is the only check that
+          # the command inside it actually works.
+          for attempt in $(seq 1 20); do
+            health=$(docker inspect --format '{{.State.Health.Status}}' medibot-boot 2>/dev/null || echo none)
+            [ "$health" = "starting" ] || break
+            sleep 3
+          done
+          echo "container health: $health"
+
           docker logs medibot-boot
           docker rm -f medibot-boot >/dev/null
+
+          if [ "$live" != "200" ]; then
+            echo "::error::/livez answered $live, but liveness must always be 200"
+            exit 1
+          fi
+          if [ "$health" != "healthy" ]; then
+            echo "::error::the container reports health '$health'; the HEALTHCHECK command is wrong"
+            exit 1
+          fi
 
           case "$code" in
             200|503) ;;
