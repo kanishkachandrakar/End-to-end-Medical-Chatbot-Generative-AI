@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+# Least privilege. The default token can write to the repository, and nothing
+# here needs to: no job pushes a commit, publishes a package or edits an issue.
+# Set at the top level so a job added later inherits it rather than the default.
+permissions:
+  contents: read
+
 # Several commits land in quick succession here; only the newest is worth
 # running, and a superseded run's red cross is just noise.
 concurrency:
@@ -14,6 +20,11 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # The suite is five seconds and the install a minute or two. Ten is
+    # generous; without it a hung job occupies a runner for six hours, which
+    # is the default and has already nearly happened once when a job sat
+    # queued and was cancelled rather than run.
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -93,6 +104,9 @@ jobs:
   # image a Space would build actually builds.
   image:
     runs-on: ubuntu-latest
+    # Builds the torch layer from scratch when the cache misses, which is the
+    # slow case worth allowing for.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
 
