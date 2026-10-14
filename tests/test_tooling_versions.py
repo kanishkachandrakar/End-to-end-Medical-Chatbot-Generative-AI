@@ -47,3 +47,51 @@ def test_no_tool_version_is_named_twice():
     for tool in ("ruff", "mypy", "pytest"):
         declarations = re.findall(rf"^{tool}[><=]\S+", DEV_REQUIREMENTS, re.MULTILINE)
         assert len(declarations) == 1, f"{tool} declared {len(declarations)} times"
+
+
+def test_ci_installs_nothing_it_has_not_declared():
+    """An ad-hoc install is a version nothing records.
+
+    It has happened twice: ruff was installed on the pip line, and pre-commit
+    in its own step. Both are declared now, and this fails on the next one --
+    the mistake is easy to repeat because adding a step that needs a tool is
+    the moment you reach for pip.
+    """
+    import re
+
+    declared = {
+        re.split(r"[><=\[]", line, maxsplit=1)[0].strip().lower()
+        for line in DEV_REQUIREMENTS.splitlines()
+        if line.strip() and not line.startswith(("#", "-"))
+    }
+    # `pip install` invocations in the workflow, minus the requirements files.
+    installs = re.findall(r"pip install ([^\n|&]+)", WORKFLOW)
+    for invocation in installs:
+        for token in invocation.split():
+            if token.startswith("-") or token.endswith(".txt"):
+                continue
+            name = re.split(r"[><=\[]", token, maxsplit=1)[0].strip().lower()
+            if not name or name == "pip":
+                continue
+            assert name in declared, (
+                f"CI installs {name!r} without declaring it in "
+                "requirements-dev.txt"
+            )
+
+
+def test_the_makefile_installs_only_the_requirements_files():
+    """Same rule, so a local environment matches the one CI builds."""
+    import re
+
+    install = re.search(r"^install:.*?\n((?:\t.*\n)+)", MAKEFILE, re.MULTILINE)
+    assert install, "no install target found"
+    body = install.group(1)
+    assert "requirements.txt" in body and "requirements-dev.txt" in body
+    extra = [
+        token
+        for token in body.split()
+        if not token.startswith("-")
+        and not token.endswith(".txt")
+        and token not in {"$(PYTHON)", "-m", "pip", "install"}
+    ]
+    assert not extra, f"installed outside the requirements files: {extra}"
