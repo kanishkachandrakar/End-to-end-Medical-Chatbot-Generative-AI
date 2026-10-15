@@ -12,7 +12,7 @@ pytest.importorskip("pypdf")
 
 from pypdf import PdfWriter  # noqa: E402
 
-from src.helper import load_pdf  # noqa: E402
+from src.loaders import load_pdf  # noqa: E402
 
 
 def _write_pdf(path: pathlib.Path, pages: int = 1) -> None:

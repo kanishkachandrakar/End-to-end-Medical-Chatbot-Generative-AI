@@ -16,7 +16,8 @@ from src.config import (
     PINECONE_CLOUD,
     PINECONE_REGION,
 )
-from src.helper import download_hugging_face_embeddings, load_pdf
+from src.helper import download_hugging_face_embeddings
+from src.loaders import load_pdf
 from src.text import batched, chunk_ids
 
 # Chunks per upsert. Small enough to see progress and to keep the embedding

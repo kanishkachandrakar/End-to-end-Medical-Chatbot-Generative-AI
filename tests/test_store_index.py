@@ -30,7 +30,8 @@ def store_index(monkeypatch):
     vectorstores.PineconeVectorStore = _unusable("vector store")
 
     helper = types.ModuleType("src.helper")
-    helper.load_pdf = lambda path: [object()] * 2
+    loaders = types.ModuleType("src.loaders")
+    loaders.load_pdf = lambda path: [object()] * 2
     helper.download_hugging_face_embeddings = _unusable("embedding model")
 
     chunking = types.ModuleType("src.chunking")
@@ -45,6 +46,7 @@ def store_index(monkeypatch):
         ("pinecone.grpc", grpc),
         ("langchain_pinecone", vectorstores),
         ("src.helper", helper),
+        ("src.loaders", loaders),
         ("src.chunking", chunking),
     ):
         monkeypatch.setitem(sys.modules, name, module)
@@ -157,7 +159,8 @@ def indexer(monkeypatch):
     vectorstores.PineconeVectorStore = _Store
 
     helper = types.ModuleType("src.helper")
-    helper.load_pdf = lambda path: [object()]
+    loaders = types.ModuleType("src.loaders")
+    loaders.load_pdf = lambda path: [object()]
     helper.download_hugging_face_embeddings = lambda: "embeddings"
 
     chunking = types.ModuleType("src.chunking")
@@ -169,6 +172,7 @@ def indexer(monkeypatch):
         ("pinecone.grpc", grpc),
         ("langchain_pinecone", vectorstores),
         ("src.helper", helper),
+        ("src.loaders", loaders),
         ("src.chunking", chunking),
     ):
         monkeypatch.setitem(sys.modules, name, module)
