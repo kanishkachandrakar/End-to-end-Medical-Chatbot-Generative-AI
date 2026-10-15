@@ -153,3 +153,38 @@ def test_the_container_healthcheck_uses_liveness_not_readiness():
     assert "/livez" in DOCKERFILE
     healthcheck = re.search(r"HEALTHCHECK.*?\n(.*?)\n\n", DOCKERFILE, re.DOTALL)
     assert healthcheck and "/healthz" not in healthcheck.group(1)
+
+
+def test_the_image_prefetches_the_weights_through_the_real_entry_point():
+    """The Dockerfile warms the model cache by importing one name.
+
+    If that import moves, the build fails loudly -- but if it is changed to
+    something that imports successfully and builds nothing, the layer silently
+    stops caching the weights and every cold start pays for a download. So the
+    name is checked against the module that actually defines it.
+    """
+    import re
+
+    pattern = r"RUN python -c \"from (\S+) import (\w+); \2\(\)\""
+    prefetch = re.search(pattern, DOCKERFILE)
+    assert prefetch, "no weight-prefetch step found in the Dockerfile"
+    module_path, name = prefetch.group(1), prefetch.group(2)
+
+    source = (ROOT / module_path.replace(".", "/")).with_suffix(".py")
+    assert source.is_file(), f"{module_path} is not a module in this repo"
+    assert re.search(rf"^def {name}\(", source.read_text(), re.MULTILINE), (
+        f"{module_path} does not define {name}"
+    )
+
+
+def test_the_prefetched_function_is_the_one_the_app_uses():
+    """Warming a different entry point than the app calls caches nothing."""
+    import re
+
+    pattern = r"RUN python -c \"from (\S+) import (\w+); \2\(\)\""
+    prefetch = re.search(pattern, DOCKERFILE)
+    assert prefetch
+    name = prefetch.group(2)
+    assert name in (ROOT / "app.py").read_text(), (
+        f"the image prefetches {name}, which app.py never calls"
+    )
