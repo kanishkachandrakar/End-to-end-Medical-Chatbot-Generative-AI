@@ -37,6 +37,19 @@ markers = [
     "slow: needs a heavyweight import (langchain_community)",
 ]
 
+# A warning is how a library announces a move before it makes one, and this
+# project has been broken twice by a move it was not watching for: langchain
+# 1.0 relocating create_retrieval_chain, and pip resolving langchain-pinecone
+# back to a release predating the class app.py imports. Both would have been
+# a DeprecationWarning first, in a summary nobody reads.
+filterwarnings = [
+    "error",
+    # langchain-community is sunset and says so on import. src/loaders.py is
+    # the only thing that still imports it, deliberately -- see the note
+    # there -- so the announcement is acknowledged rather than acted on daily.
+    "default:`langchain-community` is being sunset:DeprecationWarning",
+]
+
 [tool.coverage.run]
 # app.py is in here now that create() made it importable without keys.
 source = ["src", "app"]
