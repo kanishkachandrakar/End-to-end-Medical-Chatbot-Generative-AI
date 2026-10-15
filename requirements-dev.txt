@@ -20,6 +20,7 @@ langchain-classic>=1.0,<2
 langchain-community>=0.3,<1
 langchain-core>=1.0,<2
 langchain-groq>=1.0,<2
+langchain-huggingface>=1.0,<2
 langchain-pinecone>=0.2,<1
 # The grpc extra, matching requirements.txt: store_index.py imports
 # pinecone.grpc, which needs it.

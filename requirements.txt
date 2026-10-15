@@ -26,5 +26,8 @@ pinecone[grpc]>=5.0
 langchain-pinecone>=0.2,<1
 langchain-community>=0.3,<1
 langchain-groq>=1.0,<2
+# The standalone home of HuggingFaceEmbeddings, which langchain-community
+# deprecated before being sunset itself.
+langchain-huggingface>=1.0,<2
 gunicorn>=21.0
 -e .

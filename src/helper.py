@@ -1,28 +1,21 @@
-"""Loading PDFs and building the embedding model.
+"""The embedding model.
 
-Both ends of this module are heavy: DirectoryLoader needs langchain-community
-and HuggingFaceEmbeddings pulls in torch. Chunking lives in src/chunking.py so
-it can be imported without either.
+Kept as the module the Dockerfile prefetches from, so the image's warm-up step
+and the application agree on one entry point.
+
+langchain-huggingface rather than langchain-community: the latter is sunset and
+deprecated this class in favour of the standalone package. Same class name,
+same ``model_name``, same weights -- and the vectors already in Pinecone stay
+valid, which CI confirms by embedding a word inside the image and comparing the
+length against EMBED_DIM.
+
+PDF loading lives in src/loaders.py so that importing this does not drag a
+sunset package into the web app.
 """
 
-from langchain_community.document_loaders import DirectoryLoader, PyPDFLoader
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_core.documents import Document
+from langchain_huggingface import HuggingFaceEmbeddings
 
 from src.config import EMBED_MODEL
-
-
-def load_pdf(data_dir: str) -> list[Document]:
-    """Load every top-level *.pdf in ``data_dir``, one Document per page."""
-    # The ignore below is upstream's fault: langchain_community annotates
-    # loader_cls with a union of four loaders that excludes PyPDFLoader, even
-    # though passing it is the documented way to load PDFs.
-    loader = DirectoryLoader(
-        data_dir,
-        glob="*.pdf",
-        loader_cls=PyPDFLoader,  # type: ignore[arg-type]
-    )
-    return loader.load()
 
 
 def download_hugging_face_embeddings() -> HuggingFaceEmbeddings:
