@@ -330,14 +330,14 @@ def test_static_urls_are_fingerprinted(client_for):
 
 def test_the_fingerprint_changes_when_the_contents_do(tmp_path):
     """Otherwise an edit would never reach a visitor who has the old copy."""
-    from src.webapp import _digest
+    from src.assets import digest
 
     one = tmp_path / "a.js"
     one.write_text("alert(1)")
-    before = _digest(str(one))
+    before = digest(str(one))
     one.write_text("alert(2)")
-    _digest.cache_clear()
-    assert _digest(str(one)) != before
+    digest.cache_clear()
+    assert digest(str(one)) != before
 
 
 def test_the_fingerprint_ignores_the_modification_time():
@@ -346,34 +346,37 @@ def test_the_fingerprint_ignores_the_modification_time():
     bytes."""
     import os
 
-    from src.webapp import _digest, _static_version, create_app
+    from src.assets import digest, static_version
+    from src.webapp import create_app
 
     app = create_app(StubChain())
     asset = pathlib.Path(app.static_folder) / "chat.js"
     original = asset.stat()
-    before = _static_version(app, "chat.js")
+    before = static_version(app, "chat.js")
     os.utime(asset, (original.st_atime, original.st_mtime + 500))
-    _digest.cache_clear()
+    digest.cache_clear()
     try:
-        assert _static_version(app, "chat.js") == before
+        assert static_version(app, "chat.js") == before
     finally:
         os.utime(asset, (original.st_atime, original.st_mtime))
-        _digest.cache_clear()
+        digest.cache_clear()
 
 
 def test_two_different_files_get_different_fingerprints():
-    from src.webapp import _static_version, create_app
+    from src.assets import static_version
+    from src.webapp import create_app
 
     app = create_app(StubChain())
-    assert _static_version(app, "chat.js") != _static_version(app, "style.css")
+    assert static_version(app, "chat.js") != static_version(app, "style.css")
 
 
 def test_a_missing_static_file_does_not_break_the_page(client_for):
     """url_for is called during render; an OSError there would be a 500."""
-    from src.webapp import _static_version, create_app
+    from src.assets import static_version
+    from src.webapp import create_app
 
     app = create_app(StubChain())
-    assert _static_version(app, "no-such-file.js") == ""
+    assert static_version(app, "no-such-file.js") == ""
 
 
 def test_static_assets_are_sent_with_a_long_cache_lifetime(client_for):
@@ -413,9 +416,9 @@ def test_the_fingerprint_is_empty_without_a_static_folder():
     """An app configured without static files must not raise during render."""
     import types
 
-    from src.webapp import _static_version
+    from src.assets import static_version
 
-    assert _static_version(types.SimpleNamespace(static_folder=None), "chat.js") == ""
+    assert static_version(types.SimpleNamespace(static_folder=None), "chat.js") == ""
 
 
 def test_an_unavailable_chain_still_serves_the_page():

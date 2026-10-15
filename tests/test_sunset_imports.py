@@ -21,6 +21,7 @@ PERMITTED = {"src/loaders.py"}
 APP_GRAPH = [
     "app.py",
     "src/webapp.py",
+    "src/assets.py",
     "src/helper.py",
     "src/chunking.py",
     "src/config.py",

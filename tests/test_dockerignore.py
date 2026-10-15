@@ -20,6 +20,7 @@ REQUIRED = (
     "setup.py",
     "pyproject.toml",
     "src/__init__.py",
+    "src/assets.py",
     "src/chunking.py",
     "src/config.py",
     "src/env.py",

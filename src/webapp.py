@@ -8,8 +8,6 @@ Flask is pointed at the project's templates/ and static/ explicitly, because
 this module lives in src/ and would otherwise look for them there.
 """
 
-import functools
-import hashlib
 import math
 import os
 import pathlib
@@ -19,6 +17,7 @@ from typing import Any, Protocol
 
 from flask import Flask, Response, g, make_response, render_template, request
 
+from src import assets
 from src.config import LOG_LEVEL, MAX_CONTENT_BYTES, MAX_QUESTION_CHARS
 from src.errors import UNAVAILABLE, failure_reply
 from src.headers import SECURITY_HEADERS
@@ -63,32 +62,6 @@ def text_reply(body: str, status: int = 200) -> Response:
     return Response(body, status=status, mimetype="text/plain")
 
 
-@functools.lru_cache(maxsize=32)
-def _digest(path: str) -> str:
-    """Short content hash of a file, or "" if it cannot be read."""
-    try:
-        return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()[:12]
-    except OSError:
-        return ""
-
-
-def _static_version(app: Flask, filename: str) -> str:
-    """A cache key for a static file, derived from its contents.
-
-    Flask's url_for does not fingerprint static files, so the year-long cache
-    lifetime set below would otherwise leave a visitor holding a stale chat.js.
-
-    Content, not modification time: an mtime is a property of the checkout
-    rather than the file. A deploy copies the files and gives them new mtimes,
-    so every release would invalidate assets that had not changed -- and two
-    replicas built separately would advertise different URLs for identical
-    bytes. A hash is the same everywhere the file is.
-    """
-    if not app.static_folder:
-        return ""
-    return _digest(str(pathlib.Path(app.static_folder, filename)))
-
-
 def create_app(
     rag_chain: RagChain,
     limiter: TokenBucket | None = None,
@@ -118,15 +91,7 @@ def create_app(
     # under gunicorn. Setting it explicitly is what makes them appear.
     app.logger.setLevel(LOG_LEVEL)
 
-    # A year, which is only safe because url_for below fingerprints the URL.
-    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 31536000
-
-    @app.url_defaults
-    def _fingerprint_static(endpoint: str, values: dict) -> None:
-        if endpoint == "static" and "filename" in values:
-            version = _static_version(app, values["filename"])
-            if version:
-                values["v"] = version
+    assets.install(app)
 
     # Checked by Flask before the body is read, so a huge upload is refused
     # rather than buffered. MAX_QUESTION_CHARS only applies after parsing, by
