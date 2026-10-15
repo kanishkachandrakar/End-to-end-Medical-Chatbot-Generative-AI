@@ -377,9 +377,12 @@ def test_a_missing_static_file_does_not_break_the_page(client_for):
 
 
 def test_static_assets_are_sent_with_a_long_cache_lifetime(client_for):
-    response = client_for(StubChain()).get("/static/chat.js")
-    assert response.status_code == 200
-    assert "max-age=" in response.headers.get("Cache-Control", "")
+    # Closed explicitly: a static response holds an open file until it is,
+    # and an unclosed handle is a ResourceWarning the suite now treats as an
+    # error. Flask closes it for a real request; the test client does not.
+    with client_for(StubChain()).get("/static/chat.js") as response:
+        assert response.status_code == 200
+        assert "max-age=" in response.headers.get("Cache-Control", "")
 
 
 def test_healthz_reports_the_vector_count():
@@ -462,20 +465,21 @@ def test_the_page_is_not_cached(client_for):
 
 def test_the_assets_are_still_cached(client_for):
     """The opposite policy for the files the page points at."""
-    response = client_for(StubChain()).get("/static/chat.js")
-    assert "max-age=" in response.headers.get("Cache-Control", "")
+    with client_for(StubChain()).get("/static/chat.js") as response:
+        assert "max-age=" in response.headers.get("Cache-Control", "")
 
 
 def test_favicon_ico_is_served(client_for):
     """Requested by every browser whatever the page declares."""
-    response = client_for(StubChain()).get("/favicon.ico")
-    assert response.status_code == 200
-    assert int(response.headers["Content-Length"]) > 0
+    with client_for(StubChain()).get("/favicon.ico") as response:
+        assert response.status_code == 200
+        assert int(response.headers["Content-Length"]) > 0
 
 
 def test_favicon_does_not_touch_the_chain(client_for):
     chain = StubChain()
-    client_for(chain).get("/favicon.ico")
+    with client_for(chain).get("/favicon.ico"):
+        pass
     assert chain.calls == []
 
 
