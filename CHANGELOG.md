@@ -43,6 +43,16 @@ log.
   bounds in both directions, with the reason beside each.
 - **`langchain-core` and `pydantic` were imported but never declared**, working
   only because something else pulled them in.
+- **The embeddings were coming from a sunset package.** `langchain-community`
+  announces on import that it is no longer actively maintained, and had
+  deprecated `HuggingFaceEmbeddings` in favour of the standalone
+  `langchain-huggingface`. This is the third instance of the pattern that broke
+  this project twice — a langchain package relocating something — and the first
+  one caught before it bit. The loaders, which have no standalone home yet, are
+  confined to `src/loaders.py` by a test.
+- **Four tests held a file open.** Flask's test client does not close a static
+  response for you, so each run leaked handles and reported four
+  ResourceWarnings — which also blocked treating warnings as errors.
 - **The notebook still imported the module langchain 1.0 removed.** The same
   breakage as `app.py`, fixed there two days earlier and missed here — the
   notebook is marked as a prototype, which is a reason not to rewrite it and
@@ -196,6 +206,14 @@ log.
 - The GitHub Actions are current, the dependency floors are raised to what is
   actually installed, and the five dependabot pull requests those bumps came
   from are closed.
+- Warnings are errors in the suite, with one narrow exception for
+  langchain-community's sunset notice, and both in-image python steps run under
+  `-W error` — they construct the embedding model and the Flask app, which the
+  suite never does, so that is where a deprecation would otherwise be printed
+  into a build log and scrolled past.
+- The asset cache-busting moved to `src/assets.py`, where the year-long cache
+  lifetime and the fingerprinting that makes it safe are one call rather than
+  two separable settings.
 - CI runs with a read-only token and a timeout on every job; the defaults were
   write access and six hours.
 - `make check` covers what CI covers, asserted by a test that compares all
