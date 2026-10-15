@@ -64,6 +64,13 @@ What is in place now:
   on shared packages. Testing against versions the container will not install
   is how both failures stayed hidden.
 
+One dependency is on notice rather than merely pinned: `langchain-community`
+announces on import that it is sunset and no longer actively maintained. Its
+embeddings have been migrated to a maintained standalone package, and what
+remains of it — the PDF loaders — is confined to `src/loaders.py` by a test, so
+the blast radius is one module rather than the import graph. It is bounded
+below the 1.0 release its own deprecation notice names as the removal point.
+
 What is not in place: there is no lock file, so two builds a month apart can
 install different patch versions. For a demo that is the right trade — the
 alternative is a file that must be regenerated on every change — but it does

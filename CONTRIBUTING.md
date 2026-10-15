@@ -63,6 +63,16 @@ Worth knowing before changing them:
 - **Every requirement has a lower bound.** Not style: without one, pip resolved
   `langchain-pinecone` backwards to a 2023 release and the image installed it
   without complaint.
+- **Warnings are errors.** A library announces a move with a warning before
+  it makes one, and this project has been broken twice by a move it was not
+  watching for. One narrow exception is allowed, for langchain-community's
+  sunset notice, and the image job additionally runs the model construction
+  under `-W error` because the suite never builds it.
+- **`src/loaders.py` is the only module importing `langchain-community`,** and
+  a test enforces that. The package is sunset; its embeddings half already
+  moved to `langchain-huggingface`, and the PDF loaders stay there, isolated,
+  until they have a standalone home. If that happens, delete the module and
+  the test with it rather than leaving either passing vacuously.
 - **`research/trials.ipynb` is not maintained.** It records how the pipeline was
   prototyped; `src/` is the code that runs.
 - **The rate limit is global, not per visitor.** Behind a proxy every request
