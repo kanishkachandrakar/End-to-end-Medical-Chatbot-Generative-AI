@@ -51,6 +51,32 @@ def test_the_app_graph_names_files_that_exist():
         assert (ROOT / name).is_file(), name
 
 
+def test_the_app_graph_covers_every_module_it_should():
+    """The list is maintained by hand, so it has to be checked.
+
+    Everything in src/ is in it except the module that is allowed to import
+    the sunset package -- and store_index.py, whose job is reading PDFs. A new
+    module missing from here would be free to import langchain_community
+    without the check above noticing.
+    """
+    modules = {
+        f"src/{path.name}"
+        for path in (ROOT / "src").glob("*.py")
+        if path.name != "__init__.py"
+    }
+    expected = modules - PERMITTED
+    missing = expected - set(APP_GRAPH)
+    assert not missing, (
+        f"{missing} are in src/ but absent from APP_GRAPH, so nothing checks "
+        "what they import"
+    )
+
+
+def test_the_graph_and_the_permitted_set_do_not_overlap():
+    """A module cannot both be forbidden the package and be its only importer."""
+    assert not set(APP_GRAPH) & PERMITTED
+
+
 def test_nothing_in_the_app_graph_imports_the_sunset_package():
     offenders = [
         name
