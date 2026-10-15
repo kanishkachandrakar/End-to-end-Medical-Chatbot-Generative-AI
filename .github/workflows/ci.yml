@@ -235,9 +235,14 @@ jobs:
       # output size -- which silently invalidates every vector in the index,
       # since Pinecone rejects upserts of the wrong dimension and retrieval
       # returns nothing. The image has torch and the weights already.
+      # -W error applies to the one code path the unit suite cannot reach:
+      # constructing the embedding model. The suite treats warnings as errors
+      # but never builds this, so a deprecation here -- the exact signal that
+      # langchain-community's sunset gave -- would otherwise be printed into a
+      # build log and scrolled past.
       - name: Check the embedding dimension still matches the index
         run: |
-          docker run --rm --entrypoint python medibot:ci -c "
+          docker run --rm --entrypoint python medibot:ci -W error -c "
           from src.config import EMBED_DIM, EMBED_MODEL
           from src.helper import download_hugging_face_embeddings
           vector = download_hugging_face_embeddings().embed_query('hypertension')
