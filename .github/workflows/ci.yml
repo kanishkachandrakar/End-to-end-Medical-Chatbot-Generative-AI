@@ -142,9 +142,12 @@ jobs:
       # Everything else about the image is checked statically. This runs the
       # real Flask app out of the real image and asks it for a page: it needs
       # no keys, because create_app() takes the chain as an argument.
+      # -W error here too: this is the Flask and langchain-pinecone import path
+      # inside the image, and a deprecation on it is the same early warning the
+      # dimension check watches for on the model path.
       - name: Check the app inside the image can serve a request
         run: |
-          docker run --rm --entrypoint python medibot:ci -c "
+          docker run --rm --entrypoint python medibot:ci -W error -c "
           from src.webapp import create_app
 
           class Chain:
