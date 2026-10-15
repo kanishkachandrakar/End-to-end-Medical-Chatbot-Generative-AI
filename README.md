@@ -70,11 +70,11 @@ Data/Medical_book.pdf
 | Layer | Choice |
 |---|---|
 | Web framework | Flask |
-| Orchestration | LangChain (`create_retrieval_chain`, `create_stuff_documents_chain`) |
-| LLM | `deepseek-r1-distill-qwen-32b` via [Groq](https://groq.com) (`langchain_groq`) |
-| Embeddings | `sentence-transformers/all-MiniLM-L6-v2` (HuggingFace) |
-| Vector store | Pinecone serverless (AWS `us-east-1`), cosine metric |
-| PDF parsing | `pypdf` through LangChain's `PyPDFLoader` |
+| Orchestration | `langchain-classic` (`create_retrieval_chain`, `create_stuff_documents_chain` — moved there in langchain 1.0) |
+| LLM | `deepseek-r1-distill-qwen-32b` via [Groq](https://groq.com) (`langchain-groq`) |
+| Embeddings | `sentence-transformers/all-MiniLM-L6-v2` via `langchain-huggingface` |
+| Vector store | Pinecone serverless (AWS `us-east-1`), cosine metric, `langchain-pinecone` |
+| PDF parsing | `pypdf` through `PyPDFLoader` (`langchain-community`, the one sunset package left — see `src/loaders.py`) |
 | Front end | Jinja template + jQuery + Bootstrap-style CSS |
 | Config | `python-dotenv` (`.env`), validated at import by `src/config.py` |
 
@@ -99,7 +99,8 @@ Data/Medical_book.pdf
 │   ├── chunking.py      # Splitting pages into chunks
 │   ├── config.py        # Settings, overridable by environment variable
 │   ├── errors.py        # Failure -> user-facing message and status
-│   ├── helper.py        # PDF loading and the embedding model
+│   ├── helper.py        # The embedding model
+│   ├── loaders.py       # Reading the source PDFs
 │   ├── prompt.py        # System prompt for the LLM
 │   ├── ratelimit.py     # Token bucket guarding the Groq quota
 │   ├── text.py          # Answer cleaning and chunk ids
