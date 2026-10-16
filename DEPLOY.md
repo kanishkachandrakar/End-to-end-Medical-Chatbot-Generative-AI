@@ -152,6 +152,10 @@ would be trivially spoofed. One busy visitor can therefore make others wait.
   That one is a guess: whatever failed at startup needs a restart or a person,
   so the number exists to stop clients retrying immediately rather than to
   predict anything.
+- **Every response names the request and the build.** `X-Request-Id` and
+  `X-App-Revision`, so a reply someone kept can be traced back to a log line
+  and to the image it came from — which matters most when the answer turns out
+  to be "that was a different build".
 - **Static assets are cached for a year** and their URLs carry a hash of the
   file's contents, so a deploy only invalidates what actually changed. The page
   itself is `no-store`, since it is what names those URLs.

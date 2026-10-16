@@ -64,6 +64,13 @@ What is in place now:
   on shared packages. Testing against versions the container will not install
   is how both failures stayed hidden.
 
+Two of the langchain packages have already moved out from under this project
+and a third has announced it will. The embeddings now come from
+`langchain-huggingface` and the chains from `langchain-classic`; what remains of
+`langchain-community` is one import in one module. Three such moves in a
+fortnight makes it a pattern rather than an incident, which is why the suite
+treats a deprecation warning as a failure.
+
 One dependency is on notice rather than merely pinned: `langchain-community`
 announces on import that it is sunset and no longer actively maintained. Its
 embeddings have been migrated to a maintained standalone package, and what
