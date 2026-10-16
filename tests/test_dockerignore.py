@@ -27,6 +27,7 @@ REQUIRED = (
     "src/errors.py",
     "src/headers.py",
     "src/helper.py",
+    "src/middleware.py",
     "src/loaders.py",
     "src/prompt.py",
     "src/ratelimit.py",

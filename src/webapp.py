@@ -12,15 +12,13 @@ import math
 import os
 import pathlib
 import time
-import uuid
 from typing import Any, Protocol
 
 from flask import Flask, Response, g, make_response, render_template, request
 
-from src import assets
+from src import assets, middleware
 from src.config import LOG_LEVEL, MAX_CONTENT_BYTES, MAX_QUESTION_CHARS
 from src.errors import UNAVAILABLE, failure_reply
-from src.headers import SECURITY_HEADERS
 from src.ratelimit import TokenBucket
 from src.text import strip_reasoning
 
@@ -99,34 +97,7 @@ def create_app(
     # threads sharing a free tier's RAM.
     app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_BYTES
 
-    @app.errorhandler(404)
-    @app.errorhandler(405)
-    @app.errorhandler(500)
-    def _plain_error(error):
-        """Answer errors in text too.
-
-        Flask's defaults are HTML pages. The front end appends whatever comes
-        back to the chat log, so an HTML error document would arrive as a wall
-        of markup in a bubble -- and a client told to expect text/plain from
-        every other response has no reason to handle HTML from this one.
-        """
-        status = getattr(error, "code", 500)
-        name = getattr(error, "name", "Error")
-        return text_reply(f"{name}.", status)
-
-    @app.before_request
-    def _assign_request_id() -> None:
-        """Tag each request so its log lines can be found from a reply."""
-        g.request_id = uuid.uuid4().hex[:8]
-
-    @app.after_request
-    def _add_security_headers(response: Response) -> Response:
-        for header, value in SECURITY_HEADERS.items():
-            response.headers.setdefault(header, value)
-        request_id = g.get("request_id")
-        if request_id:
-            response.headers.setdefault("X-Request-Id", request_id)
-        return response
+    middleware.install(app, text_reply)
 
     @app.route("/")
     def index() -> Response:
