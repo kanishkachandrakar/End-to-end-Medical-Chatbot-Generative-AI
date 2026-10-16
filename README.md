@@ -17,6 +17,7 @@ Flask web UI, grounding every reply in passages retrieved from the book rather
 than relying on the LLM's memory alone.
 
 [![CI](https://github.com/kanishkachandrakar/End-to-end-Medical-Chatbot-Generative-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/kanishkachandrakar/End-to-end-Medical-Chatbot-Generative-AI/actions/workflows/ci.yml)
+![Version](https://img.shields.io/badge/version-0.1.0-blue)
 ![Python](https://img.shields.io/badge/python-3.10-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
@@ -234,6 +235,9 @@ a crawler or a link prefetch should be able to trigger.
 ```bash
 curl -X POST http://localhost:8080/get -d "msg=What is hypertension?"
 ```
+
+Every response carries `X-Request-Id` and `X-App-Revision`, so a reply kept in
+a bug report can be traced to a request and a build.
 
 `GET /livez` answers `alive` whenever the process is serving — that is what the
 container's health check uses. `GET /healthz` answers without spending an LLM

@@ -63,6 +63,12 @@ Worth knowing before changing them:
 - **Every requirement has a lower bound.** Not style: without one, pip resolved
   `langchain-pinecone` backwards to a 2023 release and the image installed it
   without complaint.
+- **Every dependency is imported or justified.** `requirements.txt` is checked
+  in both directions: nothing may be imported undeclared, and nothing may be
+  declared without either being imported or appearing in the `JUSTIFIED` set in
+  `tests/test_declared_dependencies.py` with the reason. Four are there now —
+  gunicorn, sentence-transformers, langchain and pypdf — each for a different
+  reason worth knowing before removing it.
 - **Warnings are errors.** A library announces a move with a warning before
   it makes one, and this project has been broken twice by a move it was not
   watching for. One narrow exception is allowed, for langchain-community's
