@@ -14,7 +14,15 @@ import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SUNSET = "langchain_community"
+
+# The loaders have no standalone home yet, so these files may still import
+# them. Anything else reaching for langchain_community is a regression.
 PERMITTED = {"src/loaders.py"}
+
+# The embeddings do have one -- langchain-huggingface -- and it is adopted. So
+# this submodule is forbidden everywhere, including the notebook, which kept
+# importing it for a day after src/ had moved.
+RETIRED_SUBMODULES = ("langchain_community.embeddings",)
 
 # Modules reachable from the web app. store_index.py is not here: reading PDFs
 # is its job, and it is the thing src/loaders.py exists for.
@@ -117,3 +125,39 @@ def test_the_sunset_package_is_bounded_below_its_removal_boundary():
     line = re.search(r"^langchain-community(\S+)", requirements, re.MULTILINE)
     assert line, "langchain-community is not declared"
     assert "<1" in line.group(1), line.group(0)
+
+
+def _every_python_source():
+    """Every file in the repo that could import something, notebook included."""
+    import json
+
+    for path in list(ROOT.glob("*.py")) + list((ROOT / "src").glob("*.py")):
+        yield str(path.relative_to(ROOT)), path.read_text()
+
+    notebook = json.loads((ROOT / "research" / "trials.ipynb").read_text())
+    for index, cell in enumerate(notebook["cells"]):
+        if cell["cell_type"] == "code":
+            yield f"research/trials.ipynb[{index}]", "".join(cell["source"])
+
+
+def test_there_are_sources_to_scan():
+    assert len(list(_every_python_source())) > 20
+
+
+def test_the_retired_submodules_are_imported_nowhere():
+    """A replacement that is adopted in src/ but not elsewhere is half-adopted."""
+    offenders = []
+    for name, source in _every_python_source():
+        for retired in RETIRED_SUBMODULES:
+            if retired in source:
+                offenders.append(f"{name} imports {retired}")
+    assert not offenders, (
+        "a standalone replacement exists and is in use elsewhere: "
+        + "; ".join(offenders)
+    )
+
+
+def test_the_notebook_is_scanned_too():
+    """It was the one place the earlier check did not look."""
+    scanned = {name for name, _ in _every_python_source()}
+    assert any(name.startswith("research/trials.ipynb") for name in scanned)
