@@ -3,6 +3,12 @@
 # third of GitHub's language statistics away from the code that actually runs.
 research/*.ipynb linguist-documentation
 
+# Never merge a notebook automatically. It is one JSON document on one line
+# per cell, so git's line-based merge produces a file that is either invalid
+# JSON or silently wrong -- duplicated cells, a half-merged outputs array.
+# Resolve it by choosing a side.
+*.ipynb -merge
+
 # The book is the input data, not part of the project's source.
 Data/** linguist-vendored
 
