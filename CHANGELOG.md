@@ -3,6 +3,38 @@
 Grouped by theme rather than exhaustively. The entries worth knowing about are
 the behavioural ones; the rest is in the git log.
 
+## Unreleased
+
+### Fixed
+
+- **The notebook's embeddings were still coming from the sunset package.** The
+  third repeat this fortnight of a fix applied where the problem was noticed
+  rather than everywhere it existed. The check that forbids it now reads the
+  notebook too, and forbids the retired submodule everywhere rather than
+  permitting it per module.
+- **`store_index.py`'s Pinecone client was untyped**, which hid that
+  `confirm_upsert` is handed a value that is `None` on one path. It never is in
+  practice — the dry run returns first — but two branches apart that is a
+  connection a reader has to reconstruct and a checker cannot. Now stated.
+
+### Added
+
+- `X-App-Revision` on every response, beside `X-Request-Id`: a reply kept in a
+  bug report can be traced to a request and to the build that produced it.
+- Checks for the things that silently do nothing: a dependency declared after
+  its code is gone, a test file pytest will not collect, a test function
+  shadowed by a second definition of the same name, and a version that
+  disagrees with the changelog.
+
+### Changed
+
+- `src/webapp.py` is 220 lines from 295: the asset cache-busting and the
+  request lifecycle are their own modules, each holding settings that only
+  make sense together.
+- Notebooks are never merged automatically — git's line-based merge of one
+  JSON document produces files that are plausibly broken rather than
+  conflicts to resolve.
+
 ## 0.1.0 — 2026-10-16
 
 The first version that deploys and is checked end to end: the image builds and
