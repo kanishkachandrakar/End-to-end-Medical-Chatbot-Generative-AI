@@ -591,3 +591,33 @@ def test_healthz_is_not_given_a_retry_after():
 
     client = create_app(StubChain(), unavailable="chain-unavailable").test_client()
     assert "Retry-After" not in client.get("/healthz").headers
+
+
+def test_every_response_names_the_build():
+    """A kept response can be placed against a build without asking the
+    service what it is running now, which by then may be something else."""
+    from src.webapp import APP_REVISION, create_app
+
+    client = create_app(StubChain()).test_client()
+    for response in (
+        client.get("/"),
+        client.post("/get", data={"msg": "q"}),
+        client.get("/healthz"),
+        client.get("/no-such-page"),
+    ):
+        assert response.headers["X-App-Revision"] == APP_REVISION
+
+
+def test_the_revision_header_follows_the_build_arg(monkeypatch):
+    import importlib
+
+    import src.webapp as webapp
+
+    monkeypatch.setenv("APP_REVISION", "abc1234")
+    reloaded = importlib.reload(webapp)
+    try:
+        client = reloaded.create_app(StubChain()).test_client()
+        assert client.get("/healthz").headers["X-App-Revision"] == "abc1234"
+    finally:
+        monkeypatch.delenv("APP_REVISION", raising=False)
+        importlib.reload(webapp)

@@ -97,7 +97,7 @@ def create_app(
     # threads sharing a free tier's RAM.
     app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_BYTES
 
-    middleware.install(app, text_reply)
+    middleware.install(app, text_reply, APP_REVISION)
 
     @app.route("/")
     def index() -> Response:

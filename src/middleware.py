@@ -17,11 +17,16 @@ from flask import Flask, Response, g
 from src.headers import SECURITY_HEADERS
 
 
-def install(app: Flask, text_reply) -> None:
+def install(app: Flask, text_reply, revision: str) -> None:
     """Attach the request id, the headers and the plain-text error handlers.
 
     ``text_reply`` is passed in rather than imported to keep this module free
     of a circular import back into src.webapp, which owns it.
+
+    ``revision`` is reported on every response. /healthz already names it, but
+    a response someone has kept -- in a bug report, a log, a screenshot -- can
+    then be placed against a build without asking the service what it is
+    running now, which by then may be something else.
     """
 
     @app.errorhandler(404)
@@ -51,4 +56,5 @@ def install(app: Flask, text_reply) -> None:
         request_id = g.get("request_id")
         if request_id:
             response.headers.setdefault("X-Request-Id", request_id)
+        response.headers.setdefault("X-App-Revision", revision)
         return response
