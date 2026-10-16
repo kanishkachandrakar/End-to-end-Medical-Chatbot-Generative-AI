@@ -1,10 +1,15 @@
 # Changelog
 
-Grouped by theme rather than by release — there are no releases yet. The
-entries worth knowing about are the behavioural ones; the rest is in the git
-log.
+Grouped by theme rather than exhaustively. The entries worth knowing about are
+the behavioural ones; the rest is in the git log.
 
-## Unreleased
+## 0.1.0 — 2026-10-16
+
+The first version that deploys and is checked end to end: the image builds and
+is booted in CI, the retrieval path is tested, and the two API keys are the only
+thing standing between a fresh clone and a running Space.
+
+Everything below was fixed or added on the way there.
 
 ### Fixed — things that were broken
 
