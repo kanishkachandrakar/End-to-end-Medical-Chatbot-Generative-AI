@@ -77,7 +77,7 @@ def confirm_deletion(index_name: str) -> None:
         raise SystemExit("not confirmed, nothing was changed")
 
 
-def prepare_index(api_key: str, recreate: bool, yes: bool):
+def prepare_index(api_key: str, recreate: bool, yes: bool) -> Pinecone:
     """Leave the index in a state the upsert can use, or refuse.
 
     Everything that can say no lives here -- an unreachable Pinecone, a
@@ -129,7 +129,7 @@ def main(argv=None) -> None:
 
     # A dry run answers a question about the PDF, so it needs none of this:
     # no key, no connection, no index created, no confirmation prompt.
-    pc = None
+    pc: Pinecone | None = None
     if not args.dry_run:
         api_key = os.environ.get("PINECONE_API_KEY")
         if not api_key:
@@ -162,6 +162,11 @@ def main(argv=None) -> None:
         print(f"dry run: would upsert {unique} unique chunks into {INDEX_NAME!r}")
         return
 
+    # Past the dry-run return above, so prepare_index has run and the client
+    # exists. Stated rather than assumed: mypy cannot see the connection
+    # between the two branches, and neither could a reader.
+    assert pc is not None
+
     started = time.monotonic()
     embeddings = download_hugging_face_embeddings()
     print(f"embedding model ready in {time.monotonic() - started:.0f}s")
@@ -193,7 +198,7 @@ def main(argv=None) -> None:
     confirm_upsert(pc, unique)
 
 
-def confirm_upsert(pc, expected: int, timeout: float = 60.0) -> None:
+def confirm_upsert(pc: Pinecone, expected: int, timeout: float = 60.0) -> None:
     """Report the index's vector count, waiting briefly for it to settle.
 
     Upserts return before the vectors are queryable, so the count lags. Without
