@@ -7,17 +7,13 @@ import pytest
 
 from src.headers import CSP, SECURITY_HEADERS
 from src.webapp import create_app
+from tests.stubs import StubChain
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 PAGE_SOURCES = (
     (ROOT / "templates" / "chat.html").read_text()
     + (ROOT / "static" / "chat.js").read_text()
 )
-
-
-class StubChain:
-    def invoke(self, payload):
-        return {"answer": "ok"}
 
 
 @pytest.fixture

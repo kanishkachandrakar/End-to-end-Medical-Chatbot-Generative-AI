@@ -8,21 +8,7 @@ from src.config import MAX_QUESTION_CHARS
 from src.errors import RATE_LIMITED, UNAVAILABLE
 from src.ratelimit import TokenBucket
 from src.webapp import NO_ANSWER, NO_QUESTION, TOO_BUSY, create_app
-
-
-class StubChain:
-    """Records what it was asked and returns whatever it was told to."""
-
-    def __init__(self, answer="Acne is a skin condition.", raises=None):
-        self.answer = answer
-        self.raises = raises
-        self.calls = []
-
-    def invoke(self, payload):
-        self.calls.append(payload)
-        if self.raises is not None:
-            raise self.raises
-        return {"answer": self.answer}
+from tests.stubs import StubChain
 
 
 @pytest.fixture
@@ -56,7 +42,9 @@ def test_healthz_does_not_touch_the_chain(client_for):
 
 
 def test_a_question_is_answered(client_for):
-    chain = StubChain()
+    # The answer is stated here rather than relied on as a default: the test
+    # asserts the exact bytes, so where they come from should be visible.
+    chain = StubChain(answer="Acne is a skin condition.")
     response = client_for(chain).post("/get", data={"msg": "What is acne?"})
     assert response.status_code == 200
     assert response.data == b"Acne is a skin condition."

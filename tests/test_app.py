@@ -11,12 +11,7 @@ import types
 
 import pytest
 
-
-class StubChain:
-    calls: list = []
-
-    def invoke(self, payload):
-        return {"answer": "an answer"}
+from tests.stubs import StubChain
 
 
 @pytest.fixture

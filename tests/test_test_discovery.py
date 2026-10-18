@@ -12,7 +12,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 TESTS = ROOT / "tests"
 
 # Files in tests/ that are deliberately not test modules.
-SUPPORTING = {"__init__.py", "conftest.py"}
+SUPPORTING = {"__init__.py", "conftest.py", "stubs.py"}
 
 
 def _python_files():
