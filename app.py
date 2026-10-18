@@ -51,14 +51,19 @@ def read_index_size(api_key: str, timeout: float = 15.0) -> int | None:
         index = Pinecone(api_key=api_key).Index(INDEX_NAME)
         return index.describe_index_stats().get("total_vector_count") or 0
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-        future = pool.submit(read)
-        try:
-            return future.result(timeout=timeout)
-        except Exception:
-            # Includes TimeoutError. The thread is left to finish on its own;
-            # it holds nothing the app needs.
-            return None
+    # Not a `with` block: the executor's context manager calls
+    # shutdown(wait=True) on exit, which blocks until the thread it is waiting
+    # on finishes -- so the timeout fires, and then the call waits for exactly
+    # the hang it just abandoned. shutdown(wait=False) returns immediately.
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    try:
+        return pool.submit(read).result(timeout=timeout)
+    except Exception:
+        # Includes TimeoutError. The thread is left to finish on its own; it
+        # holds nothing the app needs.
+        return None
+    finally:
+        pool.shutdown(wait=False)
 
 
 def build_chain(pinecone_api_key: str, groq_api_key: str):
