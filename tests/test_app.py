@@ -12,6 +12,13 @@ import types
 import pytest
 
 
+class StubChain:
+    calls: list = []
+
+    def invoke(self, payload):
+        return {"answer": "an answer"}
+
+
 @pytest.fixture
 def app_module(monkeypatch):
     """Import app.py with its third-party dependencies stubbed out."""
@@ -92,6 +99,30 @@ class TestReadIndexSize:
         )
         assert app_module.read_index_size("key") is None
 
+    def test_a_hanging_pinecone_is_abandoned(self, app_module, monkeypatch):
+        """It runs before the port is bound; waiting there is a crash loop."""
+        import sys
+        import time
+        import types
+
+        module = types.ModuleType("pinecone")
+
+        class Client:
+            def __init__(self, api_key=None):
+                pass
+
+            def Index(self, name):  # noqa: N802 - matches the real client
+                return types.SimpleNamespace(
+                    describe_index_stats=lambda: time.sleep(30) or {}
+                )
+
+        module.Pinecone = Client
+        monkeypatch.setitem(sys.modules, "pinecone", module)
+
+        started = time.monotonic()
+        assert app_module.read_index_size("key", timeout=0.2) is None
+        assert time.monotonic() - started < 5, "it waited for the hang"
+
 
 class TestLogIndexSize:
     def test_a_populated_index_is_logged_at_info(self, app_module, caplog):
@@ -157,42 +188,6 @@ class TestCreate:
         with pytest.raises(RuntimeError, match="unavailable"):
             stand_in.invoke({"input": "q"})
 
-
-class TestBuildChain:
-    def test_wires_the_retriever_and_the_llm_together(self, app_module):
-        assert app_module.build_chain("p", "g") == "chain"
-
-
-class StubChain:
-    calls: list = []
-
-    def invoke(self, payload):
-        return {"answer": "an answer"}
-
-    def test_a_hanging_pinecone_is_abandoned(self, app_module, monkeypatch):
-        """It runs before the port is bound; waiting there is a crash loop."""
-        import sys
-        import time
-        import types
-
-        module = types.ModuleType("pinecone")
-
-        class Client:
-            def __init__(self, api_key=None):
-                pass
-
-            def Index(self, name):  # noqa: N802 - matches the real client
-                return types.SimpleNamespace(
-                    describe_index_stats=lambda: time.sleep(30) or {}
-                )
-
-        module.Pinecone = Client
-        monkeypatch.setitem(sys.modules, "pinecone", module)
-
-        started = time.monotonic()
-        assert app_module.read_index_size("key", timeout=0.2) is None
-        assert time.monotonic() - started < 5, "it waited for the hang"
-
     def test_the_revision_and_config_are_logged(self, app_module, monkeypatch, caplog):
         """Which build, and what it was configured with, before anything else."""
         import logging
@@ -209,3 +204,8 @@ class StubChain:
         text = caplog.text
         assert "revision:" in text
         assert "config:" in text and "index=" in text
+
+
+class TestBuildChain:
+    def test_wires_the_retriever_and_the_llm_together(self, app_module):
+        assert app_module.build_chain("p", "g") == "chain"
