@@ -74,3 +74,11 @@ git push --quiet
 
 echo "==> pushed $source_rev"
 echo "    build log: $SPACES_BASE/$SPACE?logs=build"
+
+# The Space serves on a different host from the repository it is pushed to,
+# derived from the owner and name. /healthz reports the revision it was built
+# from, which is the one question worth asking after a deploy: did this one
+# take effect, or is the old build still answering?
+app_host="$(printf '%s' "$SPACE" | tr '/' '-' | sed 's/\.git$//')"
+echo "    verify:    curl -s https://${app_host}.hf.space/healthz"
+echo "               expect it to name $source_rev once the build finishes"

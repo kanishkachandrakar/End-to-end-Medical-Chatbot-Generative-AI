@@ -131,3 +131,18 @@ def test_it_refuses_without_an_argument():
     result = subprocess.run(["bash", str(SCRIPT)], capture_output=True, text=True)
     assert result.returncode == 2
     assert "usage" in result.stderr
+
+
+def test_it_says_how_to_check_the_deploy_landed(space, tmp_path):
+    """The revision reporting exists for this question; the script should ask it."""
+    result = _run(space, tmp_path)
+    assert result.returncode == 0, result.stderr
+    revision = _git("rev-parse", "--short", "HEAD", cwd=ROOT).strip()
+    assert "hf.space/healthz" in result.stdout
+    assert revision in result.stdout
+
+
+def test_the_app_host_follows_hugging_face_s_scheme(space, tmp_path):
+    """A Space at owner/name serves at owner-name.hf.space."""
+    result = _run(space, tmp_path, argument="owner/demo.git")
+    assert "https://owner-demo.hf.space/healthz" in result.stdout, result.stdout
