@@ -122,6 +122,35 @@ def prepare_index(api_key: str, recreate: bool, yes: bool) -> Pinecone:
     return pc
 
 
+def upsert_chunks(embeddings, chunks: list, ids: list[str]) -> None:
+    """Embed and upload the chunks, reporting progress as it goes.
+
+    A rebuild is several minutes of work. The rate and the estimate are what
+    distinguish it from being stuck, which is otherwise indistinguishable from
+    silence.
+    """
+    store = PineconeVectorStore.from_existing_index(
+        index_name=INDEX_NAME,
+        embedding=embeddings,
+    )
+
+    total = len(chunks)
+    done = 0
+    started = time.monotonic()
+    for batch, batch_ids in zip(
+        batched(chunks, BATCH_SIZE), batched(ids, BATCH_SIZE), strict=True
+    ):
+        store.add_documents(batch, ids=batch_ids)
+        done += len(batch)
+        elapsed = time.monotonic() - started
+        rate = done / elapsed if elapsed else 0
+        remaining = (total - done) / rate if rate else 0
+        print(
+            f"  {done}/{total} chunks  {rate:.0f}/s  ~{remaining:.0f}s left",
+            flush=True,
+        )
+
+
 def main(argv=None) -> None:
     """Chunk the PDFs in Data/, create the index if needed and upsert them."""
     args = parse_args(argv)
@@ -171,28 +200,7 @@ def main(argv=None) -> None:
     embeddings = download_hugging_face_embeddings()
     print(f"embedding model ready in {time.monotonic() - started:.0f}s")
 
-    store = PineconeVectorStore.from_existing_index(
-        index_name=INDEX_NAME,
-        embedding=embeddings,
-    )
-
-    total = len(text_chunks)
-    done = 0
-    started = time.monotonic()
-    for chunks, batch_ids in zip(
-        batched(text_chunks, BATCH_SIZE), batched(ids, BATCH_SIZE), strict=True
-    ):
-        store.add_documents(chunks, ids=batch_ids)
-        done += len(chunks)
-        elapsed = time.monotonic() - started
-        rate = done / elapsed if elapsed else 0
-        remaining = (total - done) / rate if rate else 0
-        # A rebuild is minutes long and silent otherwise; a rate and an
-        # estimate are the difference between waiting and wondering.
-        print(
-            f"  {done}/{total} chunks  {rate:.0f}/s  ~{remaining:.0f}s left",
-            flush=True,
-        )
+    upsert_chunks(embeddings, text_chunks, ids)
 
     print(f"upserted {unique} unique chunks into {INDEX_NAME!r}")
     confirm_upsert(pc, unique)
