@@ -7,6 +7,15 @@ the behavioural ones; the rest is in the git log.
 
 ### Fixed
 
+- **Two tests had never run.** Both were indented one level too far and became
+  methods of a stub class, and pytest collects test methods only from classes
+  named `Test*`. One of them asserted that reading the index size cannot hang
+  the startup; making it run showed that it could. `ThreadPoolExecutor`'s
+  context manager calls `shutdown(wait=True)` on exit, so the timeout fired and
+  the call then waited for exactly the hang it had just abandoned — measured at
+  0.2s to time out and 3.0s to return. Coverage stayed at 100% throughout,
+  because other tests exercised those lines without asserting what these two
+  asserted.
 - **The notebook's embeddings were still coming from the sunset package.** The
   third repeat this fortnight of a fix applied where the problem was noticed
   rather than everywhere it existed. The check that forbids it now reads the
@@ -21,6 +30,9 @@ the behavioural ones; the rest is in the git log.
 
 - `X-App-Revision` on every response, beside `X-Request-Id`: a reply kept in a
   bug report can be traced to a request and to the build that produced it.
+- A check for a test hidden inside a helper class, which is how the two above
+  went unnoticed, and one for the notebook's JSON, since every edit to it in
+  this history was made by a script and more than one of those got it wrong.
 - Checks for the things that silently do nothing: a dependency declared after
   its code is gone, a test file pytest will not collect, a test function
   shadowed by a second definition of the same name, and a version that
@@ -28,6 +40,13 @@ the behavioural ones; the rest is in the git log.
 
 ### Changed
 
+- The text a visitor can be shown is collected in `src/messages.py`, with the
+  rule it follows written down — no internal vocabulary — and a test holding it
+  there, the banner strings in `chat.js` included.
+- `make image` runs the checks CI runs against the built image, rather than one
+  of the six, and a test compares the two including the size budget as a number.
+- `store_index.main()` is five calls: the index preparation, the confirmation
+  and now the upsert loop are each their own function and tested directly.
 - `src/webapp.py` is 220 lines from 295: the asset cache-busting and the
   request lifecycle are their own modules, each holding settings that only
   make sense together.

@@ -63,6 +63,14 @@ Worth knowing before changing them:
 - **Every requirement has a lower bound.** Not style: without one, pip resolved
   `langchain-pinecone` backwards to a 2023 release and the image installed it
   without complaint.
+- **Visitor-facing text lives in `src/messages.py`** and names no internal
+  component. "The retrieval chain could not be built" is true and useless to
+  the person reading it; the operator-facing version of the same state is in
+  `/healthz` and the log. A test enforces both halves, `chat.js`'s banner
+  strings included.
+- **`make image` runs what CI's image job runs**, as `make check` does for the
+  fast job. Both are compared by tests, because a local check looser than CI is
+  worse than none.
 - **Every dependency is imported or justified.** `requirements.txt` is checked
   in both directions: nothing may be imported undeclared, and nothing may be
   declared without either being imported or appearing in the `JUSTIFIED` set in
