@@ -56,12 +56,30 @@ dry-run:  ## Report what an index rebuild would produce, touching nothing
 index:  ## Rebuild the index from scratch, clearing duplicates
 	$(PYTHON) store_index.py --recreate
 
-image:  ## Build the container and check it serves a request
+image:  ## Build the container and run the checks CI runs against it
 	docker build -t medibot:local .
-	docker run --rm --entrypoint python medibot:local -c \
+	# Same budget as CI: losing the CPU-only torch wheel is silent otherwise.
+	@bytes=$$(docker image inspect medibot:local --format '{{.Size}}'); \
+		printf 'image is %s MB\n' "$$((bytes / 1024 / 1024))"; \
+		test "$$bytes" -le $$((3 * 1024 * 1024 * 1024)) \
+		|| { echo "image is over its 3GB budget -- is a CUDA torch back?"; exit 1; }
+	# -W error, as CI does: these are the import paths the suite cannot reach.
+	docker run --rm --entrypoint python medibot:local -W error -c \
 		"from src.webapp import create_app; \
 		 c = create_app(type('S', (), {'invoke': lambda s, p: {'answer': 'ok'}})()).test_client(); \
 		 assert c.get('/healthz').status_code in (200, 503); print('image serves')"
+	docker run --rm --entrypoint python medibot:local -W error -c \
+		"from src.config import EMBED_DIM, EMBED_MODEL; \
+		 from src.helper import download_hugging_face_embeddings as g; \
+		 n = len(g().embed_query('hypertension')); \
+		 print(f'{EMBED_MODEL} -> {n} dimensions, expected {EMBED_DIM}'); \
+		 assert n == EMBED_DIM"
+	docker run --rm --entrypoint python medibot:local -c \
+		"import importlib.util as u; \
+		 s = u.spec_from_file_location('g', 'gunicorn.conf.py'); \
+		 m = u.module_from_spec(s); s.loader.exec_module(m); \
+		 print('bind', m.bind, 'workers', m.workers); \
+		 assert m.bind.endswith(':7860') and m.workers == 1"
 
 clean:  ## Remove caches and coverage data
 	rm -rf .pytest_cache .ruff_cache .coverage htmlcov
