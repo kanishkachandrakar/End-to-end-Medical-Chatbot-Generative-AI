@@ -111,6 +111,38 @@ def test_the_makefile_runs_what_ci_runs():
         assert command in workflow, f"CI omits {command!r}"
 
 
+def test_the_image_target_runs_what_the_image_job_runs():
+    """The same argument as the check job, for the half that was exempt.
+
+    `make image` checked one of the six things CI checks against the built
+    image, so a local run could pass while CI failed on the size budget, a
+    deprecation under -W error, or the gunicorn config inside the container.
+    """
+    makefile = (ROOT / "Makefile").read_text()
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    for fragment in (
+        "docker image inspect",          # the size budget
+        "-W error",                      # the two import paths
+        "embed_query",                   # the embedding dimension
+        "gunicorn.conf.py",              # the config inside the container
+    ):
+        assert fragment in makefile, f"make image omits {fragment!r}"
+        assert fragment in workflow, f"CI omits {fragment!r}"
+
+
+def test_the_image_budget_is_the_same_number_in_both():
+    """A local budget looser than CI's teaches the wrong lesson."""
+    import re
+
+    makefile = (ROOT / "Makefile").read_text()
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    pattern = r"(\d+) \* 1024 \* 1024 \* 1024"
+    assert re.search(pattern, makefile), "no budget in the Makefile"
+    local = re.search(pattern, makefile).group(1)
+    ci = re.search(pattern, workflow).group(1)
+    assert local == ci, f"Makefile budget {local}GB, CI {ci}GB"
+
+
 def test_check_depends_on_every_local_gate():
     """`make check` is the one target anyone is told to run before pushing."""
     import re
