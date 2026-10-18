@@ -604,3 +604,49 @@ class TestConfirmDeletion:
         monkeypatch.setattr("builtins.input", refuse)
         with pytest.raises(SystemExit, match="--yes"):
             module.confirm_deletion(module.INDEX_NAME)
+
+
+class TestUpsertChunks:
+    """The embed-and-upload, called directly rather than through main()."""
+
+    def test_it_sends_every_chunk_once(self, indexer):
+        module, calls = indexer
+        chunks = [_Chunk(t) for t in "abcdef"]
+        ids = [f"id{i}" for i in range(6)]
+        module.upsert_chunks("embeddings", chunks, ids)
+        sent = [text for batch, _ in calls["upserts"] for text in batch]
+        assert sent == list("abcdef")
+
+    def test_it_keeps_the_ids_with_their_chunks(self, indexer):
+        """Two sequences zipped together; drifting apart mislabels every vector."""
+        module, calls = indexer
+        chunks = [_Chunk(t) for t in "abcdefg"]
+        ids = [f"id{i}" for i in range(7)]
+        module.upsert_chunks("embeddings", chunks, ids)
+        for batch, batch_ids in calls["upserts"]:
+            assert len(batch) == len(batch_ids)
+        flattened = [i for _, batch_ids in calls["upserts"] for i in batch_ids]
+        assert flattened == ids
+
+    def test_a_mismatched_length_raises_rather_than_truncating(self, indexer):
+        """strict=True on the zip: silently dropping the tail is the bad case."""
+        module, _ = indexer
+        with pytest.raises(ValueError):
+            module.upsert_chunks("embeddings", [_Chunk("a")] * 5, ["only-one"])
+
+    def test_it_reports_a_rate_and_an_estimate(self, indexer, capsys):
+        module, _ = indexer
+        ids = [f"id{i}" for i in range(4)]
+        module.upsert_chunks("embeddings", [_Chunk("a")] * 4, ids)
+        output = capsys.readouterr().out
+        assert "/s" in output and "s left" in output
+
+    def test_an_empty_list_sends_nothing(self, indexer):
+        module, calls = indexer
+        module.upsert_chunks("embeddings", [], [])
+        assert calls["upserts"] == []
+
+    def test_it_opens_the_configured_index(self, indexer):
+        module, calls = indexer
+        module.upsert_chunks("embeddings", [_Chunk("a")], ["id0"])
+        assert calls["opened"] == [module.INDEX_NAME]
