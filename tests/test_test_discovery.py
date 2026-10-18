@@ -67,3 +67,63 @@ def test_no_test_function_is_defined_twice_in_a_file():
         if repeated:
             duplicates[name] = sorted(repeated)
     assert not duplicates, f"shadowed test functions: {duplicates}"
+
+
+def _test_functions_pytest_would_skip(source):
+    """test_* functions nested in a class pytest does not collect.
+
+    pytest takes test methods only from classes named Test*. A test indented
+    one level too far lands inside whatever class precedes it -- a helper, a
+    stub -- and is then unreachable. Nothing reports it: no error, no skip, no
+    change in the count anyone looks at.
+    """
+    import ast
+
+    skipped = []
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef) or node.name.startswith("Test"):
+            continue
+        skipped.extend(
+            f"{node.name}.{child.name}"
+            for child in node.body
+            if isinstance(child, ast.FunctionDef) and child.name.startswith("test_")
+        )
+    return skipped
+
+
+def test_no_test_hides_inside_a_helper_class():
+    """Two tests sat inside a stub class in test_app.py and never ran."""
+    hidden = {}
+    for name in _python_files():
+        if name in SUPPORTING:
+            continue
+        found = _test_functions_pytest_would_skip((TESTS / name).read_text())
+        if found:
+            hidden[name] = found
+    assert not hidden, (
+        f"pytest collects test methods only from Test* classes, so {hidden} "
+        "never run"
+    )
+
+
+def test_the_detector_finds_a_planted_one():
+    """An absence check that cannot fire is worse than none."""
+    planted = (
+        "class StubThing:\n"
+        "    def invoke(self):\n"
+        "        return 1\n"
+        "\n"
+        "    def test_hidden_away(self):\n"
+        "        assert False\n"
+    )
+    assert _test_functions_pytest_would_skip(planted) == ["StubThing.test_hidden_away"]
+
+
+def test_a_real_test_class_is_not_flagged():
+    allowed = (
+        "class TestSomething:\n"
+        "    def test_visible(self):\n"
+        "        assert True\n"
+    )
+    assert _test_functions_pytest_would_skip(allowed) == []
