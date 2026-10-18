@@ -30,6 +30,7 @@ APP_GRAPH = [
     "app.py",
     "src/webapp.py",
     "src/assets.py",
+    "src/messages.py",
     "src/middleware.py",
     "src/helper.py",
     "src/chunking.py",

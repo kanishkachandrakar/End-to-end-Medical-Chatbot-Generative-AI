@@ -5,9 +5,9 @@ imported without the embedding model and a Pinecone connection, so logic living
 there cannot be tested.
 """
 
-RATE_LIMITED = "I am being rate limited right now -- please try again in a moment."
-TIMED_OUT = "That took too long to answer -- please try again."
-UNAVAILABLE = "Sorry, I could not answer that right now. Please try again."
+from src.messages import RATE_LIMITED, TIMED_OUT, UNAVAILABLE
+
+__all__ = ["RATE_LIMITED", "TIMED_OUT", "UNAVAILABLE", "failure_reply"]
 
 
 def _status_of(exc: BaseException) -> int | None:

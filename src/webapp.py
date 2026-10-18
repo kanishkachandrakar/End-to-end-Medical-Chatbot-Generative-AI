@@ -19,6 +19,7 @@ from flask import Flask, Response, g, make_response, render_template, request
 from src import assets, middleware
 from src.config import LOG_LEVEL, MAX_CONTENT_BYTES, MAX_QUESTION_CHARS
 from src.errors import UNAVAILABLE, failure_reply
+from src.messages import NO_ANSWER, NO_QUESTION, TOO_BUSY, TOO_LONG
 from src.ratelimit import TokenBucket
 from src.text import strip_reasoning
 
@@ -43,16 +44,10 @@ class RagChain(Protocol):
 # invites traffic that spends the shared rate limit on nobody's question.
 ROBOTS_TXT = "User-agent: *\nDisallow: /\n"
 
-NO_QUESTION = "Please type a question."
-NO_ANSWER = "I don't have an answer for that."
 # Advertised when the chain could not be built. Long enough not to invite a
 # retry storm against a service that needs a human or a restart.
 DEGRADED_RETRY_AFTER = 60
 
-TOO_BUSY = (
-    "This demo answers a limited number of questions a minute -- "
-    "please try again shortly."
-)
 
 
 def text_reply(body: str, status: int = 200) -> Response:
@@ -174,11 +169,7 @@ def create_app(
         if not msg:
             return text_reply(NO_QUESTION, 400)
         if len(msg) > MAX_QUESTION_CHARS:
-            return text_reply(
-                "That question is too long -- please keep it under "
-                f"{MAX_QUESTION_CHARS} characters.",
-                413,
-            )
+            return text_reply(TOO_LONG.format(limit=MAX_QUESTION_CHARS), 413)
 
         # Checked after validation so a rejected question costs no budget.
         if limiter is not None and not limiter.take():
