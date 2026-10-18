@@ -18,6 +18,17 @@ repos:
         types: [python]
         require_serial: true
 
+  # A notebook is one JSON document, and the scripts in this history have
+  # corrupted it more than once by editing it as text. check-json does not
+  # cover .ipynb, so this does.
+  - repo: local
+    hooks:
+      - id: notebook-json
+        name: notebook json
+        entry: python -c "import json,sys; [json.load(open(p)) for p in sys.argv[1:]]"
+        language: system
+        files: \.ipynb$
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
