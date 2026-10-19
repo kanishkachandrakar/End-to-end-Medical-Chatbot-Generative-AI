@@ -7,6 +7,13 @@ the behavioural ones; the rest is in the git log.
 
 ### Fixed
 
+- **Two more tests asserted nothing.** Byte-identical bodies, different names,
+  both relying on a fixture's stubs raising if touched — a real guarantee, but
+  an invisible one, and the second test's name described what the fixture
+  provides rather than anything the test did. Merged, with the claim visible.
+- **Five of fourteen modules were missing from the README's structure tree.**
+  The other three hand-kept lists of those modules each have a test requiring
+  completeness, and each has caught an omission; this one had no test.
 - **Two tests had never run.** Both were indented one level too far and became
   methods of a stub class, and pytest collects test methods only from classes
   named `Test*`. One of them asserted that reading the index size cannot hang
@@ -30,6 +37,11 @@ the behavioural ones; the rest is in the git log.
 
 - `X-App-Revision` on every response, beside `X-Request-Id`: a reply kept in a
   bug report can be traced to a request and to the build that produced it.
+- A check for a test that asserts nothing, with the four that legitimately
+  assert by not raising listed and explained — the adjacent failure to a test
+  that never runs, and indistinguishable from the outside.
+- A check that the README's structure tree lists every module, in both
+  directions, and one that the Makefile's `PYTHON=` override still works.
 - A check for a test hidden inside a helper class, which is how the two above
   went unnoticed, and one for the notebook's JSON, since every edit to it in
   this history was made by a script and more than one of those got it wrong.
@@ -40,6 +52,12 @@ the behavioural ones; the rest is in the git log.
 
 ### Changed
 
+- Four constants that were only read by their own module are named as
+  internal; a module's public names are what other code is invited to depend
+  on.
+- The dependency checks build the distribution map once instead of per
+  package, which was 4.5 seconds of an 11-second suite in a file that is not
+  marked slow. CI caches the pre-commit environments.
 - The text a visitor can be shown is collected in `src/messages.py`, with the
   rule it follows written down — no internal vocabulary — and a test holding it
   there, the banner strings in `chat.js` included.
