@@ -251,3 +251,32 @@ def test_the_python_variable_is_overridable():
     assert re.search(r"^PYTHON \?=", makefile, re.MULTILINE), (
         "PYTHON must be declared with ?= so a command-line value wins"
     )
+
+
+def test_the_structure_tree_lists_every_module():
+    """The README's layout section is a hand-kept list like the others.
+
+    The dockerignore and sunset-import checks each require their module list
+    to be complete, and both have caught omissions. This one did not exist, so
+    five of fourteen modules were missing from it before anyone noticed.
+    """
+    modules = {
+        path.name
+        for path in (ROOT / "src").glob("*.py")
+        if path.name != "__init__.py"
+    }
+    missing = sorted(name for name in modules if name not in README)
+    assert not missing, f"absent from the README's structure tree: {missing}"
+
+
+def test_every_tree_entry_describes_something_that_exists():
+    """And the other direction: a tree naming a deleted module misleads too."""
+    import re
+
+    tree = re.search(r"```\n\.\n(.*?)```", README, re.DOTALL)
+    assert tree, "no structure tree found in the README"
+    named = re.findall(r"([a-z_]+\.py)", tree.group(1))
+    assert named, "no python files named in the tree"
+    for name in named:
+        found = (ROOT / name).exists() or (ROOT / "src" / name).exists()
+        assert found, f"the tree names {name}, which does not exist"
