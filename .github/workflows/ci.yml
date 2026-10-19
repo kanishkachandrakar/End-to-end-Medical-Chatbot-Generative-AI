@@ -57,6 +57,15 @@ jobs:
       # something runs them, and nothing requires a contributor to install the
       # hook, so CI does. ruff is excluded because the step above already ran
       # it against the whole tree.
+      # The hooks build their own environments on first run, which is most of
+      # the step's time. Keyed on the config, so it is rebuilt when a hook
+      # version changes and reused otherwise.
+      - name: Cache the pre-commit environments
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ matrix.python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
+
       - name: Pre-commit hooks
         run: SKIP=ruff pre-commit run --all-files --show-diff-on-failure
 
