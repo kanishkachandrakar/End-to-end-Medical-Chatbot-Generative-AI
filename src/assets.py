@@ -13,7 +13,7 @@ import pathlib
 from flask import Flask
 
 # A year. Only safe because the URLs below carry a content hash.
-CACHE_SECONDS = 31_536_000
+_CACHE_SECONDS = 31_536_000
 
 
 @functools.lru_cache(maxsize=32)
@@ -44,7 +44,7 @@ def static_version(app: Flask, filename: str) -> str:
 
 def install(app: Flask) -> None:
     """Set the cache lifetime and make url_for fingerprint static URLs."""
-    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = CACHE_SECONDS
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = _CACHE_SECONDS
 
     @app.url_defaults
     def _fingerprint_static(endpoint: str, values: dict) -> None:

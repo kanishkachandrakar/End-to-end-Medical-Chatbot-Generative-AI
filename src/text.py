@@ -13,14 +13,14 @@ from typing import TypeVar
 
 # deepseek-r1 wraps its chain of thought in <think>...</think>. It is useful in
 # a log and should never reach the user.
-THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL)
+_THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL)
 
 T = TypeVar("T")
 
 
 def strip_reasoning(answer: str) -> str:
     """Remove any <think> blocks from a model reply and tidy the whitespace."""
-    return THINK_BLOCK.sub("", answer).strip()
+    return _THINK_BLOCK.sub("", answer).strip()
 
 
 def chunk_ids(chunks: Iterable) -> list[str]:

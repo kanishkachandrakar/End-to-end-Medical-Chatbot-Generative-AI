@@ -29,7 +29,7 @@ def require_env(*names: str) -> dict[str, str]:
 # Prefixes the providers use. Checked only to catch a swap or a truncation --
 # a key with the right prefix can still be revoked, and that is the API's job
 # to say, not ours.
-KEY_PREFIXES = {
+_KEY_PREFIXES = {
     "PINECONE_API_KEY": "pcsk_",
     "GROQ_API_KEY": "gsk_",
 }
@@ -48,12 +48,12 @@ def warn_on_suspicious_keys(values: dict[str, str]) -> list[str]:
     the mistake this catches.
     """
     complaints = []
-    for name, expected in KEY_PREFIXES.items():
+    for name, expected in _KEY_PREFIXES.items():
         value = values.get(name)
         if value and not value.startswith(expected):
             looks_like = [
                 other
-                for other, prefix in KEY_PREFIXES.items()
+                for other, prefix in _KEY_PREFIXES.items()
                 if other != name and value.startswith(prefix)
             ]
             if looks_like:

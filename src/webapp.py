@@ -42,7 +42,7 @@ class RagChain(Protocol):
 
 # Crawlers cannot reach /get now that it is POST-only, but indexing the page
 # invites traffic that spends the shared rate limit on nobody's question.
-ROBOTS_TXT = "User-agent: *\nDisallow: /\n"
+_ROBOTS_TXT = "User-agent: *\nDisallow: /\n"
 
 # Advertised when the chain could not be built. Long enough not to invite a
 # retry storm against a service that needs a human or a restart.
@@ -120,7 +120,7 @@ def create_app(
     @app.route("/robots.txt")
     def robots() -> Response:
         """Ask crawlers to stay away; this is a demo, not a resource to index."""
-        return text_reply(ROBOTS_TXT)
+        return text_reply(_ROBOTS_TXT)
 
     @app.route("/livez")
     def livez() -> Response:
