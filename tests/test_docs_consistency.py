@@ -214,3 +214,40 @@ def test_the_documents_agree_on_how_to_skip_the_slow_tests():
     contributing = (ROOT / "CONTRIBUTING.md").read_text()
     for document in (README, contributing):
         assert "make fast" in document
+
+
+def test_the_makefile_honours_a_python_override():
+    """`make test PYTHON=...` is how anyone with the wrong python on PATH runs it.
+
+    The targets use $(PYTHON) rather than a bare `python` precisely so that
+    works, and the documentation tells people to use it. A target that hardcodes
+    `python` would ignore the override and fail with a confusing missing-module
+    error instead.
+    """
+    import re
+
+    makefile = (ROOT / "Makefile").read_text()
+    recipes = [line for line in makefile.splitlines() if line.startswith("\t")]
+    assert recipes, "no recipe lines found"
+
+    offenders = [
+        line.strip()
+        for line in recipes
+        if re.search(r"(?<![\w$(./-])python\b", line)
+        and "$(PYTHON)" not in line
+        and "docker" not in line
+        and "node" not in line
+    ]
+    assert not offenders, (
+        f"these recipe lines call python directly and ignore PYTHON=: {offenders}"
+    )
+
+
+def test_the_python_variable_is_overridable():
+    """`?=` rather than `=`, or the override on the command line is ignored."""
+    import re
+
+    makefile = (ROOT / "Makefile").read_text()
+    assert re.search(r"^PYTHON \?=", makefile, re.MULTILINE), (
+        "PYTHON must be declared with ?= so a command-line value wins"
+    )
