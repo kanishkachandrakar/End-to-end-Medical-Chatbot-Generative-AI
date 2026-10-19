@@ -255,6 +255,25 @@ The resolved configuration is logged in one line at startup, so a deploy
 reading the wrong index or retrieving the wrong number of passages is visible
 without comparing environment variables by hand.
 
+## Before this is useful to anyone else
+
+Two things are outstanding and neither can be done from the code:
+
+1. **Rotate the Pinecone and Groq keys.** Both are in this repository's public
+   history. Everything in the working tree reads them from `.env`, which is
+   gitignored, but the old values remain reachable in the history and should be
+   treated as disclosed. [SECURITY.md](SECURITY.md) has the links.
+2. **Rebuild the index.** The live `medicalbot` index holds six copies of every
+   chunk, written by the notebook's upsert cell under random ids before the
+   indexer derived them from the chunk text. Because duplicates embed to
+   identical vectors, a top-3 search returns the same passage three times — so
+   the model gets a third of the context it is configured for.
+
+   ```bash
+   python store_index.py --dry-run     # what a rebuild would produce
+   python store_index.py --recreate    # delete and rebuild; asks to confirm
+   ```
+
 ## Deploying
 
 `Dockerfile` serves the app through gunicorn and reads `$PORT`, so it runs on
