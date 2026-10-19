@@ -75,16 +75,19 @@ def test_dry_run_reports_the_counts(store_index, capsys, monkeypatch):
     assert "would upsert 2 unique chunks" in output
 
 
-def test_dry_run_needs_no_api_key(store_index, monkeypatch):
-    """The whole point: check the chunking before setting anything up."""
+def test_a_dry_run_needs_no_key_and_touches_nothing(store_index, monkeypatch, capsys):
+    """The whole point: check the chunking before setting anything up.
+
+    Two tests used to make this call, with different names and identical
+    bodies, and neither asserted anything -- they relied on the fixture's
+    stubs raising if Pinecone or the model were reached, which is a real
+    guarantee but an invisible one. The output assertion is what shows the
+    call ran the whole way through rather than returning early for some
+    other reason.
+    """
     monkeypatch.delenv("PINECONE_API_KEY", raising=False)
     store_index.main(["--dry-run"])
-
-
-def test_dry_run_reaches_neither_pinecone_nor_the_model(store_index, monkeypatch):
-    """The stubs raise if touched, so reaching either fails this test."""
-    monkeypatch.delenv("PINECONE_API_KEY", raising=False)
-    store_index.main(["--dry-run"])
+    assert "dry run: would upsert" in capsys.readouterr().out
 
 
 def test_dry_run_reports_collapsing_duplicates(store_index, capsys, monkeypatch):
