@@ -12,6 +12,7 @@ requirements.txt is the thing being looked for.
 """
 
 import ast
+import functools
 import json
 import pathlib
 import re
@@ -47,6 +48,25 @@ def _declared(filename):
     return declarations
 
 
+@functools.lru_cache(maxsize=1)
+def _distribution_modules():
+    """Distribution name (lowercased) -> the top-level modules it provides.
+
+    Built once. packages_distributions() walks every installed distribution's
+    metadata, and calling it per dependency made these tests 4.5 seconds of an
+    11-second suite -- on a file that is not marked slow, so it was in the fast
+    path too.
+    """
+    import collections
+    import importlib.metadata as metadata
+
+    mapping = collections.defaultdict(set)
+    for module, distributions in metadata.packages_distributions().items():
+        for distribution in distributions:
+            mapping[distribution.lower()].add(module)
+    return mapping
+
+
 def _modules_of(distribution):
     """Top-level modules a distribution provides.
 
@@ -54,13 +74,7 @@ def _modules_of(distribution):
     dotenv -- so this asks the installed metadata rather than guessing from
     the string.
     """
-    import importlib.metadata as metadata
-
-    provided = {
-        module
-        for module, distributions in metadata.packages_distributions().items()
-        if any(d.lower() == distribution.lower() for d in distributions)
-    }
+    provided = _distribution_modules().get(distribution.lower())
     return provided or {distribution.replace("-", "_")}
 
 
