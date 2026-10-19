@@ -279,6 +279,15 @@ def test_limit_is_reported(indexer, capsys):
     assert "limiting to the first 2 chunks" in capsys.readouterr().out
 
 
+def test_limit_says_the_index_is_left_partial(indexer, capsys):
+    """It is a pipeline check, not a build; the result is not a usable index."""
+    module, calls = indexer
+    calls["existing"] = [module.INDEX_NAME]
+    module.main(["--limit", "2"])
+    output = capsys.readouterr().out
+    assert "rebuild is still needed" in output
+
+
 def test_a_nonsensical_limit_is_rejected(indexer):
     module, _ = indexer
     with pytest.raises(SystemExit, match="--limit"):

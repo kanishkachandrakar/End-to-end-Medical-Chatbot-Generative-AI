@@ -180,7 +180,11 @@ def main(argv=None) -> None:
         if args.limit < 1:
             raise SystemExit("--limit must be at least 1")
         text_chunks = text_chunks[: args.limit]
-        print(f"limiting to the first {len(text_chunks)} chunks")
+        print(
+            f"limiting to the first {len(text_chunks)} chunks -- this leaves "
+            f"the index holding only these, so a rebuild is still needed "
+            f"before the app can answer from the whole book"
+        )
 
     ids = chunk_ids(text_chunks)
     unique = len(set(ids))
