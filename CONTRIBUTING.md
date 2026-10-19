@@ -63,6 +63,11 @@ Worth knowing before changing them:
 - **Every requirement has a lower bound.** Not style: without one, pip resolved
   `langchain-pinecone` backwards to a 2023 release and the image installed it
   without complaint.
+- **A test asserts something, or says why it does not.** Two tests in this
+  suite once ran nothing (indented into a helper class, where pytest does not
+  look) and two others were the same test twice, asserting nothing. Checks for
+  both now exist, and a test whose only assertion is "this did not raise" has
+  to be listed in `ASSERTS_BY_NOT_RAISING` with the reason.
 - **Visitor-facing text lives in `src/messages.py`** and names no internal
   component. "The retrieval chain could not be built" is true and useless to
   the person reading it; the operator-facing version of the same state is in
