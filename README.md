@@ -97,11 +97,16 @@ Data/Medical_book.pdf
 │   └── deploy_space.sh  # Pushes the runtime files to a Space
 ├── tests/               # pytest suite; no keys or network required
 ├── src/
+│   ├── assets.py        # Cache-busting for the static files
 │   ├── chunking.py      # Splitting pages into chunks
 │   ├── config.py        # Settings, overridable by environment variable
+│   ├── env.py           # Required keys, and a check on their shape
 │   ├── errors.py        # Failure -> user-facing message and status
+│   ├── headers.py       # Security headers, including the CSP
 │   ├── helper.py        # The embedding model
 │   ├── loaders.py       # Reading the source PDFs
+│   ├── messages.py      # Everything a visitor can be shown
+│   ├── middleware.py    # Request id, headers, plain-text errors
 │   ├── prompt.py        # System prompt for the LLM
 │   ├── ratelimit.py     # Token bucket guarding the Groq quota
 │   ├── text.py          # Answer cleaning and chunk ids
