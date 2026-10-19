@@ -72,6 +72,18 @@ You will be asked for your Hugging Face credentials — use an
 [access token](https://huggingface.co/settings/tokens) with write scope as the
 password.
 
+The script finishes by printing the `curl` that answers the only question worth
+asking afterwards — whether the build that is now serving is the one you just
+pushed:
+
+```
+verify:    curl -s https://<owner>-<space>.hf.space/healthz
+           expect it to name <revision> once the build finishes
+```
+
+Until the build completes, that URL answers with the previous revision, or
+nothing at all if this is the first deploy.
+
 ## Verify
 
 The first build takes a few minutes; watch it under the **Logs → Build** tab.
