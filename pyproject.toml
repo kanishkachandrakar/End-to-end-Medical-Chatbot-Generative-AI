@@ -51,8 +51,11 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-# app.py is in here now that create() made it importable without keys.
-source = ["src", "app"]
+# Every module this project ships. app.py joined when create() made it
+# importable without keys; store_index.py was simply never listed, so its 99
+# statements -- the largest file outside src/ -- were covered by the tests and
+# invisible to the gate.
+source = ["src", "app", "store_index"]
 
 [tool.coverage.report]
 show_missing = true
