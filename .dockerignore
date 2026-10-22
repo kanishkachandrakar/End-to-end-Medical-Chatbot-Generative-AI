@@ -36,11 +36,15 @@ LICENSE
 .editorconfig
 .pre-commit-config.yaml
 
-# Development-only: tests, tooling config and the deploy script are not part of
-# the runtime image.
+# Development-only: the suite, the dev requirements, the deploy script and the
+# workflows are not part of the runtime image.
+#
+# pyproject.toml is not listed, and cannot be: it is both the package metadata
+# pip needs for the `-e .` at the end of requirements.txt and the home of the
+# ruff, pytest, coverage and mypy settings. The tooling config travels into the
+# image inside it. This list named pytest.ini and ruff.toml until that stopped
+# being where either lived.
 tests/
 requirements-dev.txt
-pytest.ini
-ruff.toml
 scripts/
 .github/

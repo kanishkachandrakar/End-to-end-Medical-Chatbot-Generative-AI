@@ -46,7 +46,7 @@ UNWANTED = (
     "research/trials.ipynb",
     "tests/test_webapp.py",
     "requirements-dev.txt",
-    "pytest.ini" if (ROOT / "pytest.ini").exists() else "tests/conftest.py",
+    "tests/conftest.py",
     "scripts/deploy_space.sh",
     ".github/workflows/ci.yml",
     "README.md",
@@ -104,6 +104,52 @@ def test_every_module_src_contains_is_listed_as_required():
     """A new module would otherwise be untested against .dockerignore."""
     modules = {f"src/{p.name}" for p in (ROOT / "src").glob("*.py")}
     assert modules <= set(REQUIRED), f"not covered: {modules - set(REQUIRED)}"
+
+
+# Entries that name nothing in a fresh checkout on purpose: they exclude what a
+# working copy grows, not what the repo tracks.
+TRANSIENT = frozenset(
+    {
+        ".env",
+        ".DS_Store",
+        "__pycache__/",
+        "*.py[cod]",
+        "*.egg-info/",
+        ".venv/",
+        "venv/",
+        "env/",
+        ".tox/",
+        ".ipynb_checkpoints/",
+    }
+)
+
+
+def test_no_pattern_names_something_that_is_no_longer_there():
+    """A stale exclusion costs nothing and claims something false.
+
+    This list said `pytest.ini` and `ruff.toml` long after both settled into
+    pyproject.toml, so it read as keeping the tooling config out of the image
+    while pyproject.toml -- which pip needs for the `-e .` in
+    requirements.txt, and which holds all four tools' settings -- went in. The
+    check above had grown a conditional to tolerate the first of them.
+    """
+    stale = [
+        pattern
+        for pattern in _patterns()
+        if pattern not in TRANSIENT and not (ROOT / pattern.rstrip("/")).exists()
+    ]
+    assert not stale, f"excluded but absent: {stale}"
+
+
+def test_the_transient_list_holds_no_tracked_path():
+    """Otherwise an entry could be excused by being named here."""
+    tracked = set(
+        subprocess.run(
+            ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True
+        ).stdout.split()
+    )
+    for pattern in TRANSIENT:
+        assert pattern.rstrip("/") not in tracked, pattern
 
 
 def test_a_local_virtualenv_is_excluded():
