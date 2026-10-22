@@ -2,7 +2,7 @@
 # The suite touches no network and loads no model.
 pytest>=9.1
 pytest-cov>=5.0
-mypy>=1.10
+mypy>=2.4.0
 # Declared here so CI, the Makefile and the pre-commit hook all use one
 # version. They used three, and the hook's was seven minor releases behind.
 ruff>=0.16,<1
