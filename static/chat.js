@@ -48,6 +48,24 @@ $(document).ready(function () {
         return $row;
     }
 
+    // The server answers every error in text/plain, worded for a reader. A
+    // body that is anything else did not come from the server: the Space's
+    // router returns an HTML page of its own when the container is starting,
+    // restarting or asleep, and a 502 or 504 is the likeliest failure this
+    // page will ever see. Pasting that markup into a bubble is the thing the
+    // server-side error handler exists to prevent, and the previous version
+    // handed it straight to appendMessage.
+    function failureText(jqXHR) {
+        const type = jqXHR.getResponseHeader("Content-Type") || "";
+        const body = String(jqXHR.responseText || "").trim();
+        // Every message the server can send here is one sentence from
+        // messages.py, so a long body is not one of them whatever it claims.
+        if (type.indexOf("text/plain") === 0 && body && body.length <= 300) {
+            return body;
+        }
+        return "Sorry, the server is not reachable right now.";
+    }
+
     // A request takes a few seconds: retrieval, then the LLM. Block a
     // second submit while one is in flight rather than queueing another.
     function setBusy(busy) {
@@ -120,10 +138,7 @@ $(document).ready(function () {
         }).done(function (data) {
             appendMessage(data, false);
         }).fail(function (jqXHR) {
-            appendMessage(
-                jqXHR.responseText || "Sorry, the server is not reachable right now.",
-                false
-            );
+            appendMessage(failureText(jqXHR), false);
         }).always(function () {
             $pending.remove();
             setBusy(false);
