@@ -29,10 +29,15 @@ warn_unreachable = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# Coverage is reported locally but not enforced: the floor only makes sense over
-# the whole suite, and failing `pytest tests/test_one_thing.py` for 0% coverage
-# makes the normal way of working unusable. CI passes --cov-fail-under.
-addopts = "-q --strict-markers --cov"
+# No --cov here, which is not an oversight. pytest-cov's --cov takes an optional
+# value, so a bare --cov in addopts eats the first positional argument: running
+# `pytest tests/test_one_thing.py` became `--cov=tests/test_one_thing.py` with no
+# path left, so pytest fell back to testpaths and ran all 490 tests while
+# measuring a file coverage reported as "never imported" -- 22 seconds and no
+# report, instead of 0.4 seconds and no report. The flag belongs on the two
+# invocations that want a report, `make test` and the CI step, where the next
+# argument is another option and cannot be swallowed.
+addopts = "-q --strict-markers"
 markers = [
     "slow: needs a heavyweight import (langchain_community)",
 ]

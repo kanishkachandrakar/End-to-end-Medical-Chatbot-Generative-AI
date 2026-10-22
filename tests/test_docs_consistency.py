@@ -111,6 +111,52 @@ def test_the_makefile_runs_what_ci_runs():
         assert command in workflow, f"CI omits {command!r}"
 
 
+def test_the_coverage_floor_is_actually_enforced():
+    """--cov-fail-under does nothing unless coverage is collecting.
+
+    pytest-cov accepts the floor either way and exits 0, so a CI step that
+    had lost --cov would still report the suite as passing and would simply
+    stop checking coverage. --cov used to come from addopts, where it broke
+    single-file selection; moving it out put it on these two commands, and
+    this is what stops it being dropped from one of them.
+    """
+    makefile = (ROOT / "Makefile").read_text()
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    for name, text in (("Makefile", makefile), ("CI", workflow)):
+        # Lines that run pytest, not lines that mention the flag: the
+        # Makefile carries a comment explaining this rule, and an earlier
+        # version of this test was satisfied by that comment rather than by
+        # the command -- which is the failure it exists to catch.
+        lines = [
+            line
+            for line in text.splitlines()
+            if "pytest" in line and "--cov-fail-under" in line
+        ]
+        assert lines, f"{name} has no coverage gate at all"
+        for line in lines:
+            assert "--cov " in line or "--cov=" in line, f"{name}: {line.strip()}"
+
+
+def test_the_coverage_flag_never_precedes_a_path():
+    """A bare --cov swallows the next argument if it is not an option.
+
+    That is how `pytest tests/test_one_thing.py` came to run the whole
+    suite. Any invocation in the repo that writes --cov must follow it with
+    another flag.
+    """
+    import re
+
+    for relative in ("Makefile", ".github/workflows/ci.yml", "README.md"):
+        for line in (ROOT / relative).read_text().splitlines():
+            # Only the lines that run it; a prose mention of the flag is not
+            # an invocation, and the Makefile has one explaining this rule.
+            if "pytest" not in line:
+                continue
+            for match in re.finditer(r"--cov(?![-=\w])\s+(\S+)", line):
+                following = match.group(1)
+                assert following.startswith("-"), f"{relative}: {line.strip()}"
+
+
 def test_the_image_target_runs_what_the_image_job_runs():
     """The same argument as the check job, for the half that was exempt.
 

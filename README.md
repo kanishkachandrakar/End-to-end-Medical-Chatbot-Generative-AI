@@ -163,7 +163,7 @@ The suite runs in about five seconds. A few files pay for heavyweight imports
 or real git work and are marked `slow`; skip them while iterating:
 
 ```bash
-make fast                      # or: python -m pytest -m "not slow" --no-cov
+make fast                      # or: python -m pytest -m "not slow"
 ```
 
 Use `make test` rather than bare `pytest`: it sets `COVERAGE_CORE=sysmon` on

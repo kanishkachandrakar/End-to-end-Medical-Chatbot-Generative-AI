@@ -24,11 +24,12 @@ help:  ## Show this list
 install:  ## Install runtime and test dependencies
 	$(PYTHON) -m pip install -r requirements.txt -r requirements-dev.txt
 
+# --cov before --cov-fail-under, never before a path: see pyproject.toml.
 test:  ## Run the whole suite with the coverage gate CI applies
-	$(PYTHON) -m pytest --cov-fail-under=95
+	$(PYTHON) -m pytest --cov --cov-fail-under=95
 
 fast:  ## Run the suite without the slow-marked files or coverage
-	$(PYTHON) -m pytest -m "not slow" --no-cov
+	$(PYTHON) -m pytest -m "not slow"
 
 lint:  ## Check formatting, imports, types and the non-Python files
 	ruff check .

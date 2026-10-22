@@ -215,3 +215,45 @@ def test_the_silence_detector_accepts_a_raises_block():
         "        thing()\n"
     )
     assert _tests_without_a_visible_assertion("x.py", allowed) == []
+
+
+def test_naming_one_file_collects_only_that_file():
+    """`pytest tests/test_one_thing.py` must mean that file, and no other.
+
+    It did not. pytest-cov's --cov takes an optional value, so the bare
+    --cov that used to sit in addopts consumed the path as its argument:
+    with no path left pytest fell back to testpaths and collected the whole
+    suite, measuring a file coverage then reported as never imported. The
+    symptom was 22 seconds and no coverage report where 0.4 seconds was
+    expected -- slow and wrong, but never red, so it went unnoticed for as
+    long as the flag had been there.
+
+    Driven through a subprocess because the thing under test is argument
+    parsing, which has already happened by the time this runs.
+    """
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "tests/test_smoke.py",
+            "--collect-only",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    named = {
+        line.split(":")[0]
+        for line in result.stdout.splitlines()
+        if line.startswith("tests/")
+    }
+    assert named == {"tests/test_smoke.py"}, sorted(named)

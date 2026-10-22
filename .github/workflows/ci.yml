@@ -82,7 +82,7 @@ jobs:
       - name: Test
         env:
           COVERAGE_CORE: ${{ matrix.python-version == '3.10' && 'ctrace' || 'sysmon' }}
-        run: python -m pytest --cov-fail-under=95
+        run: python -m pytest --cov --cov-fail-under=95
 
       # Catches a syntax error in a module the unit tests do not import.
       - name: Byte-compile every module
