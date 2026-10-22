@@ -38,6 +38,9 @@ lint:  ## Check formatting, imports, types and the non-Python files
 	# Catches a syntax error in a module the suite never imports, as CI does.
 	$(PYTHON) -m compileall -q app.py store_index.py template.py setup.py \
 		gunicorn.conf.py src
+	# The same Dockerfile lint CI runs; it is what found the shell-form CMD
+	# that was swallowing SIGTERM.
+	docker buildx build --check .
 
 fix:  ## Apply the lint fixes that are safe to apply
 	ruff check --fix .

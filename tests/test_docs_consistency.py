@@ -143,6 +143,19 @@ def test_the_image_budget_is_the_same_number_in_both():
     assert local == ci, f"Makefile budget {local}GB, CI {ci}GB"
 
 
+def test_both_lint_the_dockerfile():
+    """Equivalent operations, two spellings.
+
+    CI calls it through docker/build-push-action with `call: check`; the
+    Makefile uses the CLI, which is what a developer has. Comparing the
+    literal command would fail on the difference rather than on a divergence.
+    """
+    makefile = (ROOT / "Makefile").read_text()
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    assert "buildx build --check" in makefile
+    assert "call: check" in workflow
+
+
 def test_check_depends_on_every_local_gate():
     """`make check` is the one target anyone is told to run before pushing."""
     import re
