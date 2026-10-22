@@ -51,10 +51,23 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-# Every module this project ships. app.py joined when create() made it
-# importable without keys; store_index.py was simply never listed, so its 99
-# statements -- the largest file outside src/ -- were covered by the tests and
-# invisible to the gate.
+# Every module this project ships, except the three named below. app.py joined
+# when create() made it importable without keys; store_index.py was simply
+# never listed, so its 99 statements -- the largest file outside src/ -- were
+# covered by the tests and invisible to the gate.
+#
+# Not measured, and each for a reason rather than by omission:
+#
+#   gunicorn.conf.py  Its name is not an importable module name, so coverage
+#                     cannot take it as a source entry -- a path there collects
+#                     nothing and warns. tests/test_deploy_config.py executes
+#                     it and asserts its settings instead.
+#   setup.py          Run by pip, never by this project.
+#   template.py       A one-shot scaffold whose job finished before the first
+#                     commit; running it again is a no-op by design.
+#
+# tests/test_coverage_scope.py holds that list to being complete, so the next
+# module cannot go unmeasured the way store_index.py did.
 source = ["src", "app", "store_index"]
 
 [tool.coverage.report]
