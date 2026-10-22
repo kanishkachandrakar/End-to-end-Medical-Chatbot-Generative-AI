@@ -307,11 +307,82 @@ def test_an_enormous_body_is_refused(client_for):
     assert b"<html" not in response.data.lower()
 
 
+def test_an_oversize_body_is_refused_in_the_same_words_as_a_long_question(
+    client_for,
+):
+    """One status, one sentence, whichever layer noticed.
+
+    The route refuses an over-long question with TOO_LONG; Werkzeug refuses
+    an over-large body with the same 413 before the route runs. A visitor
+    who met the second one was told "Request Entity Too Large."
+    """
+    from src.config import MAX_CONTENT_BYTES, MAX_QUESTION_CHARS
+    from src.messages import TOO_LONG
+
+    client = client_for(StubChain())
+    expected = TOO_LONG.format(limit=MAX_QUESTION_CHARS).encode()
+
+    from_route = client.post("/get", data={"msg": "x" * (MAX_QUESTION_CHARS + 1)})
+    from_werkzeug = client.post(
+        "/get", data={"msg": "x" * (MAX_CONTENT_BYTES + 1024)}
+    )
+
+    assert from_route.status_code == from_werkzeug.status_code == 413
+    assert from_route.data == expected
+    assert from_werkzeug.data == expected
+
+
+def test_no_visitor_facing_error_uses_werkzeug_vocabulary(client_for):
+    """messages.py claims to hold everything a visitor can be shown.
+
+    A status name is the one thing that could appear in the chat log without
+    being in that module, which is where the wording is reviewed.
+    """
+    from src.config import MAX_CONTENT_BYTES
+    from src.messages import ALL, UNAVAILABLE
+
+    client = client_for(StubChain())
+    for response in (
+        client.post("/get", data={"msg": "x" * (MAX_CONTENT_BYTES + 1024)}),
+        client.post("/get", data={}),
+    ):
+        body = response.data.decode()
+        assert any(body.startswith(message.split("{")[0]) for message in ALL), body
+
+    # /get is the only path whose body reaches a chat bubble, but a 500 can
+    # be raised anywhere, so it is worded for a visitor too.
+    from flask import Flask
+
+    from src import middleware
+    from src.webapp import text_reply
+
+    app = Flask(__name__)
+    middleware.install(app, text_reply, "test")
+
+    @app.route("/explode")
+    def _explode():
+        raise RuntimeError("deliberate")
+
+    assert app.test_client().get("/explode").data.decode() == UNAVAILABLE
+
+
+def test_a_mistyped_url_still_names_the_status(client_for):
+    """Nothing in messages.py describes a wrong path, and nothing should.
+
+    A 404 is never shown in the chat log -- it answers someone editing the
+    address bar, for whom "Not Found" is the useful word.
+    """
+    assert client_for(StubChain()).get("/no-such-page").data == b"Not Found."
+
+
 def test_no_error_the_app_can_produce_is_html(client_for):
     """The handler is registered per exception class, not per status code.
 
     A list of codes is only as complete as whoever last added a way to fail,
-    and the list missed 413. Each case below is reachable from a browser.
+    and the list missed 413. Not all of these are reachable from the chat
+    page -- the textarea's maxlength stops an over-long question and the
+    script will not submit an empty one -- but /get is a plain form endpoint
+    on a public URL, so none of them needs the page to be reachable.
     """
     from src.config import MAX_CONTENT_BYTES
 

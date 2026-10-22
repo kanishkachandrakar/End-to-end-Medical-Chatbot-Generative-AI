@@ -15,7 +15,20 @@ import uuid
 from flask import Flask, Response, g
 from werkzeug.exceptions import HTTPException
 
+from src.config import MAX_QUESTION_CHARS
 from src.headers import SECURITY_HEADERS
+from src.messages import TOO_LONG, UNAVAILABLE
+
+# A status the app answers for itself on one path must not arrive worded
+# differently on another. 413 is the case that exists: /get sends TOO_LONG
+# for an over-long question, and MAX_CONTENT_LENGTH makes Werkzeug raise the
+# same status for an over-large body before the route is reached. Anything
+# not listed keeps Werkzeug's status name, which is the right answer for a
+# mistyped URL and is never shown in the chat log.
+_VISITOR_WORDING = {
+    413: TOO_LONG.format(limit=MAX_QUESTION_CHARS),
+    500: UNAVAILABLE,
+}
 
 
 def install(app: Flask, text_reply, revision: str) -> None:
@@ -51,7 +64,8 @@ def install(app: Flask, text_reply, revision: str) -> None:
         # a trailing slash would.
         if error.code is not None and 300 <= error.code < 400:
             return error
-        return text_reply(f"{error.name}.", error.code or 500)
+        status = error.code or 500
+        return text_reply(_VISITOR_WORDING.get(status, f"{error.name}."), status)
 
     @app.before_request
     def _assign_request_id() -> None:
