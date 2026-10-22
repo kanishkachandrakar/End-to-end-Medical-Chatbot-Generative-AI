@@ -19,7 +19,7 @@ python-dotenv>=1.0
 # The grpc extra only exists up to a point: pip warns that newer pinecone
 # releases do not provide it and backtracks to one that does. store_index.py
 # imports pinecone.grpc, so the extra has to resolve.
-pinecone[grpc]>=5.0
+pinecone[grpc]>=10.0.0
 # Lower bounds matter more here than upper ones. Without this, resolving
 # pinecone[grpc] made pip walk langchain-pinecone backwards to 0.0.1 -- a 2023
 # release with no PineconeVectorStore -- and the image installed it silently.
