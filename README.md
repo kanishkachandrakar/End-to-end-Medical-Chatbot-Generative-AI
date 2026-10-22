@@ -166,9 +166,18 @@ or real git work and are marked `slow`; skip them while iterating:
 make fast                      # or: python -m pytest -m "not slow"
 ```
 
-Use `make test` rather than bare `pytest`: it sets `COVERAGE_CORE=sysmon` on
-Python 3.12 and later, which is the difference between coverage costing one
-second and fifteen.
+A single file is a single file:
+
+```bash
+python -m pytest tests/test_webapp.py
+```
+
+Coverage is not collected by a bare `pytest`, and is deliberately not in
+`addopts`: `--cov` takes an optional value, so sitting there it swallowed the
+path and turned the command above into the whole suite measuring the wrong
+file. `make test` reports it, and applies the same 95% floor CI does -- along
+with `COVERAGE_CORE=sysmon` on Python 3.12 and later, which is the difference
+between coverage costing one second and fifteen.
 
 ## Configuration
 

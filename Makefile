@@ -28,7 +28,7 @@ install:  ## Install runtime and test dependencies
 test:  ## Run the whole suite with the coverage gate CI applies
 	$(PYTHON) -m pytest --cov --cov-fail-under=95
 
-fast:  ## Run the suite without the slow-marked files or coverage
+fast:  ## Run the suite without the slow-marked files
 	$(PYTHON) -m pytest -m "not slow"
 
 lint:  ## Check formatting, imports, types and the non-Python files

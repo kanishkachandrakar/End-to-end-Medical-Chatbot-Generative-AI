@@ -14,11 +14,18 @@ make check          # lint, types and the suite, exactly as CI runs them
 `make help` lists the rest. `make fast` skips the files that pay for heavyweight
 imports and real git work.
 
-The suite itself takes about five seconds; coverage used to add fifteen on top,
-all of it spent tracing the langchain import tree. `make` sets `COVERAGE_CORE`
-to `sysmon` where the interpreter has `sys.monitoring` (3.12 and later), which
-removes almost all of that. If you run `pytest` directly and it feels slow,
-that is why.
+The suite itself takes about five seconds, and a bare `pytest` is exactly
+that: coverage is collected by `make test`, not by default. Tracing the
+langchain import tree used to add fifteen seconds on top, so `make` sets
+`COVERAGE_CORE` to `sysmon` where the interpreter has `sys.monitoring` (3.12
+and later), which removes almost all of it. If you invoke `pytest --cov`
+yourself without that variable, that is why it feels slow.
+
+Naming one file runs one file. That is worth stating because it was not true
+until recently -- a bare `--cov` in `addopts` consumed the path as its own
+argument, so `pytest tests/test_one_thing.py` ran all 490 tests and reported
+no coverage at all. If you add a flag with an optional value to `addopts`,
+check what it does to a positional argument.
 
 Optionally `pip install pre-commit && pre-commit install` runs the quick checks
 before each commit. CI runs the same hooks, so the only thing you lose by not
