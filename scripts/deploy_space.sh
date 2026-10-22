@@ -21,12 +21,21 @@ if [ -z "$SPACE" ]; then
     exit 2
 fi
 
+# The Space builds the image from its own copy of these files, so this list is
+# the Space's build context. CI's image job is the only thing proving that
+# build works, and it runs against this repository -- so anything here that is
+# missing from the Space makes CI's proof cover a context the Space does not
+# have. pyproject.toml is the one that was: nothing in the build reads it today
+# (setup.py carries the package metadata, and the pip layer runs before
+# `COPY . .` anyway), but dropping setup.py for PEP 621 metadata is the obvious
+# next move, and it would leave CI green and the Space unable to build.
 PAYLOAD=(
     Dockerfile
     gunicorn.conf.py
     README.md
     requirements.txt
     setup.py
+    pyproject.toml
     app.py
     src
     templates

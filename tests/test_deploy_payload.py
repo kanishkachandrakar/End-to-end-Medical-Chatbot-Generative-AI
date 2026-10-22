@@ -67,3 +67,23 @@ def test_the_source_pdf_is_not_shipped():
 
 def test_the_env_file_is_not_shipped():
     assert ".env" not in _payload()
+
+
+def test_the_payload_covers_everything_the_image_is_built_from():
+    """The Space's build context must not be smaller than CI's.
+
+    CI's image job is the only check that the image a Space builds actually
+    builds, and it runs against this repository. Anything .dockerignore lets
+    into the image that the deploy script leaves behind is a difference
+    between the two, which is a difference CI cannot see: it stays green
+    while the Space breaks. pyproject.toml was that difference.
+    """
+    from tests.test_dockerignore import REQUIRED
+
+    payload = set(_payload())
+    missing = [
+        path
+        for path in REQUIRED
+        if path not in payload and path.split("/")[0] not in payload
+    ]
+    assert not missing, f"the image is built from these; the Space is not: {missing}"

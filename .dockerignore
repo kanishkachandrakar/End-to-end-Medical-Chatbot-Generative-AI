@@ -39,11 +39,13 @@ LICENSE
 # Development-only: the suite, the dev requirements, the deploy script and the
 # workflows are not part of the runtime image.
 #
-# pyproject.toml is not listed, and cannot be: it is both the package metadata
-# pip needs for the `-e .` at the end of requirements.txt and the home of the
-# ruff, pytest, coverage and mypy settings. The tooling config travels into the
-# image inside it. This list named pytest.ini and ruff.toml until that stopped
-# being where either lived.
+# pyproject.toml is not listed. It holds the ruff, pytest, coverage and mypy
+# settings, so the tooling config does travel into the image -- there is no
+# separating it from the package metadata that shares the file. Nothing in the
+# build reads it: setup.py is what satisfies the `-e .` at the end of
+# requirements.txt, and that layer runs before `COPY . .`. It stays unexcluded
+# because the deploy script ships it too, and the image CI builds should not
+# differ from the image a Space builds.
 tests/
 requirements-dev.txt
 scripts/

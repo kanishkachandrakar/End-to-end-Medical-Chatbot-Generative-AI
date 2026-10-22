@@ -12,7 +12,10 @@ import subprocess
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-# Everything app.py, gunicorn and the templates need at runtime.
+# Everything the image is built from: what app.py, gunicorn and the templates
+# need at runtime, plus the two files the pip layer installs from. The deploy
+# script ships this set too, so that the context a Space builds in matches the
+# one CI builds in -- test_deploy_payload.py checks the two against each other.
 REQUIRED = (
     "app.py",
     "gunicorn.conf.py",
