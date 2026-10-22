@@ -13,6 +13,7 @@ promises.
 import uuid
 
 from flask import Flask, Response, g
+from werkzeug.exceptions import HTTPException
 
 from src.headers import SECURITY_HEADERS
 
@@ -29,20 +30,28 @@ def install(app: Flask, text_reply, revision: str) -> None:
     running now, which by then may be something else.
     """
 
-    @app.errorhandler(404)
-    @app.errorhandler(405)
-    @app.errorhandler(500)
-    def _plain_error(error):
+    @app.errorhandler(HTTPException)
+    def _plain_error(error: HTTPException):
         """Answer errors in text too.
 
         Flask's defaults are HTML pages. The front end appends whatever comes
         back to the chat log, so an HTML error document would arrive as a wall
         of markup in a bubble -- and a client told to expect text/plain from
         every other response has no reason to handle HTML from this one.
+
+        Registered against the base class rather than a list of codes. The
+        list was 404, 405 and 500, which were the three a route could produce
+        -- but MAX_CONTENT_LENGTH makes Werkzeug raise 413 before any route
+        runs, and that one came back as HTML. Flask finds this handler for an
+        unhandled exception too, by looking up InternalServerError.
         """
-        status = getattr(error, "code", 500)
-        name = getattr(error, "name", "Error")
-        return text_reply(f"{name}.", status)
+        # A redirect is an HTTPException as well, and its Location header is
+        # the whole response; replacing it with a sentence would strand the
+        # client. None of the current rules redirect, but a rule written with
+        # a trailing slash would.
+        if error.code is not None and 300 <= error.code < 400:
+            return error
+        return text_reply(f"{error.name}.", error.code or 500)
 
     @app.before_request
     def _assign_request_id() -> None:

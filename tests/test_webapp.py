@@ -300,6 +300,82 @@ def test_an_enormous_body_is_refused(client_for):
     )
     assert response.status_code == 413
     assert chain.calls == []
+    # This one is raised by Werkzeug before any route runs, so for a while it
+    # was the one error that came back as an HTML document -- the same status
+    # the route itself answers in text for an over-long question.
+    assert response.mimetype == "text/plain"
+    assert b"<html" not in response.data.lower()
+
+
+def test_no_error_the_app_can_produce_is_html(client_for):
+    """The handler is registered per exception class, not per status code.
+
+    A list of codes is only as complete as whoever last added a way to fail,
+    and the list missed 413. Each case below is reachable from a browser.
+    """
+    from src.config import MAX_CONTENT_BYTES
+
+    client = client_for(StubChain())
+    responses = {
+        404: client.get("/no-such-page"),
+        405: client.get("/get?msg=hi"),
+        413: client.post("/get", data={"msg": "x" * (MAX_CONTENT_BYTES + 1024)}),
+        400: client.post("/get", data={}),
+    }
+    for expected, response in responses.items():
+        assert response.status_code == expected, (expected, response.status_code)
+        assert response.mimetype == "text/plain", expected
+        assert b"<html" not in response.data.lower(), expected
+
+
+def test_an_unhandled_exception_is_answered_in_text_too():
+    """Flask reaches the same handler for a 500 by way of InternalServerError.
+
+    Driven through a bare app with a raising route, because no route in this
+    one can reach a 500: /get catches every Exception and maps it to a reply.
+    That is the intent, and it is also why this needs its own vehicle rather
+    than a chain stub that throws.
+    """
+    from flask import Flask
+
+    from src import middleware
+    from src.webapp import text_reply
+
+    app = Flask(__name__)
+    middleware.install(app, text_reply, "test")
+
+    @app.route("/explode")
+    def _explode():
+        raise RuntimeError("deliberate")
+
+    response = app.test_client().get("/explode")
+    assert response.status_code == 500
+    assert response.mimetype == "text/plain"
+    assert b"<html" not in response.data.lower()
+
+
+def test_a_redirect_is_left_alone():
+    """werkzeug.routing.RequestRedirect is an HTTPException as well.
+
+    No rule here ends in a slash, so none redirects today; a handler that
+    answered one with a sentence would drop the Location header and strand
+    the client, which is a hard failure to attribute later.
+    """
+    from flask import Flask
+
+    from src import middleware
+    from src.webapp import text_reply
+
+    app = Flask(__name__)
+    middleware.install(app, text_reply, "test")
+
+    @app.route("/listing/")
+    def _listing():
+        return "ok"
+
+    response = app.test_client().get("/listing")
+    assert response.status_code in (301, 308)
+    assert response.headers["Location"].endswith("/listing/")
 
 
 def test_the_body_ceiling_is_well_above_the_question_limit(client_for):
