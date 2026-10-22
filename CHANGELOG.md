@@ -7,6 +7,52 @@ the behavioural ones; the rest is in the git log.
 
 ### Fixed
 
+- **Every error raised before a route ran came back as HTML.** The plain-text
+  error handler was registered for 404, 405 and 500 — the statuses a route can
+  produce. Setting `MAX_CONTENT_LENGTH` makes Werkzeug raise 413 before any
+  route is reached, so that one arrived as a `<!doctype html>` document, which
+  the page appends to the chat log verbatim. Registered against `HTTPException`
+  now, so the list cannot fall behind another way to fail; redirects pass
+  through untouched, since `RequestRedirect` is one too and its `Location`
+  header is the whole response. There had been a test for the oversize body: it
+  asserted the status and stopped, while the 404 and 405 tests beside it both
+  assert the content type.
+- **One status meant two different sentences.** 413 from the route said "that
+  question is too long"; 413 from Werkzeug said "Request Entity Too Large."
+  Both statuses that overlap the app's own vocabulary are now worded from
+  `src/messages.py`, which restores that module's claim to hold everything a
+  visitor can be shown — a status name reaching a chat bubble had made it
+  false. A mistyped URL still answers "Not Found.", for the one audience that
+  never sees a chat bubble.
+- **The page displayed whatever came back.** The failure path handed
+  `jqXHR.responseText` straight to the chat log. The server is not the only
+  thing that can produce a body: a Space's router answers with its own HTML
+  page while the container is starting, restarting or asleep, and a 502 from in
+  front of the app is the likeliest failure this page will ever see. It now
+  shows a body only when the server declared `text/plain` and it is short
+  enough to be one of the sentences the server can send.
+- **Naming one test file ran all 490 of them.** `--cov` takes an optional
+  value, so the bare one in `addopts` consumed the path as its argument: with
+  nothing positional left pytest fell back to `testpaths`, and coverage was
+  pointed at a test file it then reported as never imported. 0.4 seconds of
+  work took 22, and no coverage report was produced at all. Nothing was ever
+  red, which is why it lasted.
+- **CI proved an image built from a context the Space does not have.** The
+  image job is the only check that the image a Space builds will build, and it
+  runs against this repository; the Space builds against whatever the deploy
+  script pushed. pyproject.toml was in one context and not the other — no
+  difference today, and a broken Space the moment `setup.py` is dropped for
+  PEP 621 metadata, with CI still green.
+- **`store_index.py` was outside the coverage gate** — 99 statements, so the
+  figure above the floor described two thirds of the shipped code.
+- **.dockerignore excluded two files that no longer exist.** It kept
+  `pytest.ini` and `ruff.toml` out of the image long after both tools' settings
+  moved into pyproject.toml, and said it was keeping the tooling config out
+  while the file holding all of it went in.
+- Three statements in the README, CONTRIBUTING and `make help` that the
+  coverage change itself made untrue, and two reasons given in this round's own
+  commit messages that were wrong in their detail.
+
 - **Two more tests asserted nothing.** Byte-identical bodies, different names,
   both relying on a fixture's stubs raising if touched — a real guarantee, but
   an invisible one, and the second test's name described what the fixture
@@ -35,6 +81,29 @@ the behavioural ones; the rest is in the git log.
 
 ### Added
 
+- A check that the CI workflow's eight `run:` blocks are valid shell. They are
+  107 lines of loops, `case` statements and nested quoting that only ever
+  execute on a runner, so a missing `fi` was found by pushing; each block is
+  now extracted and passed through `bash -n`, with the failure naming the step.
+  Alongside it: no action pinned to a moving ref, no tabs, a `timeout-minutes`
+  for every job, and the token still read-only.
+- A check that the files the app serves parse — HTML tag balance and a
+  doctype first, stylesheet braces, the notebook as one JSON document carrying
+  no outputs, and every `filename=` in the template naming a file that exists.
+  All of these had been run by hand for weeks.
+- A check that every shipped module is either measured by coverage or named as
+  unmeasured with a reason, in both directions.
+- A check that the coverage floor only appears on a command that also collects
+  coverage — `--cov-fail-under` is accepted and silently ignored without it, so
+  a step that lost the flag would pass and stop checking — and that `--cov`
+  never precedes a non-option. Both were wrong when first written: each
+  searched the whole file and was satisfied by the comment explaining the rule
+  rather than by any command.
+- A check that no `.dockerignore` pattern names something absent, with the ten
+  entries that exist to exclude what a working copy grows listed as such.
+- A check that the deploy payload covers every file the image is built from.
+- `make lint` runs the Dockerfile lint CI runs.
+
 - `X-App-Revision` on every response, beside `X-Request-Id`: a reply kept in a
   bug report can be traced to a request and to the build that produced it.
 - A check for a test that asserts nothing, with the four that legitimately
@@ -51,6 +120,10 @@ the behavioural ones; the rest is in the git log.
   disagrees with the changelog.
 
 ### Changed
+
+- Coverage is collected by `make test` and the CI step rather than by every
+  `pytest` invocation, which is what lets a single file be a single file. The
+  source list stays in `[tool.coverage.run]`, stated once.
 
 - Four constants that were only read by their own module are named as
   internal; a module's public names are what other code is invited to depend
