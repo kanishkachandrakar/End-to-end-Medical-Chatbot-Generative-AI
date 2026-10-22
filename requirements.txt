@@ -4,13 +4,13 @@
 # Both were only noticed from a clean install. Dependabot proposes the bumps;
 # the image build and the dimension check in CI judge them.
 sentence-transformers>=6.1,<7
-langchain>=1.0,<2
+langchain>=1.4.6,<2
 # create_retrieval_chain and create_stuff_documents_chain moved here in
 # langchain 1.0; it is a dependency of langchain but listed because we import it.
-langchain-classic>=1.0,<2
+langchain-classic>=1.0.8,<2
 # Imported directly for ChatPromptTemplate; it arrives transitively via
 # langchain too, but a transitive dependency is not a declared one.
-langchain-core>=1.0,<2
+langchain-core>=1.6.12,<2
 flask>=3.0
 # Imported for SecretStr; transitive via langchain, but we import it.
 pydantic>=2.0,<3
@@ -23,11 +23,11 @@ pinecone[grpc]>=5.0
 # Lower bounds matter more here than upper ones. Without this, resolving
 # pinecone[grpc] made pip walk langchain-pinecone backwards to 0.0.1 -- a 2023
 # release with no PineconeVectorStore -- and the image installed it silently.
-langchain-pinecone>=0.2,<1
-langchain-community>=0.3,<1
-langchain-groq>=1.0,<2
+langchain-pinecone>=0.2.13,<1
+langchain-community>=0.4.2,<1
+langchain-groq>=1.1.3,<2
 # The standalone home of HuggingFaceEmbeddings, which langchain-community
 # deprecated before being sunset itself.
-langchain-huggingface>=1.0,<2
+langchain-huggingface>=1.2.3,<2
 gunicorn>=21.0
 -e .
