@@ -39,6 +39,14 @@ LICENSE
 # Development-only: the suite, the dev requirements, the deploy script and the
 # workflows are not part of the runtime image.
 #
+# store_index.py and template.py are in this group despite being shipped
+# Python. store_index.py builds the index from Data/Medical_book.pdf, which is
+# excluded above and is 15MB; it is run from a checkout, never from the
+# container. template.py is a one-shot scaffold whose job finished before the
+# first commit. Both were reaching the image, as were the Makefile, the
+# .env.example and the .gitattributes -- none of which the Space's copy had,
+# so the two images differed by five files that neither needed.
+#
 # pyproject.toml is not listed. It holds the ruff, pytest, coverage and mypy
 # settings, so the tooling config does travel into the image -- there is no
 # separating it from the package metadata that shares the file. Nothing in the
@@ -50,3 +58,8 @@ tests/
 requirements-dev.txt
 scripts/
 .github/
+store_index.py
+template.py
+Makefile
+.env.example
+.gitattributes

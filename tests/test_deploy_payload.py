@@ -98,3 +98,36 @@ def test_the_exclusion_rules_are_shipped():
     repository has the file and the Space's copy did not.
     """
     assert ".dockerignore" in _payload()
+
+
+def test_nothing_reaches_the_ci_image_that_the_space_s_image_lacks():
+    """The two build contexts must produce the same image contents.
+
+    .dockerignore decides what `COPY . .` takes, and it is read in both
+    builds now -- but it is applied to different directories: this whole
+    repository in CI, and only what the deploy script pushed in the Space.
+    A tracked file that .dockerignore permits and the payload omits is in one
+    image and not the other, which is a difference CI cannot see.
+
+    Checked in one direction only. README.md is deliberately in the payload
+    and deliberately excluded from the image: Spaces reads `sdk` and
+    `app_port` from its frontmatter in the repository, and the container has
+    no use for it.
+    """
+    import subprocess
+
+    from tests.test_dockerignore import _ignored
+
+    tracked = subprocess.run(
+        ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True
+    ).stdout.split()
+    payload = set(_payload())
+
+    missing = [
+        path
+        for path in tracked
+        if not _ignored(path)
+        and path not in payload
+        and path.split("/")[0] not in payload
+    ]
+    assert not missing, f"in CI's image, not in the Space's: {missing}"

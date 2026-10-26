@@ -60,6 +60,14 @@ UNWANTED = (
     ".editorconfig",
     ".pre-commit-config.yaml",
     ".env",
+    # Shipped Python that the container never runs: store_index.py reads the
+    # 15MB PDF excluded above and is run from a checkout, and template.py is a
+    # scaffold that finished its job before the first commit.
+    "store_index.py",
+    "template.py",
+    "Makefile",
+    ".env.example",
+    ".gitattributes",
 )
 
 
