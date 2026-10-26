@@ -19,6 +19,19 @@ research/
 **/*.py[cod]
 **/*.egg-info/
 
+# Tool caches. Local, per-machine, and not small: .mypy_cache is 128MB here,
+# more than the embedding weights the image bakes in on purpose, and all of it
+# went in through `COPY . .`. .coverage is a SQLite file holding absolute paths
+# from whoever ran the suite last. CI never saw any of this, because a fresh
+# checkout has no caches to copy -- so the images that carried them were the
+# locally built ones, which is what `make image` builds to stand in for CI's.
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
 # A local virtualenv is gigabytes of wheels for the host's platform. Left in
 # the build context it is uploaded to the daemon on every build and, worse,
 # COPY . . would put it in the image.

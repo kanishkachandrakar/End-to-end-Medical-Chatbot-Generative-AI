@@ -197,6 +197,16 @@ TRANSIENT = frozenset(
         "env/",
         ".tox/",
         ".ipynb_checkpoints/",
+        # The tool caches belong here for the same reason, and listing them
+        # is not optional: which of them exists depends on what has been run.
+        # A fresh checkout has none, and CI's has some by the time the suite
+        # runs and others not yet, so judging them by existence would make
+        # this check report the state of the machine.
+        ".mypy_cache/",
+        ".pytest_cache/",
+        ".ruff_cache/",
+        ".coverage",
+        "htmlcov/",
     }
 )
 
@@ -247,3 +257,71 @@ def test_the_tracked_file_list_is_reachable():
     for name in UNWANTED:
         if name != ".env":
             assert name in tracked, f"{name} is not tracked; update UNWANTED"
+
+
+# Everything this project's own tooling writes into a checkout, spelled as
+# paths rather than patterns so _ignored sees what `COPY . .` would see.
+LOCAL_ARTIFACTS = (
+    ".mypy_cache/missing_stubs.json",
+    ".pytest_cache/CACHEDIR.TAG",
+    ".ruff_cache/0.16.0/entry",
+    ".coverage",
+    ".coverage.host.12345.XbYz",
+    "htmlcov/index.html",
+    "src/__pycache__/webapp.cpython-312.pyc",
+    ".venv/bin/python",
+    "Generative_AI_Project.egg-info/PKG-INFO",
+)
+
+
+def test_no_tool_cache_reaches_the_image():
+    """`COPY . .` takes whatever the tooling left behind.
+
+    .mypy_cache was 128MB of it -- larger than the embedding weights the
+    image bakes in deliberately -- and .coverage is a SQLite file of absolute
+    paths from the last person to run the suite. None of it appeared in CI,
+    whose checkout is fresh, so the only images affected were the ones built
+    locally to stand in for CI's.
+
+    A fixed list rather than a scan of the working copy, because the working
+    copy in CI is clean and a scan there would be checking nothing.
+    """
+    reaching = [path for path in LOCAL_ARTIFACTS if not _ignored(path)]
+    assert not reaching, f"copied into the image: {reaching}"
+
+
+def test_everything_git_refuses_to_track_stays_out_of_the_image_too():
+    """The companion check: one names what is known, this catches the rest.
+
+    A file git will not track is a local artifact by definition, and a
+    runtime image has no use for one. This sees only what the checkout
+    happens to hold, which is why the fixed list above is also here.
+    """
+    ignored = [
+        line[3:].strip()
+        for line in subprocess.run(
+            ["git", "status", "--porcelain", "--ignored"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.splitlines()
+        if line.startswith("!!")
+    ]
+    reaching = [path for path in ignored if not _ignored(path.rstrip("/"))]
+    assert not reaching, f"git ignores these, the image takes them: {reaching}"
+
+
+def test_make_clean_removes_every_cache_the_dockerignore_names():
+    """Two lists of the same artifacts; .mypy_cache was in only one.
+
+    If a cache is worth keeping out of the image it is worth `make clean`
+    removing, and the 128MB one was the one that had fallen out.
+    """
+    clean = next(
+        line
+        for line in (ROOT / "Makefile").read_text().splitlines()
+        if line.strip().startswith("rm -rf")
+    )
+    for cache in (".mypy_cache", ".pytest_cache", ".ruff_cache", ".coverage"):
+        assert cache in clean, f"make clean leaves {cache} behind"

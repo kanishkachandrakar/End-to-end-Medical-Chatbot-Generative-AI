@@ -86,5 +86,7 @@ image:  ## Build the container and run the checks CI runs against it
 		 assert m.bind.endswith(':7860') and m.workers == 1"
 
 clean:  ## Remove caches and coverage data
-	rm -rf .pytest_cache .ruff_cache .coverage htmlcov
+	# .mypy_cache was missing from this list while being, at 128MB, far the
+	# largest thing the tooling writes into the checkout.
+	rm -rf .pytest_cache .ruff_cache .mypy_cache .coverage htmlcov
 	find . -name __pycache__ -type d -prune -exec rm -rf {} +
