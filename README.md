@@ -94,7 +94,7 @@ Data/Medical_book.pdf
 ├── Data/
 │   └── Medical_book.pdf # Source document that gets indexed
 ├── scripts/
-│   └── deploy_space.sh  # Pushes the runtime files to a Space
+│   └── deploy_space.sh  # Pushes the runtime files at HEAD to a Space
 ├── tests/               # pytest suite; no keys or network required
 ├── src/
 │   ├── assets.py        # Cache-busting for the static files

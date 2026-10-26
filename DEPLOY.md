@@ -64,9 +64,21 @@ them from. `.env` is never deployed.
 ./scripts/deploy_space.sh <your-username>/<your-space-name>
 ```
 
-The script copies only the runtime files into a clone of the Space and pushes.
+The script writes only the runtime files into a clone of the Space and pushes.
 It leaves `Data/Medical_book.pdf` behind on purpose: the container never reads
 it, and at 15MB it would need Git LFS on the Hub.
+
+**Commit before deploying.** What gets pushed is those files as of `HEAD`, not
+as they are in your working tree — the script reads them with `git archive`.
+That is deliberate: the revision it stamps into the Dockerfile, and that
+`/healthz` then reports, is `HEAD`, so the code shipped beside it has to be
+`HEAD`'s or the revision answers the wrong question. It also means a leftover
+`__pycache__` or a scratch file in `src/` cannot reach the Space, which is how
+eighteen `.pyc` files used to arrive with every deploy.
+
+A Space is also left holding only what the current payload contains: each entry
+is cleared before it is written, so a module deleted here is deleted there too
+rather than lingering from an earlier deploy.
 
 You will be asked for your Hugging Face credentials — use an
 [access token](https://huggingface.co/settings/tokens) with write scope as the
