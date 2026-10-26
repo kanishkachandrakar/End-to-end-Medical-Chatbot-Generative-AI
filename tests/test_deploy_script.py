@@ -285,10 +285,20 @@ def test_it_warns_when_the_tree_is_not_what_ships(space, tmp_path):
 
 
 def test_it_says_nothing_when_the_tree_is_clean(space, tmp_path):
-    """A warning on every deploy is a warning nobody reads."""
-    status = _git("status", "--porcelain", "--", "src", "app.py", cwd=ROOT).strip()
+    """A warning on every deploy is a warning nobody reads.
+
+    The skip has to ask about the same paths the script asks about, which
+    means all of them. Naming a couple by hand made this test pass or fail
+    according to which payload file happened to be uncommitted -- it went red
+    on a dirty .dockerignore, having been written before .dockerignore was in
+    the payload, so it was reporting the state of the checkout rather than
+    anything about the script.
+    """
+    from tests.test_deploy_payload import _payload
+
+    status = _git("status", "--porcelain", "--", *_payload(), cwd=ROOT).strip()
     if status:
-        pytest.skip(f"the checkout is not clean: {status.splitlines()[:2]}")
+        pytest.skip(f"payload files are uncommitted: {status.splitlines()[:3]}")
 
     result = _run(space, tmp_path)
     assert result.returncode == 0
