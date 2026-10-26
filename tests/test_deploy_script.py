@@ -263,3 +263,33 @@ def test_the_space_can_exclude_things_from_its_build(space, tmp_path):
     deployed = _deployed(space, tmp_path)
     rules = (deployed / ".dockerignore").read_text()
     assert ".git" in rules.split("\n"), "the Space's image would contain .git"
+
+
+def test_it_warns_when_the_tree_is_not_what_ships(space, tmp_path):
+    """Shipping HEAD is right; shipping it silently from a dirty tree is not.
+
+    The case that matters is deploying immediately after a fix: the deploy
+    succeeds, the Space reports the revision, and the fix is not in it.
+    """
+    scratch = ROOT / "src" / "_dirty_probe.py"
+    scratch.write_text("# uncommitted\n")
+    try:
+        result = _run(space, tmp_path)
+    finally:
+        scratch.unlink()
+
+    assert result.returncode == 0, result.stderr
+    assert "what ships" in result.stderr, result.stderr
+    assert "src/_dirty_probe.py" in result.stderr
+    assert "pushed" in result.stdout, "it warns, it does not refuse"
+
+
+def test_it_says_nothing_when_the_tree_is_clean(space, tmp_path):
+    """A warning on every deploy is a warning nobody reads."""
+    status = _git("status", "--porcelain", "--", "src", "app.py", cwd=ROOT).strip()
+    if status:
+        pytest.skip(f"the checkout is not clean: {status.splitlines()[:2]}")
+
+    result = _run(space, tmp_path)
+    assert result.returncode == 0
+    assert "what ships" not in result.stderr, result.stderr

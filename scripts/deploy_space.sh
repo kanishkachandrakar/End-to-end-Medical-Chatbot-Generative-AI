@@ -59,6 +59,19 @@ for item in "${PAYLOAD[@]}"; do
     fi
 done
 
+# The archive takes HEAD, so uncommitted work in the payload is left behind.
+# That is the right default -- the revision stamped into the Dockerfile is HEAD
+# -- but it is a poor thing to discover from a Space that does not have the fix
+# you just made. Warned rather than refused: deploying HEAD from a tree with
+# unrelated edits in it is a normal thing to want, and the message is enough to
+# stop the other case.
+dirty="$(git -C "$repo_root" status --porcelain -- "${PAYLOAD[@]}")"
+if [ -n "$dirty" ]; then
+    echo "!!! payload files differ from $source_rev, which is what ships:" >&2
+    printf '%s\n' "$dirty" | sed 's/^/      /' >&2
+    echo "    commit them first if they are meant to go out." >&2
+fi
+
 echo "==> cloning $SPACES_BASE/$SPACE"
 git clone --quiet "$SPACES_BASE/$SPACE" "$work/space"
 
