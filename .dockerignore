@@ -1,7 +1,7 @@
 .git
 .gitignore
 .env
-.DS_Store
+**/.DS_Store
 
 # 15MB source PDF, only needed by store_index.py, which is run locally
 Data/
@@ -10,9 +10,14 @@ Data/
 research/
 .ipynb_checkpoints/
 
-__pycache__/
-*.py[cod]
-*.egg-info/
+# Every one of these needs the **/ : a .dockerignore pattern is anchored at the
+# context root, so `__pycache__/` excluded the one beside the Dockerfile and
+# took nothing out of src/. Measured against a throwaway build --
+# src/__pycache__/a.cpython-312.pyc survived `__pycache__/` and `*.py[cod]`
+# together, and neither pattern was wrong, just anchored.
+**/__pycache__/
+**/*.py[cod]
+**/*.egg-info/
 
 # A local virtualenv is gigabytes of wheels for the host's platform. Left in
 # the build context it is uploaded to the daemon on every build and, worse,

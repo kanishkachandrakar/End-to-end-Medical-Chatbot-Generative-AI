@@ -6,8 +6,8 @@ at runtime rather than at build, or include something it does not, which
 invalidates the layer cache on commits that change nothing the container runs.
 """
 
-import fnmatch
 import pathlib
+import re
 import subprocess
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -79,16 +79,83 @@ def _patterns():
     ]
 
 
+def _as_regex(pattern):
+    """A .dockerignore pattern as a regex, with docker's glob rules.
+
+    `*` does not cross a separator, `**` does, and `**/` may match nothing.
+    fnmatch has none of those distinctions, which is where the previous
+    version of this went wrong.
+    """
+    out = []
+    index = 0
+    while index < len(pattern):
+        if pattern.startswith("**/", index):
+            out.append(r"(?:[^/]+/)*")
+            index += 3
+        elif pattern.startswith("**", index):
+            out.append(r".*")
+            index += 2
+        elif pattern[index] == "*":
+            out.append(r"[^/]*")
+            index += 1
+        elif pattern[index] == "?":
+            out.append(r"[^/]")
+            index += 1
+        elif pattern[index] == "[":
+            close = pattern.index("]", index)
+            out.append(pattern[index : close + 1])
+            index = close + 1
+        else:
+            out.append(re.escape(pattern[index]))
+            index += 1
+    return re.compile("".join(out) + r"\Z")
+
+
 def _ignored(path):
+    """Would `docker build` leave this path out of the image?
+
+    Patterns are anchored at the context root, and a pattern that matches a
+    directory excludes everything under it -- so each prefix of the path is
+    matched whole. This used to compare basenames as well, which made
+    `__pycache__/` look like it excluded src/__pycache__. It does not, and
+    the image had the .pyc files to prove it.
+    """
+    parts = path.strip("/").split("/")
+    prefixes = ["/".join(parts[:count]) for count in range(1, len(parts) + 1)]
     for pattern in _patterns():
-        pattern = pattern.rstrip("/")
-        if (
-            fnmatch.fnmatch(path, pattern)
-            or path.startswith(pattern + "/")
-            or fnmatch.fnmatch(pathlib.Path(path).name, pattern)
-        ):
+        regex = _as_regex(pattern.rstrip("/"))
+        if any(regex.match(prefix) for prefix in prefixes):
             return True
     return False
+
+
+# Measured against docker itself: a throwaway context holding each of these
+# was built twice, once with the patterns anchored at the root and once with
+# **/, and the second build was the one that excluded all of them.
+NESTED_ARTIFACTS = (
+    "src/__pycache__/webapp.cpython-312.pyc",
+    "src/__pycache__",
+    "deep/nest/__pycache__/b.pyc",
+    "templates/.DS_Store",
+    "static/sub/x.pyo",
+)
+
+
+def test_a_nested_artifact_is_excluded_too():
+    """`__pycache__/` is root-anchored; src/__pycache__ is not the root.
+
+    The image was carrying src/__pycache__/*.cpython-312.pyc -- bytecode from
+    a 3.12 interpreter, in an image built on 3.10, where the Dockerfile sets
+    PYTHONDONTWRITEBYTECODE=1 to keep bytecode out on purpose.
+    """
+    reaching = [path for path in NESTED_ARTIFACTS if not _ignored(path)]
+    assert not reaching, f"copied into the image: {reaching}"
+
+
+def test_the_root_level_cases_still_match():
+    """The ** must not have been bought by breaking the simple case."""
+    for path in ("__pycache__/app.pyc", "app.pyc", ".DS_Store", ".env"):
+        assert _ignored(path), path
 
 
 def test_the_patterns_were_read():
@@ -117,15 +184,14 @@ def test_every_module_src_contains_is_listed_as_required():
     assert modules <= set(REQUIRED), f"not covered: {modules - set(REQUIRED)}"
 
 
-# Entries that name nothing in a fresh checkout on purpose: they exclude what a
-# working copy grows, not what the repo tracks.
+# Literal entries that name nothing in a fresh checkout on purpose: they
+# exclude what a working copy grows, not what the repo tracks. Patterns
+# containing a glob are exempt from that check by shape -- `**/*.py[cod]`
+# describes a kind of file, not a path -- which is two fewer entries here
+# than when this was a list of strings to excuse.
 TRANSIENT = frozenset(
     {
         ".env",
-        ".DS_Store",
-        "__pycache__/",
-        "*.py[cod]",
-        "*.egg-info/",
         ".venv/",
         "venv/",
         "env/",
@@ -133,6 +199,8 @@ TRANSIENT = frozenset(
         ".ipynb_checkpoints/",
     }
 )
+
+GLOB_CHARACTERS = set("*?[")
 
 
 def test_no_pattern_names_something_that_is_no_longer_there():
@@ -147,7 +215,9 @@ def test_no_pattern_names_something_that_is_no_longer_there():
     stale = [
         pattern
         for pattern in _patterns()
-        if pattern not in TRANSIENT and not (ROOT / pattern.rstrip("/")).exists()
+        if pattern not in TRANSIENT
+        and not (GLOB_CHARACTERS & set(pattern))
+        and not (ROOT / pattern.rstrip("/")).exists()
     ]
     assert not stale, f"excluded but absent: {stale}"
 
