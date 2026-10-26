@@ -104,8 +104,42 @@ def test_an_equal_body_ceiling_is_also_rejected(monkeypatch):
         _reload_with(monkeypatch, MAX_CONTENT_BYTES="500", MAX_QUESTION_CHARS="500")
 
 
+def test_a_ceiling_that_only_clears_ascii_is_rejected(monkeypatch):
+    """The check used to be `>`, which this passes and should not.
+
+    501 bytes holds a 500-character question only while every character is
+    an unreserved ASCII one. A single accented letter costs two bytes and
+    six once urlencoded, so the question is refused for being oversized
+    while being exactly the documented length.
+    """
+    with pytest.raises(ValueError, match="MAX_CONTENT_BYTES"):
+        _reload_with(monkeypatch, MAX_CONTENT_BYTES="501", MAX_QUESTION_CHARS="500")
+
+
+def test_the_worst_case_question_fits_the_ceiling_it_demands(monkeypatch):
+    """The arithmetic in config.py, checked against urlencode rather than
+    against itself."""
+    import urllib.parse
+
+    import src.config as config
+
+    for character in ("a", "?", "é", "医", "\U0001f600"):
+        body = urllib.parse.urlencode(
+            {"msg": character * config.MAX_QUESTION_CHARS}
+        ).encode()
+        assert len(body) <= config.MAX_CONTENT_BYTES, (character, len(body))
+        needed = (
+            config.MAX_QUESTION_CHARS * config._WORST_BYTES_PER_CHAR
+            + config._FORM_FIELD_OVERHEAD
+        )
+        assert len(body) <= needed, (character, len(body), needed)
+
+
 def test_the_shipped_defaults_satisfy_the_cross_checks():
     import src.config as config
 
-    assert config.MAX_CONTENT_BYTES > config.MAX_QUESTION_CHARS
+    assert config.MAX_CONTENT_BYTES >= (
+        config.MAX_QUESTION_CHARS * config._WORST_BYTES_PER_CHAR
+        + config._FORM_FIELD_OVERHEAD
+    )
     assert config.RATE_LIMIT_PER_MINUTE >= 0

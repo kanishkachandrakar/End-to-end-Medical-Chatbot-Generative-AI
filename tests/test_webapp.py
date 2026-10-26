@@ -450,10 +450,40 @@ def test_a_redirect_is_left_alone():
 
 
 def test_the_body_ceiling_is_well_above_the_question_limit(client_for):
-    """It is a backstop, not the limit a user should ever meet."""
-    from src.config import MAX_CONTENT_BYTES, MAX_QUESTION_CHARS
+    """It is a backstop, not the limit a user should ever meet.
 
-    assert MAX_CONTENT_BYTES > MAX_QUESTION_CHARS * 10
+    The multiplier was 10, chosen as a round number. The worst case is 12 --
+    a 4-byte codepoint, percent-encoded -- so this passed configurations
+    that refuse a question of exactly the documented length.
+    """
+    from src.config import (
+        _FORM_FIELD_OVERHEAD,
+        _WORST_BYTES_PER_CHAR,
+        MAX_CONTENT_BYTES,
+        MAX_QUESTION_CHARS,
+    )
+
+    assert MAX_CONTENT_BYTES >= (
+        MAX_QUESTION_CHARS * _WORST_BYTES_PER_CHAR + _FORM_FIELD_OVERHEAD
+    )
+
+
+def test_a_question_of_the_full_length_is_answered_in_any_script(client_for):
+    """The documented limit is in characters, and the ceiling is in bytes.
+
+    A question of exactly MAX_QUESTION_CHARS must be answered whatever it is
+    written in. Emoji are the worst case at twelve body bytes each; CJK is
+    the realistic one for a medical question asked in Chinese.
+    """
+    from src.config import MAX_QUESTION_CHARS
+
+    for character in ("a", "é", "医", "\U0001f600"):
+        chain = StubChain()
+        response = client_for(chain).post(
+            "/get", data={"msg": character * MAX_QUESTION_CHARS}
+        )
+        assert response.status_code == 200, (character, response.status_code)
+        assert chain.calls, f"{character!r} never reached the chain"
 
 
 def test_static_urls_are_fingerprinted(client_for):

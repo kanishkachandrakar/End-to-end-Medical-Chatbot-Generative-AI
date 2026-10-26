@@ -35,6 +35,15 @@ RATE_LIMIT_PER_MINUTE = int(os.environ.get("RATE_LIMIT_PER_MINUTE", "30"))
 GROQ_MODEL = os.environ.get("GROQ_MODEL", "deepseek-r1-distill-qwen-32b")
 GROQ_TIMEOUT = float(os.environ.get("GROQ_TIMEOUT", "60"))
 
+# A question is measured in characters and a body is capped in bytes, with
+# percent-encoding in between, so the two limits above are not in the same
+# unit. One character costs at most twelve body bytes: four for a UTF-8
+# codepoint outside the BMP, each of which urlencodes to three characters.
+# Measured for a 500-character question -- 504 bytes of ASCII letters, 1504
+# of ASCII punctuation, 4504 of CJK, 6004 of emoji.
+_WORST_BYTES_PER_CHAR = 12
+_FORM_FIELD_OVERHEAD = len("msg=")
+
 # Web server.
 PORT = int(os.environ.get("PORT", "8080"))
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
@@ -75,14 +84,19 @@ def _validate() -> None:
             f"RATE_LIMIT_PER_MINUTE ({RATE_LIMIT_PER_MINUTE}) cannot be negative; "
             "use 0 to disable the limit"
         )
-    if MAX_CONTENT_BYTES <= MAX_QUESTION_CHARS:
-        # The body ceiling is a backstop above the question limit. Below it,
-        # a valid question is refused by Flask before the clearer message
-        # about length is ever reached.
+    needed = MAX_QUESTION_CHARS * _WORST_BYTES_PER_CHAR + _FORM_FIELD_OVERHEAD
+    if MAX_CONTENT_BYTES < needed:
+        # The body ceiling is a backstop above the question limit, and it has
+        # to clear the worst case rather than the limit itself: a ceiling of
+        # MAX_QUESTION_CHARS + 1 passes any comparison of the two numbers and
+        # still refuses a question of the documented length the moment it is
+        # not ASCII.
         problems.append(
-            f"MAX_CONTENT_BYTES ({MAX_CONTENT_BYTES}) must exceed "
-            f"MAX_QUESTION_CHARS ({MAX_QUESTION_CHARS}), or questions within "
-            "the documented limit are refused as oversized requests"
+            f"MAX_CONTENT_BYTES ({MAX_CONTENT_BYTES}) must be at least "
+            f"{needed} to hold a {MAX_QUESTION_CHARS}-character question "
+            f"({_WORST_BYTES_PER_CHAR} bytes per character once UTF-8 and "
+            "form encoding are applied), or questions within the documented "
+            "limit are refused as oversized requests"
         )
 
     if problems:
