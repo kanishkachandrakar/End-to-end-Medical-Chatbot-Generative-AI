@@ -17,7 +17,12 @@ CSP = "; ".join(
         "script-src 'self' https://code.jquery.com https://stackpath.bootstrapcdn.com",
         "style-src 'self' https://stackpath.bootstrapcdn.com https://use.fontawesome.com",
         "font-src 'self' https://use.fontawesome.com",
-        "img-src 'self' https://i.ibb.co data:",
+        # No data: here. Nothing loads one -- not the template, not chat.js,
+        # not style.css, and not bootstrap 4.1.3 or Font Awesome 5.5.0, both
+        # of whose stylesheets were checked for `url(data:` and have none.
+        # It was permitted anyway, and the check that forbids unused sources
+        # only looked at https:// ones, so it never saw it.
+        "img-src 'self' https://i.ibb.co",
         "connect-src 'self'",
         "form-action 'self'",
         "frame-ancestors 'none'",
@@ -36,7 +41,8 @@ SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     # frame-ancestors above covers modern browsers; this covers the rest.
     "X-Frame-Options": "DENY",
-    # Questions are in the URL on a GET, so do not leak them to the CDNs.
+    # /get is POST-only, so a question is not in a URL to leak -- but the
+    # path a visitor came from still is, and the CDNs have no use for it.
     "Referrer-Policy": "no-referrer",
     # A text box and a button need none of these. Listing them denies the
     # permission rather than leaving it to the browser's default.

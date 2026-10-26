@@ -51,6 +51,64 @@ def test_the_policy_allows_no_origin_the_page_does_not_use():
     assert allowed <= used, f"CSP permits unused origins: {allowed - used}"
 
 
+# Source expressions that are not origins, so the https:// regex above never
+# saw them. Each is a way for an injected tag to fetch or run something, and
+# none of them is needed by a page that loads four files from three CDNs.
+FORBIDDEN_SOURCES = frozenset(
+    {
+        "data:",
+        "blob:",
+        "filesystem:",
+        "mediastream:",
+        "*",
+        "'unsafe-inline'",
+        "'unsafe-eval'",
+    }
+)
+
+
+def _csp_tokens():
+    """(directive, source) for every source expression in the policy."""
+    pairs = []
+    for directive in CSP.split(";"):
+        words = directive.split()
+        if not words:
+            continue
+        pairs.extend((words[0], source) for source in words[1:])
+    return pairs
+
+
+def test_the_directives_were_parsed():
+    """Everything below iterates them, so finding none would pass silently."""
+    pairs = _csp_tokens()
+    assert len(pairs) > 10, pairs
+    assert ("img-src", "https://i.ibb.co") in pairs
+
+
+def test_the_policy_permits_no_non_origin_source_either():
+    """`img-src ... data:` sat in the policy with nothing using it.
+
+    Both checks on unused origins matched `https://[a-z0-9.-]+`, so a
+    scheme-only source was outside what either could see -- a complete
+    sounding pair with a hole the exact width of the thing sitting in it.
+    Nothing here loads a data: URI: not the template, chat.js or style.css,
+    and not bootstrap 4.1.3 or Font Awesome 5.5.0, whose stylesheets were
+    fetched and searched for `url(data:`.
+
+    The policy is tokenised rather than searched. The first version of this
+    test asked whether each source appeared anywhere in the page's text and
+    skipped the ones that did, which excused `data:` immediately: chat.js
+    contains `data: { msg: question }`, an object key. Putting `data:` back
+    into the CSP did not fail it.
+    """
+    permitted = {
+        (directive, source)
+        for directive, source in _csp_tokens()
+        if source in FORBIDDEN_SOURCES
+    }
+    assert not permitted, f"CSP permits sources nothing uses: {sorted(permitted)}"
+
+
 def test_inline_script_is_not_permitted():
     """The whole reason chat.js was extracted from the template."""
     assert "unsafe-inline" not in CSP.split("style-src")[0]
@@ -80,12 +138,3 @@ def test_device_permissions_are_denied():
 
 def test_the_page_is_cross_origin_isolated():
     assert SECURITY_HEADERS["Cross-Origin-Opener-Policy"] == "same-origin"
-
-
-def test_the_policy_still_permits_only_what_the_page_uses():
-    """The directives added here must not smuggle in a new origin."""
-    import re
-
-    allowed = set(re.findall(r"https://[a-z0-9.-]+", CSP))
-    used = set(re.findall(r"https://[a-z0-9.-]+", PAGE_SOURCES))
-    assert allowed == used
