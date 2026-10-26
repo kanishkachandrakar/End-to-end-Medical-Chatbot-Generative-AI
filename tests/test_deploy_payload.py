@@ -87,3 +87,14 @@ def test_the_payload_covers_everything_the_image_is_built_from():
         if path not in payload and path.split("/")[0] not in payload
     ]
     assert not missing, f"the image is built from these; the Space is not: {missing}"
+
+
+def test_the_exclusion_rules_are_shipped():
+    """Without .dockerignore the Space's `COPY . .` excludes nothing.
+
+    Measured with a throwaway context: a build with no .dockerignore puts the
+    whole .git directory into the image, so every Space deploy was shipping
+    its own history inside the image it built. CI never saw it, because this
+    repository has the file and the Space's copy did not.
+    """
+    assert ".dockerignore" in _payload()

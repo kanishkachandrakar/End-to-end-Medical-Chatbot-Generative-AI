@@ -255,3 +255,11 @@ def test_it_refuses_a_payload_entry_that_is_not_committed(space, tmp_path):
     assert result.returncode == 1, result.stdout + result.stderr
     assert "not tracked at HEAD: only_on_disk" in result.stderr
     assert "cloning" not in result.stdout, "it should refuse before doing any work"
+
+
+def test_the_space_can_exclude_things_from_its_build(space, tmp_path):
+    """The deployed Space must carry the rules its own docker build reads."""
+    assert _run(space, tmp_path).returncode == 0
+    deployed = _deployed(space, tmp_path)
+    rules = (deployed / ".dockerignore").read_text()
+    assert ".git" in rules.split("\n"), "the Space's image would contain .git"

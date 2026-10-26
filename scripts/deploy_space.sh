@@ -31,6 +31,7 @@ fi
 # next move, and it would leave CI green and the Space unable to build.
 PAYLOAD=(
     Dockerfile
+    .dockerignore
     gunicorn.conf.py
     README.md
     requirements.txt
@@ -64,8 +65,8 @@ git clone --quiet "$SPACES_BASE/$SPACE" "$work/space"
 # Clear each entry before writing it, so the Space is what this repository
 # contains rather than the union of every deploy ever made. `cp -R src dest/`
 # merges into an existing directory, so a module deleted here stayed there --
-# and got baked into the Space's image, since the Space's build context has no
-# .dockerignore to exclude anything.
+# and, before .dockerignore was shipped alongside, got baked into the Space's
+# image as well.
 echo "==> copying ${#PAYLOAD[@]} entries at $source_rev"
 for item in "${PAYLOAD[@]}"; do
     rm -rf "$work/space/$item"
