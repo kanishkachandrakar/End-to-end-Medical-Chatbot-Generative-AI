@@ -146,3 +146,112 @@ def test_the_app_host_follows_hugging_face_s_scheme(space, tmp_path):
     """A Space at owner/name serves at owner-name.hf.space."""
     result = _run(space, tmp_path, argument="owner/demo.git")
     assert "https://owner-demo.hf.space/healthz" in result.stdout, result.stdout
+
+
+@pytest.fixture
+def space_with_a_stale_module(space, tmp_path):
+    """A Space as an earlier deploy would have left it: holding a module
+    this repository no longer has."""
+    seed = tmp_path / "staleseed"
+    _git("clone", "--quiet", str(space), str(seed), cwd=tmp_path)
+    (seed / "src").mkdir(exist_ok=True)
+    (seed / "src" / "deleted_last_week.py").write_text("stale\n")
+    _git("add", "-A", cwd=seed)
+    _git("-c", "user.email=t@example.com", "-c", "user.name=T",
+         "commit", "--quiet", "-m", "an earlier deploy", cwd=seed)
+    _git("push", "--quiet", "origin", "main", cwd=seed)
+    shutil.rmtree(seed)
+    return space
+
+
+def test_a_module_this_repo_deleted_does_not_survive_in_the_space(
+    space_with_a_stale_module, tmp_path
+):
+    """`cp -R src dest/` merges into dest/src rather than replacing it.
+
+    So every module ever deployed stayed deployed. Nothing imported them, but
+    the Space's build context has no .dockerignore, so they were copied into
+    its image -- and this repository splits modules often enough for that to
+    be a question of when.
+    """
+    assert _run(space_with_a_stale_module, tmp_path).returncode == 0
+    deployed = _deployed(space_with_a_stale_module, tmp_path)
+    assert (deployed / "src" / "webapp.py").is_file(), "the real payload arrived"
+    assert not (deployed / "src" / "deleted_last_week.py").exists()
+
+
+def test_no_bytecode_reaches_the_space(space, tmp_path):
+    """cp took the working tree, which has a __pycache__ after any test run.
+
+    Eighteen .pyc files, from two different interpreters, on every deploy --
+    and because they change whenever the suite runs, they also made the
+    "already matches this checkout" shortcut below stop short-circuiting.
+    """
+    import subprocess as sp
+
+    # Guarantee the condition rather than relying on a previous test having
+    # left bytecode behind.
+    sp.run(
+        ["python3", "-c", "import compileall; compileall.compile_dir('src', quiet=2)"],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+    )
+    assert (ROOT / "src" / "__pycache__").is_dir(), "precondition not met"
+
+    assert _run(space, tmp_path).returncode == 0
+    deployed = _deployed(space, tmp_path)
+    assert list(deployed.rglob("*.pyc")) == []
+    assert list(deployed.rglob("__pycache__")) == []
+
+
+def test_what_is_deployed_is_the_revision_that_is_stamped(space, tmp_path):
+    """The Dockerfile says HEAD; the files beside it should also be HEAD's.
+
+    cp shipped the working tree, so a dirty checkout produced a Space that
+    reported a revision it was not running -- which is the one question
+    /healthz's revision exists to answer.
+    """
+    scratch = ROOT / "src" / "_deploy_probe.py"
+    scratch.write_text("# untracked, must not ship\n")
+    try:
+        assert _run(space, tmp_path).returncode == 0
+        deployed = _deployed(space, tmp_path)
+        assert not (deployed / "src" / "_deploy_probe.py").exists()
+    finally:
+        scratch.unlink()
+
+
+def test_it_refuses_a_payload_entry_that_is_not_committed(space, tmp_path):
+    """The pre-flight check reads HEAD now, because that is what ships.
+
+    It used to test the working tree with `[ -e ]`, which passes for a file
+    that exists and has never been committed -- and the archive would then
+    fail after the clone, with git's wording rather than the script's.
+
+    Run against a copy of the script with one entry added to PAYLOAD, since
+    the point is what the check does with an entry the repository does not
+    have at HEAD.
+    """
+    # Beside the original: the script locates the repository from its own
+    # path, so a copy in tmp_path would look for a checkout that is not there.
+    patched = SCRIPT.parent / "_patched_for_test.sh"
+    patched.write_text(
+        SCRIPT.read_text().replace("PAYLOAD=(\n", "PAYLOAD=(\n    only_on_disk\n", 1)
+    )
+    (ROOT / "only_on_disk").write_text("untracked\n")
+    try:
+        result = subprocess.run(
+            ["bash", str(patched), "owner/demo.git"],
+            cwd=ROOT,
+            env={**os.environ, "SPACES_BASE": str(space.parent.parent)},
+            capture_output=True,
+            text=True,
+        )
+    finally:
+        (ROOT / "only_on_disk").unlink()
+        patched.unlink()
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "not tracked at HEAD: only_on_disk" in result.stderr
+    assert "cloning" not in result.stdout, "it should refuse before doing any work"

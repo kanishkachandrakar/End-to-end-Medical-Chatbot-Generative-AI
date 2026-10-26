@@ -46,9 +46,14 @@ repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
+# The revision that is about to be deployed, and -- see the archive below --
+# the revision whose contents are deployed.
+source_rev="$(git -C "$repo_root" rev-parse --short HEAD)"
+
+# Tracked at HEAD, not merely present on disk: that is what gets shipped.
 for item in "${PAYLOAD[@]}"; do
-    if [ ! -e "$repo_root/$item" ]; then
-        echo "missing from the repo: $item" >&2
+    if ! git -C "$repo_root" cat-file -e "HEAD:$item" 2>/dev/null; then
+        echo "not tracked at HEAD: $item" >&2
         exit 1
     fi
 done
@@ -56,10 +61,27 @@ done
 echo "==> cloning $SPACES_BASE/$SPACE"
 git clone --quiet "$SPACES_BASE/$SPACE" "$work/space"
 
-echo "==> copying $(( ${#PAYLOAD[@]} )) entries"
+# Clear each entry before writing it, so the Space is what this repository
+# contains rather than the union of every deploy ever made. `cp -R src dest/`
+# merges into an existing directory, so a module deleted here stayed there --
+# and got baked into the Space's image, since the Space's build context has no
+# .dockerignore to exclude anything.
+echo "==> copying ${#PAYLOAD[@]} entries at $source_rev"
 for item in "${PAYLOAD[@]}"; do
-    cp -R "$repo_root/$item" "$work/space/"
+    rm -rf "$work/space/$item"
 done
+
+# `git archive` rather than cp: it writes what the commit contains, so the
+# working tree's untracked leftovers stay out. cp took them -- a local
+# src/__pycache__ put 18 .pyc files, built by two different interpreters, into
+# the Space on every run. They also defeated the "nothing to push" check below,
+# because running the suite between two deploys is enough to change them.
+#
+# It also makes the deploy consistent with its own stamp: the revision written
+# into the Dockerfile is HEAD, so the contents shipped beside it should be
+# HEAD's too, not whatever the tree happens to hold.
+git -C "$repo_root" archive --format=tar HEAD -- "${PAYLOAD[@]}" \
+    | tar -x -C "$work/space"
 
 cd "$work/space"
 
@@ -67,7 +89,6 @@ cd "$work/space"
 # image itself, so there is no --build-arg to pass; baking the default in is the
 # only way the running app can report which commit it came from. Doing it before
 # the diff also means deploying a new commit always registers as a change.
-source_rev="$(git -C "$repo_root" rev-parse --short HEAD)"
 sed -i.bak "s/^ARG APP_REVISION=.*/ARG APP_REVISION=$source_rev/" Dockerfile
 rm -f Dockerfile.bak
 
