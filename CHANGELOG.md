@@ -7,6 +7,65 @@ the behavioural ones; the rest is in the git log.
 
 ### Fixed
 
+- **The deploy pushed eighteen `.pyc` files and kept what the repository had
+  deleted.** `cp -R src dest/` merges into an existing directory rather than
+  replacing it, so a Space held the union of every deploy ever made; and it
+  copied the working tree, so a local `__pycache__` — which any test run
+  produces — went out with it, bytecode from two interpreters, neither of them
+  the image's. They also broke the "nothing to push" shortcut, since running
+  the suite was enough to change them. Each entry is now cleared and written
+  from `git archive HEAD`, which also makes the deploy agree with its own
+  stamp: the revision baked into the Dockerfile is `HEAD`, and the code shipped
+  beside it used to be whatever the tree held.
+- **The Space's image contained the Space's git history.** `.dockerignore` was
+  not in the payload, and a `docker build` with no `.dockerignore` excludes
+  nothing — measured on a throwaway context: `.git` lands in the image. `.git`
+  is the first line of this repository's copy, which is why CI never showed it.
+- **`.dockerignore` patterns are anchored at the context root**, so
+  `__pycache__/` excluded the one beside the Dockerfile and took nothing out of
+  `src/`. The image carried `src/__pycache__/*.cpython-312.pyc` — in an image
+  built on 3.10, whose Dockerfile sets `PYTHONDONTWRITEBYTECODE=1` on purpose.
+  The four artefact patterns carry `**/` now. The test helper that should have
+  caught it modelled docker as more generous than it is: it also compared
+  basenames, which made `__pycache__/` look like it covered any depth.
+- **128MB of local mypy cache was going into the image**, along with
+  `.pytest_cache`, `.ruff_cache` and a `.coverage` holding absolute paths from
+  whoever last ran the suite. More than the embedding weights that are baked in
+  deliberately. CI never carried it, because its checkout is fresh — so the
+  affected builds were the local ones, which is what `make image` exists to
+  produce in CI's place, and what the 3GB budget was being measured against.
+  2.3GB to 2.15GB. `make clean` was missing `.mypy_cache` too, while claiming
+  to remove the caches.
+- **Five files reached CI's image and not the Space's** — `store_index.py`,
+  `template.py`, the `Makefile`, `.env.example`, `.gitattributes` — none of
+  which either image needs. Excluded, which makes both smaller rather than both
+  larger.
+- **The CSP permitted `data:` images and nothing loads one.** Not the template,
+  `chat.js` or `style.css`, and not bootstrap 4.1.3 or Font Awesome 5.5.0,
+  whose stylesheets were fetched and searched for `url(data:` — zero matches.
+  Both checks on unused sources matched `https://[a-z0-9.-]+`, and a scheme has
+  no host, so neither could see it.
+- **A body ceiling of 501 bytes passed validation while refusing legal
+  questions.** `MAX_QUESTION_CHARS` counts characters and `MAX_CONTENT_BYTES`
+  caps bytes, with UTF-8 and percent-encoding in between, so comparing the two
+  numbers compares nothing. A 500-character question measures 504 bytes in
+  ASCII letters and 6004 in emoji — twelve bytes per character. The bound is the
+  worst case now, derived rather than guessed. The shipped defaults were always
+  fine; this matters to anyone setting either variable, which is why they are
+  variables.
+- **Static assets were cached for a year without the content hash that makes a
+  year safe** — `/favicon.ico`, which is a route and so never fingerprinted; a
+  bare `/static/…` URL; and a file whose digest could not be read, where the
+  URL carries no `?v=` and nothing can ever invalidate it. That last case was
+  permanent, because `digest()` memoised its failures: one `OSError` was
+  remembered for the life of the process. Only successes are cached now, and
+  the long lifetime requires the hash to be in the URL.
+- **`make lint` ran `bash -n` on the deploy script and not `shellcheck`**,
+  which CI runs — so `make check` could pass while CI failed on a finding
+  nobody local could see. It matters this round, which rewrote that script's
+  copy loop into a `git archive | tar -x` pipeline. Guarded, because not every
+  machine has shellcheck, and announced rather than skipped quietly.
+
 - **Every error raised before a route ran came back as HTML.** The plain-text
   error handler was registered for 404, 405 and 500 — the statuses a route can
   produce. Setting `MAX_CONTENT_LENGTH` makes Werkzeug raise 413 before any
@@ -81,6 +140,24 @@ the behavioural ones; the rest is in the git log.
 
 ### Added
 
+- The deploy says when the working tree is not what it ships, naming the files
+  — `git status --porcelain` on the payload, so untracked files appear too,
+  which is the half a `git diff` would miss and the half that produced the
+  `.pyc` problem. A warning rather than a refusal: deploying `HEAD` from a tree
+  carrying unrelated edits is a normal thing to want.
+- A check that nothing tracked reaches CI's image that the Space's image lacks,
+  which is the difference CI structurally cannot see, and one that the Space
+  carries the exclusion rules its own build reads.
+- Checks that no tool cache or git-ignored artefact reaches the image: a fixed
+  list, which is what runs in CI where the checkout is clean, and a scan of the
+  working copy, which catches what nobody thought to list.
+- A check that `make clean` removes every cache `.dockerignore` names.
+- A CSP check that tokenises the policy into (directive, source) pairs and
+  rejects `data:`, `blob:`, `*` and both `unsafe-*` keywords wherever they
+  appear. It is the second attempt: the first asked whether each source
+  appeared in the page's text and skipped the ones that did, which excused
+  `data:` immediately, because `chat.js` contains `data: { msg: question }`.
+
 - A check that the CI workflow's eight `run:` blocks are valid shell. They are
   107 lines of loops, `case` statements and nested quoting that only ever
   execute on a runner, so a missing `fi` was found by pushing; each block is
@@ -120,6 +197,10 @@ the behavioural ones; the rest is in the git log.
   disagrees with the changelog.
 
 ### Changed
+
+- The deploy ships the payload as of `HEAD` rather than the working tree, so
+  committing first is now required to deploy a change. Documented in DEPLOY.md
+  with the reason, which is that the revision `/healthz` reports is `HEAD`.
 
 - Coverage is collected by `make test` and the CI step rather than by every
   `pytest` invocation, which is what lets a single file be a single file. The
