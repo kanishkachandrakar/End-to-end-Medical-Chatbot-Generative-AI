@@ -545,12 +545,49 @@ def test_a_missing_static_file_does_not_break_the_page(client_for):
 
 
 def test_static_assets_are_sent_with_a_long_cache_lifetime(client_for):
+    """And only when the URL carries the hash that makes a year safe.
+
+    This asked for /static/chat.js with no ?v= and asserted the year, which
+    is the case the fingerprinting exists to avoid: nothing can invalidate
+    that copy for twelve months. The page never emits such a URL.
+    """
     # Closed explicitly: a static response holds an open file until it is,
     # and an unclosed handle is a ResourceWarning the suite now treats as an
     # error. Flask closes it for a real request; the test client does not.
-    with client_for(StubChain()).get("/static/chat.js") as response:
+    client = client_for(StubChain())
+    with client.get("/static/chat.js?v=abc123def456") as fingerprinted:
+        assert fingerprinted.status_code == 200
+        assert "max-age=" in fingerprinted.headers.get("Cache-Control", "")
+
+    with client.get("/static/chat.js") as bare:
+        assert bare.status_code == 200
+        assert "max-age=" not in bare.headers.get("Cache-Control", "")
+        assert bare.headers["Cache-Control"] == "no-cache"
+
+
+def test_the_favicon_is_not_cached_for_a_year(client_for):
+    """It is a route, not the static endpoint, so it is never fingerprinted.
+
+    SEND_FILE_MAX_AGE_DEFAULT applied to it all the same, so replacing the
+    image could not reach anyone who had loaded the page.
+    """
+    with client_for(StubChain()).get("/favicon.ico") as response:
         assert response.status_code == 200
-        assert "max-age=" in response.headers.get("Cache-Control", "")
+        assert "max-age=" not in response.headers.get("Cache-Control", "")
+
+
+def test_an_unreadable_asset_is_not_cached_for_a_year_either(client_for):
+    """static_version returns "" and url_for then emits a bare URL.
+
+    The year would still be applied to it, so a transient read failure at
+    render time became a year of an uninvalidatable copy.
+    """
+    from src.assets import digest
+
+    client = client_for(StubChain())
+    with client.get("/static/style.css") as response:
+        assert response.headers["Cache-Control"] == "no-cache"
+    assert digest("/no/such/path.js") == ""
 
 
 def test_healthz_reports_the_vector_count():
@@ -632,8 +669,20 @@ def test_the_page_is_not_cached(client_for):
 
 
 def test_the_assets_are_still_cached(client_for):
-    """The opposite policy for the files the page points at."""
-    with client_for(StubChain()).get("/static/chat.js") as response:
+    """The opposite policy to the page's, for the files the page points at.
+
+    Driven through the URL the page actually emits, rather than a handwritten
+    one: url_for is what attaches the hash, so asking it is the only way this
+    checks the pairing rather than a string someone typed.
+    """
+    from flask import url_for
+
+    app = create_app(StubChain())
+    with app.test_request_context():
+        url = url_for("static", filename="chat.js")
+    assert "?v=" in url, url
+
+    with app.test_client().get(url) as response:
         assert "max-age=" in response.headers.get("Cache-Control", "")
 
 
