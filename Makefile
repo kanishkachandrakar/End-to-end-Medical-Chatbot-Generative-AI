@@ -36,6 +36,18 @@ lint:  ## Check formatting, imports, types and the non-Python files
 	$(PYTHON) -m mypy src app.py store_index.py
 	node --check static/chat.js
 	bash -n scripts/deploy_space.sh
+	# shellcheck too, as CI does. `bash -n` finds a syntax error and nothing
+	# else; the findings that matter in this script -- an unquoted expansion,
+	# a loop variable that cannot be empty -- are only shellcheck's. Guarded
+	# because not every machine has it, and announced rather than skipped
+	# quietly: `make check` passing while CI fails on a finding nobody local
+	# can see is the whole failure this is fixing.
+	@if command -v shellcheck >/dev/null 2>&1; then \
+		shellcheck --severity=error scripts/deploy_space.sh; \
+	else \
+		echo "shellcheck is not installed, so this check did NOT run"; \
+		echo "  CI runs it regardless -- install with: brew install shellcheck"; \
+	fi
 	# Catches a syntax error in a module the suite never imports, as CI does.
 	$(PYTHON) -m compileall -q app.py store_index.py template.py setup.py \
 		gunicorn.conf.py src

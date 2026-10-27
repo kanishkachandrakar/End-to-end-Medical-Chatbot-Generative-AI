@@ -100,6 +100,9 @@ def test_the_makefile_runs_what_ci_runs():
         "mypy src app.py store_index.py",
         "node --check static/chat.js",
         "bash -n scripts/deploy_space.sh",
+        # `bash -n` catches a syntax error; every other finding in a shell
+        # script is shellcheck's, and only CI was running it.
+        "shellcheck --severity=error scripts/deploy_space.sh",
         "compileall",
         # The Makefile runs `python -m pre_commit` so that PYTHON= works; CI
         # uses the console script. Compare the operation, not the spelling.
