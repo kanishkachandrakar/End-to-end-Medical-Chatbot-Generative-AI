@@ -7,6 +7,66 @@ the behavioural ones; the rest is in the git log.
 
 ### Fixed
 
+- **A truncated reply published the model's chain of thought.**
+  `strip_reasoning` matched `<think>…</think>` and nothing else, so an
+  unterminated block went to the visitor intact, tag and all — and that is the
+  shape a cut-short reply has, since deepseek-r1 reasons at length and meeting
+  the token ceiling or the 60-second Groq timeout leaves the opening tag emitted
+  and the closing one never written. A test asserted that behaviour on the
+  grounds that "a lone opening tag must not swallow the answer"; the tag is
+  unclosed *because* generation stopped, so there is no answer after it to
+  protect. Both unbalanced cases are stripped now, which leaves an empty string
+  that the route already answers with NO_ANSWER.
+- **The development server offered your Groq budget to the local network.**
+  `python app.py` bound `0.0.0.0` while holding the real keys, and `POST /get`
+  takes no credentials — so anyone on a café or office network could query the
+  index and spend the quota. The Makefile said "Serve the app on
+  localhost:8080"; the README said `0.0.0.0` and called it reachable from other
+  machines. Loopback now, through a `HOST` setting; the container is untouched,
+  because inside one `0.0.0.0` is the only useful thing to bind.
+- **The revision and config lines never reached a Space's log.** A gunicorn
+  worker leaves the root logger at WARNING with no handlers, and a module logger
+  has no level of its own, so both `logger.info` calls in `create()` were
+  dropped — the two lines whose entire purpose is making a misconfigured deploy
+  visible. `src/webapp.py` fixes exactly this for `app.logger` and says why;
+  nobody connected the two. The test that covered it passed throughout, because
+  `caplog.at_level(logging.INFO)` supplies the one condition production lacks.
+- **The index size failed silently and reported only that it had.** Every
+  exception became `None` with the reason discarded, so a slow control plane, a
+  revoked key, a renamed index and a dead region all produced one line: "could
+  not read stats". The chain is built separately and lazily, so it can succeed
+  while this fails, leaving that line as the only sign.
+- **Two packages were imported by name and never declared** — werkzeug, for
+  `HTTPException`, and langchain-text-splitters, declared only as a dev
+  dependency while `store_index.py` imports it. `requirements.txt` states the
+  policy on this twice in its own comments. The test file that should have
+  caught them opened by claiming "the other direction is already checked:
+  nothing may be imported without being declared", and no such check existed
+  anywhere.
+- **`pip install -e .` installed a package called `tests`.** A bare
+  `find_packages()` takes every directory with an `__init__.py`, and tests/ has
+  one so the suite can import its stubs, so `top_level.txt` declared both `src`
+  and `tests` — a package with about the most collidable name available. The
+  image was unaffected only because `.dockerignore` excludes tests/.
+- **`--limit 0` was rejected after the whole PDF had been parsed.** The flag
+  exists to make a cheap end-to-end check possible before a full rebuild, and
+  validating it cost the expensive half of that rebuild. argparse rejects it
+  now, with usage and exit 2 like any other bad argument.
+- **The index rebuild could wait forever with nothing printed.**
+  `create_index` and `delete_index` were called with no timeout, and the SDK
+  documents that as waiting indefinitely. `confirm_deletion` already refuses to
+  create that state, in the same file, because it is indistinguishable from the
+  slow indexing it precedes.
+- **A banner branch that could never fire**, holding its own copy of the
+  wording. chat.js searched a 200 `/healthz` body for `index-empty`, which a 200
+  body cannot contain — every degraded state is a 503. So one of two copies of a
+  visitor-facing sentence was unreachable.
+- **A stylesheet rule that has never matched anything.** `.container` against a
+  template whose only container is `container-fluid`, and `align-content` does
+  nothing on a non-flex element anyway. An earlier round's cleanup missed it by
+  asking whether the class name appeared in the page: "container" appears inside
+  "container-fluid".
+
 - **The deploy pushed eighteen `.pyc` files and kept what the repository had
   deleted.** `cp -R src dest/` merges into an existing directory rather than
   replacing it, so a Space held the union of every deploy ever made; and it
@@ -139,6 +199,29 @@ the behavioural ones; the rest is in the git log.
   connection a reader has to reconstruct and a checker cannot. Now stated.
 
 ### Added
+
+- A check that nothing is imported without being declared — the direction that
+  was claimed to exist and did not.
+- Checks that every CDN tag carries a subresource integrity hash, in an
+  algorithm browsers accept, fetched with `crossorigin` so the hash is actually
+  enforced. All three hashes were verified against the live CDNs while writing
+  it; that check is not in the suite, which passes with no network.
+- A check that the chain Protocol is satisfied by all three things passed to
+  `create_app` — the stub, the refusing stand-in, and langchain's Runnable.
+  mypy does not run over tests/, so the Protocol had been documenting an
+  intention and enforcing nothing. What is asserted is that one positional
+  argument binds, not that the parameter shares a name, since the real chain's
+  is `input` where the Protocol says `payload`.
+- Checks that style.css and the markup agree in both directions, and that the
+  five ids chat.js reaches for exist in the template — `$("#serviceBanner")` on
+  a missing element is an empty jQuery set on which every method succeeds and
+  does nothing. The case that makes it worth having is a misspelling:
+  `msg_cotainer` is wrong identically in chat.js and style.css, so correcting
+  one file looks like tidying and unstyles every message in the log.
+- Checks that every degraded state answers a failure status and no healthy
+  reply names a degraded reason, which is what the banner logic depends on.
+- A check that the stubbed Pinecone client's signatures match the real one's;
+  the fake took `delete_index(self, name)` where the client takes a timeout too.
 
 - The deploy says when the working tree is not what it ships, naming the files
   — `git status --porcelain` on the payload, so untracked files appear too,
