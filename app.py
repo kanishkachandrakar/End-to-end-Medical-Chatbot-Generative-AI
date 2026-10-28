@@ -86,7 +86,14 @@ def read_index_size(api_key: str, timeout: float = 15.0) -> int | None:
     pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
     try:
         return pool.submit(read).result(timeout=timeout)
-    except TimeoutError:
+    except concurrent.futures.TimeoutError:
+        # concurrent.futures.TimeoutError, not the builtin: 3.11 made the two
+        # the same object, and on 3.10 -- which is what the Dockerfile and
+        # python_requires target -- they are separate classes, so `except
+        # TimeoutError` caught nothing here and a timeout fell through to the
+        # branch below. Caught by the 3.10 half of CI's matrix, which is what
+        # that half is for.
+        #
         # The thread is left to finish on its own; it holds nothing the app
         # needs. Reported because a slow control plane and a rejected key
         # produced the same single line otherwise.

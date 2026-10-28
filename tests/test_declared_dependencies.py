@@ -173,6 +173,19 @@ def _modules_to_distribution():
     return mapping
 
 
+def _candidate_distributions(module):
+    """Distribution names that could be providing `module`.
+
+    The metadata map, plus the conventional spelling -- a distribution named
+    with hyphens provides a module named with underscores. Both, because
+    packages_distributions() does not agree across versions: on 3.10 it
+    reports none of the langchain_* packages, so a check that trusted it
+    alone passed on 3.12 and failed on 3.10 naming all seven of them.
+    """
+    candidates = {module, module.replace("_", "-")}
+    return candidates | _modules_to_distribution().get(module, set())
+
+
 def test_the_imports_were_found():
     """The check below iterates them, so an empty set would pass it."""
     found = _imported_top_level_modules()
@@ -195,11 +208,10 @@ def test_nothing_is_imported_without_being_declared():
     declared = set(_declared("requirements.txt")) | set(
         _declared("requirements-dev.txt")
     )
-    provides = _modules_to_distribution()
 
     undeclared = []
     for module in sorted(_imported_top_level_modules()):
-        candidates = provides.get(module, {module})
+        candidates = _candidate_distributions(module)
         if not {name.lower() for name in candidates} & declared:
             undeclared.append((module, sorted(candidates)))
     assert not undeclared, f"imported but not declared: {undeclared}"
