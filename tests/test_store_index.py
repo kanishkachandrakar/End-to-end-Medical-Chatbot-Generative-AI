@@ -107,6 +107,47 @@ def test_the_flag_defaults_to_off(store_index):
     assert store_index.parse_args(["--dry-run"]).dry_run is True
 
 
+def _recording_client(calls):
+    """The fake Pinecone client, built against a dict it writes into.
+
+    At module level rather than inside the fixture so that the signature
+    check below can reach it -- the fixture replaces the real `pinecone` in
+    sys.modules, so nothing running under it can see the class it is
+    standing in for.
+    """
+    class _Client:
+        def __init__(self, api_key=None):
+            calls["api_key"] = api_key
+
+        def list_indexes(self):
+            return types.SimpleNamespace(names=lambda: calls["existing"])
+
+        def create_index(self, **kwargs):
+            calls["created"].append(kwargs)
+            calls.setdefault("create_timeouts", []).append(kwargs.get("timeout"))
+
+        def Index(self, name):  # noqa: N802 - matches the real client
+            calls.setdefault("stats_reads", []).append(name)
+            return types.SimpleNamespace(
+                describe_index_stats=lambda: {
+                    "total_vector_count": calls.get("reported", 6)
+                }
+            )
+
+        def describe_index(self, name):
+            return types.SimpleNamespace(
+                dimension=calls.get("dimension", 384), name=name
+            )
+
+        # timeout is part of the real signature, and the script passes it.
+        def delete_index(self, name, timeout=None):
+            calls.setdefault("deleted", []).append(name)
+            calls.setdefault("delete_timeouts", []).append(timeout)
+            calls["existing"] = [n for n in calls["existing"] if n != name]
+
+    return _Client
+
+
 @pytest.fixture
 def indexer(monkeypatch):
     """store_index with recording stubs, so the upsert path can be inspected.
@@ -125,32 +166,7 @@ def indexer(monkeypatch):
         def add_documents(self, documents, ids):
             calls["upserts"].append(([c.page_content for c in documents], list(ids)))
 
-    class _Client:
-        def __init__(self, api_key=None):
-            calls["api_key"] = api_key
-
-        def list_indexes(self):
-            return types.SimpleNamespace(names=lambda: calls["existing"])
-
-        def create_index(self, **kwargs):
-            calls["created"].append(kwargs)
-
-        def Index(self, name):  # noqa: N802 - matches the real client
-            calls.setdefault("stats_reads", []).append(name)
-            return types.SimpleNamespace(
-                describe_index_stats=lambda: {
-                    "total_vector_count": calls.get("reported", 6)
-                }
-            )
-
-        def describe_index(self, name):
-            return types.SimpleNamespace(
-                dimension=calls.get("dimension", 384), name=name
-            )
-
-        def delete_index(self, name):
-            calls.setdefault("deleted", []).append(name)
-            calls["existing"] = [n for n in calls["existing"] if n != name]
+    _Client = _recording_client(calls)
 
     pinecone = types.ModuleType("pinecone")
     pinecone.ServerlessSpec = lambda **kw: ("spec", kw)
@@ -687,3 +703,67 @@ class TestUpsertChunks:
         module, calls = indexer
         module.upsert_chunks("embeddings", [_Chunk("a")], ["id0"])
         assert calls["opened"] == [module.INDEX_NAME]
+
+
+def test_the_control_plane_calls_carry_a_deadline(indexer):
+    """Both block by default, and with no timeout they block indefinitely.
+
+    The SDK documents it: "If None, wait indefinitely". A control plane that
+    has stopped answering then leaves the script silent for as long as
+    anyone is willing to wait -- the state confirm_deletion refuses to
+    create, because it is indistinguishable from the slow indexing it comes
+    before.
+    """
+    module, calls = indexer
+    calls["existing"] = ["medicalbot"]
+    module.prepare_index("key", recreate=True, yes=True)
+
+    assert calls["delete_timeouts"] == [module.INDEX_READY_TIMEOUT]
+    assert calls["create_timeouts"] == [module.INDEX_READY_TIMEOUT]
+
+
+def test_a_control_plane_that_never_finishes_is_reported_not_raised(
+    indexer, monkeypatch
+):
+    """A traceback from inside the SDK's polling loop says nothing useful."""
+    module, calls = indexer
+    calls["existing"] = ["medicalbot"]
+
+    def time_out(name, timeout=None):
+        raise TimeoutError("index not ready")
+
+    monkeypatch.setattr(module, "INDEX_READY_TIMEOUT", 60)
+    with pytest.raises(SystemExit) as raised:
+        module._bounded(lambda: time_out("medicalbot"), "index was not ready")
+
+    message = str(raised.value)
+    assert "was not ready after 60s" in message
+    assert "TimeoutError" in message
+    assert "Nothing has been upserted" in message
+
+
+def test_the_fake_client_matches_the_real_one():
+    """A stub with the wrong signature tests the wrong thing.
+
+    This one took delete_index(self, name) while the real client takes a
+    timeout as well, so passing one failed only here -- and a stub drifting
+    the other way would let a call the real client rejects pass the suite.
+    """
+    import inspect
+
+    from pinecone import Pinecone
+
+    fake = _recording_client({"existing": []})
+    for name in ("create_index", "delete_index", "describe_index", "list_indexes"):
+        real = set(inspect.signature(getattr(Pinecone, name)).parameters)
+        # Only the parameters the fake names: a **kwargs accepts anything, so
+        # there is nothing to compare, which is also the limit of this check.
+        # It catches a fake that is narrower than the real client -- the case
+        # that was here -- and not one that is wider by catch-all.
+        declared = {
+            parameter.name
+            for parameter in inspect.signature(getattr(fake, name)).parameters.values()
+            if parameter.kind
+            not in (parameter.VAR_KEYWORD, parameter.VAR_POSITIONAL)
+        }
+        assert declared <= real, (name, declared - real)

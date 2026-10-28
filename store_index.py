@@ -24,6 +24,14 @@ from src.text import batched, chunk_ids
 # batch off the heap, large enough not to pay request overhead 5,000 times.
 BATCH_SIZE = 250
 
+# Seconds to wait for an index to become ready, or to finish being deleted.
+# Both operations block by default and, passed no timeout, block for as long
+# as it takes -- which for a control plane that has stopped answering means
+# forever, with nothing printed. That is the state confirm_deletion already
+# refuses to create: indistinguishable from the slow indexing it precedes.
+# Serverless creation is usually a few seconds; a minute is generous.
+INDEX_READY_TIMEOUT = 60
+
 
 def _at_least_one(value: str) -> int:
     """A --limit argparse can reject itself, before any work happens.
@@ -74,6 +82,23 @@ def parse_args(argv=None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def _bounded(operation, what: str) -> None:
+    """Run a control-plane call that waits, and say so if the wait runs out.
+
+    The client's own timeout turns an unbounded block into an exception; this
+    turns that exception into a sentence naming the index and what to do,
+    rather than a traceback from inside the SDK's polling loop.
+    """
+    try:
+        operation()
+    except Exception as exc:
+        raise SystemExit(
+            f"{what} after {INDEX_READY_TIMEOUT}s: {type(exc).__name__}: {exc}. "
+            "Nothing has been upserted. Check the Pinecone console and re-run; "
+            "the operation may have completed on their side."
+        ) from exc
+
+
 def confirm_deletion(index_name: str) -> None:
     """Make --recreate hard to do by accident.
 
@@ -108,8 +133,11 @@ def prepare_index(api_key: str, recreate: bool, yes: bool) -> Pinecone:
         # Deterministic ids make a re-run an overwrite, but only for ids this
         # script would generate. Anything upserted under a random uuid -- every
         # duplicate the notebook left behind -- can only go with the index.
-        print(f"deleting index {INDEX_NAME!r}")
-        pc.delete_index(INDEX_NAME)
+        print(f"deleting index {INDEX_NAME!r}", flush=True)
+        _bounded(
+            lambda: pc.delete_index(INDEX_NAME, timeout=INDEX_READY_TIMEOUT),
+            f"index {INDEX_NAME!r} was not gone",
+        )
         exists = False
 
     if exists:
@@ -125,12 +153,16 @@ def prepare_index(api_key: str, recreate: bool, yes: bool) -> Pinecone:
                 f"with --recreate."
             )
     else:
-        print(f"creating index {INDEX_NAME!r}")
-        pc.create_index(
-            name=INDEX_NAME,
-            dimension=EMBED_DIM,
-            metric="cosine",
-            spec=ServerlessSpec(cloud=PINECONE_CLOUD, region=PINECONE_REGION),
+        print(f"creating index {INDEX_NAME!r}", flush=True)
+        _bounded(
+            lambda: pc.create_index(
+                name=INDEX_NAME,
+                dimension=EMBED_DIM,
+                metric="cosine",
+                spec=ServerlessSpec(cloud=PINECONE_CLOUD, region=PINECONE_REGION),
+                timeout=INDEX_READY_TIMEOUT,
+            ),
+            f"index {INDEX_NAME!r} was not ready",
         )
 
     return pc
