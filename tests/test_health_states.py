@@ -67,3 +67,51 @@ def test_the_states_are_log_and_url_safe():
     """They go into a plain-text body and a log line; keep them boring."""
     for state in _states():
         assert re.fullmatch(r"[a-z][a-z-]*[a-z]", state), state
+
+
+def test_every_degraded_state_answers_a_failure_status():
+    """chat.js puts all of its banner logic in .fail(), which relies on this.
+
+    /healthz answers 200 only when there is nothing to report, so the front
+    end reads the reason off a non-2xx response. A degraded state that
+    answered 2xx would take the banner away silently -- the page would look
+    fine and answer nothing -- so the contract is asserted here rather than
+    left implied by a jQuery callback.
+    """
+    from src.webapp import create_app
+    from tests.stubs import StubChain
+
+    for state in (
+        {"index_size": 0},
+        {"unavailable": "chain-unavailable"},
+        {"unavailable": "chain-unavailable", "index_size": 0},
+    ):
+        response = create_app(StubChain(), **state).test_client().get("/healthz")
+        assert response.status_code >= 400, (state, response.status_code)
+        assert "degraded" in response.data.decode(), state
+
+
+def test_a_healthy_reply_names_no_degraded_reason():
+    """The removed .done() branch searched a 2xx body for "index-empty"."""
+    from src.webapp import create_app
+    from tests.stubs import StubChain
+
+    for state in ({"index_size": 5860}, {"index_size": None}):
+        response = create_app(StubChain(), **state).test_client().get("/healthz")
+        assert response.status_code == 200, state
+        body = response.data.decode()
+        assert "index-empty" not in body, body
+        assert "chain-unavailable" not in body, body
+        assert body.startswith("ok "), body
+
+
+def test_the_script_has_no_done_handler_for_healthz():
+    """Because a 2xx /healthz has nothing a banner could report.
+
+    The branch that was there searched a 200 body for "index-empty", which a
+    200 body cannot contain -- a healthy reply is "ok <revision> vectors=<n>".
+    It carried its own copy of the banner wording, so the text existed twice
+    and only one of the two could ever be shown.
+    """
+    healthz_call = SCRIPT.split('url: "/healthz"')[1].split('$("#messageArea")')[0]
+    assert ".done(" not in healthz_call, healthz_call[:200]

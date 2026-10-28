@@ -80,15 +80,14 @@ $(document).ready(function () {
         $("#serviceBanner").text(text).prop("hidden", false);
     }
 
+    // No .done() handler: /healthz answers 200 only when there is nothing to
+    // say. Every degraded state -- an empty index, a chain that could not be
+    // built -- is a 503 naming the reason, so all of the banner logic belongs
+    // in .fail(). There was a .done() branch looking for "index-empty" in a
+    // 2xx body, which cannot contain it: a healthy reply is
+    // "ok <revision> vectors=<n>". It carried its own copy of the banner
+    // text, so the wording existed twice and only one copy could ever show.
     $.ajax({ type: "GET", url: "/healthz", dataType: "text" })
-        .done(function (body) {
-            if (String(body).indexOf("index-empty") !== -1) {
-                showBanner(
-                    "The reference index is empty, so answers are not grounded " +
-                    "in the book. Rebuilding it is a server-side fix."
-                );
-            }
-        })
         .fail(function (jqXHR) {
             var body = String(jqXHR.responseText || "");
             if (body.indexOf("chain-unavailable") !== -1) {
