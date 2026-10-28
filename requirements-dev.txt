@@ -15,6 +15,7 @@ pre-commit>=4.0
 # start-up failures stayed hidden: the suite stubbed or had different versions
 # of the very packages that had moved.
 flask>=3.0
+werkzeug>=3.0
 langchain>=1.0,<2
 langchain-classic>=1.0,<2
 langchain-community>=0.3,<1
@@ -28,6 +29,4 @@ pinecone[grpc]>=5.0
 pypdf>=4.0
 python-dotenv>=1.0
 
-# Dev-only. langchain-text-splitters is a langchain dependency rather than a
-# direct requirement, but the suite imports it, so it is declared here.
 langchain-text-splitters>=1.0

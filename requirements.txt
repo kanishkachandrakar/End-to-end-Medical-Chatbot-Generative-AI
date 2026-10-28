@@ -12,6 +12,10 @@ langchain-classic>=1.0,<2
 # langchain too, but a transitive dependency is not a declared one.
 langchain-core>=1.0,<2
 flask>=3.0
+# src/middleware.py imports HTTPException from it to register the plain-text
+# error handler against the base class. Flask installs it either way, but it is
+# imported here by name, and a transitive dependency is not a declared one.
+werkzeug>=3.0
 # Imported for SecretStr; transitive via langchain, but we import it.
 pydantic>=2.0,<3
 pypdf>=4.0
@@ -29,5 +33,10 @@ langchain-groq>=1.0,<2
 # The standalone home of HuggingFaceEmbeddings, which langchain-community
 # deprecated before being sunset itself.
 langchain-huggingface>=1.0,<2
+# src/chunking.py imports RecursiveCharacterTextSplitter. It arrives with
+# langchain, and was declared only in requirements-dev.txt on the grounds that
+# the suite imports it -- but store_index.py imports it too, from code this
+# file is responsible for installing.
+langchain-text-splitters>=1.0
 gunicorn>=21.0
 -e .

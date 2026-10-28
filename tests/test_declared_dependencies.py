@@ -1,9 +1,15 @@
-"""Every declared dependency is imported, or justified for not being.
+"""Every declared dependency is imported, and everything imported is declared.
 
-The other direction is already checked: nothing may be imported without being
-declared. This one catches the opposite drift -- a package that stays in
-requirements.txt after the code that needed it is gone. langchain_openai sat
-there for weeks that way.
+This file used to open by saying "the other direction is already checked:
+nothing may be imported without being declared". There was no such check
+anywhere. Both halves live here now, and the half that did not exist found
+two: werkzeug, imported by src/middleware.py for HTTPException, and
+langchain-text-splitters, imported by src/chunking.py and declared only in
+requirements-dev.txt.
+
+The declared-but-unused half catches the opposite drift -- a package that
+stays in requirements.txt after the code that needed it is gone.
+langchain_openai sat there for weeks that way.
 
 Some dependencies are legitimately never imported by this project: a server it
 is run under, a library a langchain integration imports on our behalf. Each has
@@ -136,3 +142,64 @@ def test_nothing_is_justified_that_is_actually_imported():
     imported = _imported_top_level()
     wrong = {name for name in JUSTIFIED if _modules_of(name) & imported}
     assert not wrong, f"justified as unimported but imported: {wrong}"
+
+
+def _imported_top_level_modules():
+    """Top-level modules that the shipped code imports, third-party only."""
+    import sys
+
+    shipped = [ROOT / "app.py", ROOT / "store_index.py", *(ROOT / "src").glob("*.py")]
+    modules = set()
+    for path in shipped:
+        tree = ast.parse(path.read_text())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                modules.update(alias.name.split(".")[0] for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                modules.add(node.module.split(".")[0])
+    return {
+        name
+        for name in modules
+        if name not in sys.stdlib_module_names and name != "src"
+    }
+
+
+def _modules_to_distribution():
+    """Top-level module name -> the declared distribution providing it."""
+    mapping = {}
+    for distribution, provided in _distribution_modules().items():
+        for module in provided:
+            mapping.setdefault(module, set()).add(distribution)
+    return mapping
+
+
+def test_the_imports_were_found():
+    """The check below iterates them, so an empty set would pass it."""
+    found = _imported_top_level_modules()
+    assert len(found) > 8, found
+    # The two the missing direction caught, named so neither can quietly
+    # become transitive again.
+    assert {"werkzeug", "langchain_text_splitters"} <= found
+
+
+def test_nothing_is_imported_without_being_declared():
+    """A transitive dependency is not a declared one.
+
+    requirements.txt says so twice in its own comments, about langchain-core
+    and pydantic: both arrive with langchain, both are imported by name, so
+    both are declared. werkzeug arrived with flask and was imported by name
+    and was not -- which means a flask release that stopped depending on it,
+    or depended on a different major version of it, would break an import
+    this project makes directly while every declared bound still held.
+    """
+    declared = set(_declared("requirements.txt")) | set(
+        _declared("requirements-dev.txt")
+    )
+    provides = _modules_to_distribution()
+
+    undeclared = []
+    for module in sorted(_imported_top_level_modules()):
+        candidates = provides.get(module, {module})
+        if not {name.lower() for name in candidates} & declared:
+            undeclared.append((module, sorted(candidates)))
+    assert not undeclared, f"imported but not declared: {undeclared}"
