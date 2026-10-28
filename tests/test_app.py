@@ -94,6 +94,57 @@ class TestReadIndexSize:
         )
         assert app_module.read_index_size("key") is None
 
+    def test_the_reason_it_could_not_be_read_is_reported(
+        self, app_module, monkeypatch, caplog
+    ):
+        """None was returned with the reason discarded entirely.
+
+        A revoked key, a renamed index and a region that no longer resolves
+        all land here, and all produced the one line log_index_size emits
+        for an unknown size -- "could not read stats" with nothing after it.
+        The chain is built separately and lazily, so it can succeed while
+        this fails, leaving that line as the only clue there was one.
+        """
+        import logging
+
+        monkeypatch.setitem(
+            sys.modules,
+            "pinecone",
+            _pinecone(raises=PermissionError("401 invalid api key")),
+        )
+        with caplog.at_level(logging.WARNING):
+            assert app_module.read_index_size("key") is None
+
+        assert "PermissionError" in caplog.text
+        assert "401 invalid api key" in caplog.text
+        assert "medicalbot" in caplog.text
+
+    def test_a_timeout_says_it_timed_out(self, app_module, monkeypatch, caplog):
+        """Distinguished from a refusal: one is slow, the other is wrong."""
+        import logging
+        import time
+        import types
+
+        module = types.ModuleType("pinecone")
+
+        class Client:
+            def __init__(self, api_key=None):
+                pass
+
+            def Index(self, name):  # noqa: N802 - matches the real client
+                return types.SimpleNamespace(
+                    describe_index_stats=lambda: time.sleep(30) or {}
+                )
+
+        module.Pinecone = Client
+        monkeypatch.setitem(sys.modules, "pinecone", module)
+
+        with caplog.at_level(logging.WARNING):
+            assert app_module.read_index_size("key", timeout=0.2) is None
+
+        assert "timed out" in caplog.text
+        assert "0s" in caplog.text
+
     def test_a_hanging_pinecone_is_abandoned(self, app_module, monkeypatch):
         """It runs before the port is bound; waiting there is a crash loop."""
         import sys

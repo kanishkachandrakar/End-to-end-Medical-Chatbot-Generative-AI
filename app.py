@@ -86,9 +86,29 @@ def read_index_size(api_key: str, timeout: float = 15.0) -> int | None:
     pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
     try:
         return pool.submit(read).result(timeout=timeout)
-    except Exception:
-        # Includes TimeoutError. The thread is left to finish on its own; it
-        # holds nothing the app needs.
+    except TimeoutError:
+        # The thread is left to finish on its own; it holds nothing the app
+        # needs. Reported because a slow control plane and a rejected key
+        # produced the same single line otherwise.
+        logging.getLogger(__name__).warning(
+            "reading the size of index %r timed out after %.0fs; "
+            "continuing without it",
+            INDEX_NAME,
+            timeout,
+        )
+        return None
+    except Exception as exc:
+        # Still never raised: a statistic is not worth failing a start-up
+        # for. But the reason is the operator's only clue when the chain
+        # happens to build anyway -- a revoked key, a renamed index, a
+        # region that no longer resolves all arrive here, and all arrived
+        # as "could not read stats" with nothing after it.
+        logging.getLogger(__name__).warning(
+            "could not read the size of index %r: %s: %s",
+            INDEX_NAME,
+            type(exc).__name__,
+            exc,
+        )
         return None
     finally:
         pool.shutdown(wait=False)
