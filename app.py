@@ -24,6 +24,7 @@ from src.config import (
     GROQ_TIMEOUT,
     HOST,
     INDEX_NAME,
+    LOG_LEVEL,
     PORT,
     RATE_LIMIT_PER_MINUTE,
     TOP_K,
@@ -34,6 +35,32 @@ from src.helper import download_hugging_face_embeddings
 from src.prompt import system_prompt
 from src.ratelimit import per_minute
 from src.webapp import APP_REVISION, create_app
+
+
+def configure_logging() -> logging.Logger:
+    """Give this module's logger a level and a handler of its own.
+
+    A gunicorn worker leaves the root logger at WARNING with no handlers, so
+    an INFO record from here was dropped twice over: the level rejected it,
+    and even a WARNING escapes only through logging.lastResort. src/webapp.py
+    sets app.logger's level for exactly this reason -- "every logger.info()
+    call below would be dropped under gunicorn" -- and this module's logger
+    had neither a level nor a handler, so the revision and the config summary
+    never reached a Space's log.
+
+    Configured on this logger alone rather than through basicConfig, which
+    raises the root level and would turn on INFO for pinecone, httpx and
+    sentence-transformers at the same time.
+    """
+    logger = logging.getLogger(__name__)
+    logger.setLevel(LOG_LEVEL)
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(
+            logging.Formatter("[%(asctime)s] %(levelname)s in %(name)s: %(message)s")
+        )
+        logger.addHandler(handler)
+    return logger
 
 
 def read_index_size(api_key: str, timeout: float = 15.0) -> int | None:
@@ -132,7 +159,7 @@ class _Refusing:
 
 def create() -> Flask:
     """Build the application. Gunicorn calls this; see gunicorn.conf.py."""
-    logger = logging.getLogger(__name__)
+    logger = configure_logging()
     load_dotenv()
     keys = require_env("PINECONE_API_KEY", "GROQ_API_KEY")
     for complaint in warn_on_suspicious_keys(keys):
@@ -154,7 +181,7 @@ def create() -> Flask:
         chain = build_chain(keys["PINECONE_API_KEY"], keys["GROQ_API_KEY"])
     except Exception as exc:
         unavailable = "chain-unavailable"
-        logging.getLogger(__name__).exception("could not build the retrieval chain")
+        logger.exception("could not build the retrieval chain")
         chain = _Refusing(exc)
 
     app = create_app(

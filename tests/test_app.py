@@ -183,6 +183,54 @@ class TestCreate:
         with pytest.raises(RuntimeError, match="unavailable"):
             stand_in.invoke({"input": "q"})
 
+    def test_the_lines_survive_a_worker_that_configured_no_logging(
+        self, app_module, monkeypatch
+    ):
+        """The test below passes for a reason gunicorn does not supply.
+
+        caplog.at_level(logging.INFO) raises the root logger's level and
+        installs a handler. A gunicorn worker does neither: root stays at
+        WARNING with no handlers, so an INFO record from this module was
+        rejected by the level and then had nowhere to go anyway. The
+        revision and the config summary -- the two lines that exist so a
+        misconfigured deploy is not invisible -- were dropped in exactly
+        the deployment they were written for.
+
+        So this one captures on the module's own logger and leaves root
+        alone, which is the condition that matters.
+        """
+        import logging
+        import sys
+
+        records = []
+
+        class Probe(logging.Handler):
+            def emit(self, record):
+                records.append(record.getMessage())
+
+        # A worker as gunicorn leaves it, and a module logger as an import
+        # leaves it: no level of its own, so its effective level is the
+        # root's. The probe gives records somewhere to go if the level ever
+        # lets them through -- which is the thing being tested, and is why
+        # this does not call configure_logging() itself.
+        root = logging.getLogger()
+        monkeypatch.setattr(root, "level", logging.WARNING)
+        monkeypatch.setattr(root, "handlers", [])
+        module_logger = logging.getLogger(app_module.__name__)
+        monkeypatch.setattr(module_logger, "level", logging.NOTSET)
+        monkeypatch.setattr(module_logger, "handlers", [Probe()])
+
+        monkeypatch.setenv("PINECONE_API_KEY", "pcsk_x")
+        monkeypatch.setenv("GROQ_API_KEY", "gsk_x")
+        monkeypatch.setitem(sys.modules, "pinecone", _pinecone({}))
+        monkeypatch.setattr(app_module, "build_chain", lambda p, g: StubChain())
+
+        app_module.create()
+
+        assert any(line.startswith("revision:") for line in records), records
+        assert any("index=" in line for line in records), records
+
+
     def test_the_revision_and_config_are_logged(self, app_module, monkeypatch, caplog):
         """Which build, and what it was configured with, before anything else."""
         import logging
