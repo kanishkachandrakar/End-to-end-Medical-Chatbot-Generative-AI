@@ -288,10 +288,35 @@ def test_limit_says_the_index_is_left_partial(indexer, capsys):
     assert "rebuild is still needed" in output
 
 
-def test_a_nonsensical_limit_is_rejected(indexer):
+def test_a_nonsensical_limit_is_rejected(indexer, capsys):
+    """argparse rejects it now, so the exit code is 2 and usage is printed."""
     module, _ = indexer
-    with pytest.raises(SystemExit, match="--limit"):
+    with pytest.raises(SystemExit) as raised:
         module.main(["--limit", "0"])
+    assert raised.value.code == 2
+    assert "--limit" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("bad", ["0", "-1", "-500"])
+def test_a_nonsensical_limit_is_rejected_before_the_pdf_is_opened(
+    indexer, monkeypatch, bad
+):
+    """The check was after load_pdf and text_split -- minutes of work.
+
+    prepare_index sits ahead of the PDF for this reason, its docstring
+    saying each refusal "used to cost minutes of parsing and model loading
+    before reporting". An argument that cannot be right belongs earlier
+    still, and this one was later.
+    """
+    module, _ = indexer
+
+    def refuse(*args, **kwargs):
+        raise AssertionError("the PDF must not be opened for a bad --limit")
+
+    monkeypatch.setattr(module, "load_pdf", refuse)
+    with pytest.raises(SystemExit) as raised:
+        module.main(["--limit", bad, "--dry-run"])
+    assert raised.value.code == 2
 
 
 def test_limit_combines_with_dry_run(indexer, capsys, monkeypatch):

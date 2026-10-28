@@ -25,6 +25,20 @@ from src.text import batched, chunk_ids
 BATCH_SIZE = 250
 
 
+def _at_least_one(value: str) -> int:
+    """A --limit argparse can reject itself, before any work happens.
+
+    The check used to live in main(), after load_pdf and text_split -- so
+    `--limit 0` spent the full PDF parse before saying the flag was wrong.
+    prepare_index is placed ahead of the PDF for exactly this reason; an
+    argument that cannot be right belongs further forward still.
+    """
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError(f"must be at least 1, not {number}")
+    return number
+
+
 def parse_args(argv=None) -> argparse.Namespace:
     """Command line for the indexer."""
     parser = argparse.ArgumentParser(
@@ -45,7 +59,7 @@ def parse_args(argv=None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--limit",
-        type=int,
+        type=_at_least_one,
         metavar="N",
         help="index only the first N chunks. A cheap end-to-end check of the "
         "whole pipeline -- embedding and upsert included -- before committing "
@@ -177,8 +191,6 @@ def main(argv=None) -> None:
     )
 
     if args.limit is not None:
-        if args.limit < 1:
-            raise SystemExit("--limit must be at least 1")
         text_chunks = text_chunks[: args.limit]
         print(
             f"limiting to the first {len(text_chunks)} chunks -- this leaves "
