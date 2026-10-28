@@ -26,9 +26,6 @@ body,html{
 border-radius: 0 0 15px 15px !important;
 	border-top: 0 !important;
 }
-.container{
-	align-content: center;
-}
 .type_msg{
 	background-color: rgba(0,0,0,0.3) !important;
 	border:0 !important;
