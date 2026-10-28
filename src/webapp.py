@@ -12,7 +12,7 @@ import math
 import os
 import pathlib
 import time
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 
 from flask import Flask, Response, g, make_response, render_template, request
 
@@ -31,11 +31,16 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 APP_REVISION = os.environ.get("APP_REVISION", "unknown")
 
 
+@runtime_checkable
 class RagChain(Protocol):
     """What create_app() needs from a chain: nothing but invoke().
 
     Spelled out as a Protocol so the stub the tests pass in is a declared part
     of the interface rather than an accident of duck typing.
+
+    runtime_checkable so that the claim above can be checked. mypy is run over
+    src, app.py and store_index.py and not over tests/, so an annotation here
+    was never compared with anything the tests actually pass.
     """
 
     def invoke(self, payload: dict[str, str]) -> dict[str, Any]: ...
