@@ -22,6 +22,7 @@ from pydantic import SecretStr
 from src.config import (
     GROQ_MODEL,
     GROQ_TIMEOUT,
+    HOST,
     INDEX_NAME,
     PORT,
     RATE_LIMIT_PER_MINUTE,
@@ -170,4 +171,4 @@ def create() -> Flask:
 
 if __name__ == "__main__":
     debug = os.environ.get("FLASK_DEBUG", "").lower() in ("1", "true", "yes")
-    create().run(host="0.0.0.0", port=PORT, debug=debug)
+    create().run(host=HOST, port=PORT, debug=debug)

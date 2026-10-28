@@ -45,6 +45,13 @@ _WORST_BYTES_PER_CHAR = 12
 _FORM_FIELD_OVERHEAD = len("msg=")
 
 # Web server.
+# Loopback by default. This is only read by `python app.py`, the development
+# server -- a container is served by gunicorn, which binds 0.0.0.0 because that
+# is the only useful thing to do inside one. On a laptop it is not: the dev
+# server has the real keys loaded and /get is unauthenticated, so binding every
+# interface hands anyone on the network a Groq budget to spend. Set HOST=0.0.0.0
+# deliberately to reach it from another machine.
+HOST = os.environ.get("HOST", "127.0.0.1")
 PORT = int(os.environ.get("PORT", "8080"))
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 
@@ -75,6 +82,8 @@ def _validate() -> None:
         problems.append(f"MAX_QUESTION_CHARS ({MAX_QUESTION_CHARS}) must be at least 1")
     if GROQ_TIMEOUT <= 0:
         problems.append(f"GROQ_TIMEOUT ({GROQ_TIMEOUT}) must be positive")
+    if not HOST.strip():
+        problems.append("HOST is empty; use 127.0.0.1 for loopback only")
     if not 1 <= PORT <= 65535:
         problems.append(f"PORT ({PORT}) is outside 1-65535")
     if RATE_LIMIT_PER_MINUTE < 0:

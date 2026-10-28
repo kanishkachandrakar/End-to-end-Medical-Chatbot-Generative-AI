@@ -104,3 +104,52 @@ class TestSummary:
 
     def test_it_follows_an_override(self, reload_config):
         assert "top_k=9" in reload_config(TOP_K="9").summary()
+
+
+def test_the_development_server_binds_loopback_only():
+    """`python app.py` loads the real keys, and POST /get needs none.
+
+    It bound 0.0.0.0, so running it on a shared network handed anyone there
+    a Groq budget to spend and an index to query. The Makefile already said
+    "Serve the app on localhost:8080"; the README said 0.0.0.0 and that it
+    is reachable from other machines. Both described the same line.
+    """
+    from src.config import HOST
+
+    assert HOST == "127.0.0.1"
+
+
+def test_the_host_can_still_be_opened_deliberately(monkeypatch):
+    """Reaching it from another machine is a choice, not the default."""
+    import importlib
+
+    import src.config as config
+
+    monkeypatch.setenv("HOST", "0.0.0.0")
+    try:
+        assert importlib.reload(config).HOST == "0.0.0.0"
+    finally:
+        monkeypatch.delenv("HOST", raising=False)
+        importlib.reload(config)
+
+
+def test_the_container_still_binds_every_interface():
+    """The fix must not reach gunicorn: inside a container 0.0.0.0 is right."""
+    import importlib.util
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+    spec = importlib.util.spec_from_file_location("g", root / "gunicorn.conf.py")
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert module.bind.startswith("0.0.0.0:")
+
+
+def test_app_py_does_not_hardcode_an_interface():
+    """It read a literal "0.0.0.0", which no variable could override."""
+    import pathlib
+
+    source = (pathlib.Path(__file__).resolve().parent.parent / "app.py").read_text()
+    assert "host=HOST" in source
+    assert '"0.0.0.0"' not in source

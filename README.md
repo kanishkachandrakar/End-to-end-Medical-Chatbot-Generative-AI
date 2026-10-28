@@ -235,8 +235,12 @@ conda activate medibot
 python app.py
 ```
 
-Then open <http://localhost:8080>. The server binds to `0.0.0.0:8080`, so it is
-reachable from other machines on your network.
+Then open <http://localhost:8080>. The development server binds loopback only.
+It holds your real Pinecone and Groq keys and `POST /get` needs no credentials,
+so binding every interface would share your Groq budget with whatever network
+you are on. Set `HOST=0.0.0.0` if you actually want to reach it from another
+machine — the container is unaffected either way, since gunicorn binds
+`0.0.0.0` because that is the only useful thing to do inside one.
 
 Debug mode is off unless you ask for it — set `FLASK_DEBUG=1` in `.env` while
 working locally to get the auto-reloader.
