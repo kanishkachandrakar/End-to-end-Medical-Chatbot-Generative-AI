@@ -15,12 +15,41 @@ from typing import TypeVar
 # a log and should never reach the user.
 _THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL)
 
+# An unterminated block, which is what a reply cut short produces: the model
+# hits the token ceiling or the 60s timeout mid-reasoning, so the opening tag
+# arrives and the closing one never does.
+_UNTERMINATED_THINK = re.compile(r"<think>.*\Z", re.DOTALL)
+
+# A closing tag with no opener, from a reply whose beginning was lost. Whatever
+# precedes it is the tail of the reasoning.
+_ORPHAN_CLOSE = re.compile(r"\A.*?</think>", re.DOTALL)
+
 T = TypeVar("T")
 
 
 def strip_reasoning(answer: str) -> str:
-    """Remove any <think> blocks from a model reply and tidy the whitespace."""
-    return _THINK_BLOCK.sub("", answer).strip()
+    """Remove the model's chain of thought from a reply, closed or not.
+
+    Pairs first, then the two unbalanced cases, which are what a truncated
+    reply produces -- the model reaches its token ceiling or the 60s timeout
+    partway through reasoning, so the opening tag arrives and the closing one
+    never does. Those used to be left alone, on the stated grounds that a lone
+    opening tag must not swallow the answer.
+
+    The trade is the other way round. An answer after an unclosed <think> is
+    not a thing this model produces: the tag is unclosed precisely because
+    generation stopped, so there is nothing after it but reasoning. Leaving it
+    alone published that reasoning to a visitor, tag and all, in a module whose
+    first comment says it should never reach the user. Stripping it leaves an
+    empty string, which the route already answers with NO_ANSWER.
+
+    The cost is a reply that quotes "<think>" on purpose, which for a chatbot
+    grounded in a medical textbook is a trade worth making.
+    """
+    answer = _THINK_BLOCK.sub("", answer)
+    answer = _UNTERMINATED_THINK.sub("", answer)
+    answer = _ORPHAN_CLOSE.sub("", answer)
+    return answer.strip()
 
 
 def chunk_ids(chunks: Iterable) -> list[str]:

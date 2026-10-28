@@ -34,9 +34,47 @@ def test_removes_every_block_not_just_the_first():
     assert strip_reasoning(raw) == "onetwo"
 
 
-def test_leaves_unpaired_tags_alone():
-    """A lone opening tag must not swallow the answer."""
-    assert strip_reasoning("<think>unclosed reasoning") == "<think>unclosed reasoning"
+def test_an_unterminated_block_is_removed_not_published():
+    """This used to assert the opposite, and the opposite was the leak.
+
+    The tag is unclosed because generation stopped -- the token ceiling or
+    the 60s Groq timeout, partway through reasoning -- so there is no answer
+    after it to protect. What was published instead was the model's chain of
+    thought with a `<think>` on the front, in a chat bubble, from a module
+    whose first comment says it should never reach the user.
+    """
+    assert strip_reasoning("<think>unclosed reasoning") == ""
+    assert strip_reasoning("<think>line one\nline two, cut off here") == ""
+
+
+def test_an_empty_result_is_what_the_route_turns_into_no_answer():
+    """Stripping everything is the intended outcome, not a broken one."""
+    from src.messages import NO_ANSWER
+    from src.webapp import create_app
+
+    class Truncated:
+        def invoke(self, payload):
+            return {"answer": "<think>reasoning the model never finished"}
+
+    response = create_app(Truncated()).test_client().post("/get", data={"msg": "hi"})
+    assert response.status_code == 200
+    assert response.data.decode() == NO_ANSWER
+    assert b"<think>" not in response.data
+
+
+def test_text_before_an_orphan_closing_tag_goes_too():
+    """A reply whose opening was lost: what precedes </think> is reasoning."""
+    assert strip_reasoning("tail of the reasoning</think>The answer.") == "The answer."
+
+
+def test_an_answer_following_an_unclosed_tag_is_sacrificed_knowingly():
+    """Recorded because it is the cost, not an oversight.
+
+    If a reply ever did carry an answer after an unclosed opener, it is
+    discarded along with the reasoning. The visitor gets NO_ANSWER, which is
+    a worse answer and a better failure than the alternative.
+    """
+    assert strip_reasoning("<think>reasoning\nAcne is a skin condition.") == ""
 
 
 def test_is_not_greedy_across_separate_blocks():
