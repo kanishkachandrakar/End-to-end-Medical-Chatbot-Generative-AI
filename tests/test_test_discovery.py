@@ -8,6 +8,8 @@ this is the one remaining way to add checks that quietly do nothing.
 
 import pathlib
 
+import pytest
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 TESTS = ROOT / "tests"
 
@@ -217,6 +219,7 @@ def test_the_silence_detector_accepts_a_raises_block():
     assert _tests_without_a_visible_assertion("x.py", allowed) == []
 
 
+@pytest.mark.slow
 def test_naming_one_file_collects_only_that_file():
     """`pytest tests/test_one_thing.py` must mean that file, and no other.
 

@@ -39,7 +39,13 @@ testpaths = ["tests"]
 # argument is another option and cannot be swallowed.
 addopts = "-q --strict-markers"
 markers = [
-    "slow: needs a heavyweight import (langchain_community)",
+    # Slow for a reason that is not the code under test: a heavyweight import,
+    # real git work in a temporary repository, or a pytest subprocess. It said
+    # "needs a heavyweight import (langchain_community)", which was already
+    # untrue of one of its three users -- test_deploy_script.py clones and
+    # commits -- and `make fast` is only a useful number if the marker means
+    # "slow", not "imports one particular package".
+    "slow: slow for a reason other than the code under test",
 ]
 
 # A warning is how a library announces a move before it makes one, and this

@@ -3,6 +3,8 @@
 import pathlib
 import re
 
+import pytest
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DEPLOY = (ROOT / "DEPLOY.md").read_text()
 README = (ROOT / "README.md").read_text()
@@ -472,6 +474,7 @@ def test_the_silenced_comments_are_still_there():
     assert len(silenced) > 8, len(silenced)
 
 
+@pytest.mark.slow
 def test_the_documented_split_between_fast_and_slow_still_holds():
     """Both files say most of the suite's time is the slow-marked files.
 
