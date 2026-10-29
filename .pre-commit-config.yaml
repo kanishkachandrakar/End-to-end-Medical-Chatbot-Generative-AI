@@ -3,8 +3,10 @@
 #
 #     pip install pre-commit && pre-commit install
 #
-# The test suite is deliberately not here: thirteen seconds is too long for a
-# commit hook, and `make check` or CI covers it.
+# The test suite is deliberately not here: twenty seconds is too long for a
+# commit hook, and `make check` or CI covers it. (Thirteen when this was
+# written, which is the other reason not to put it here -- the number only
+# goes up.) The one exception is below: a key must not reach a commit at all.
 repos:
   # ruff runs from the environment rather than a pinned mirror, so the hook and
   # CI cannot disagree about what passes. The mirror's rev was v0.9.6 against

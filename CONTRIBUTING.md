@@ -14,8 +14,11 @@ make check          # lint, types and the suite, exactly as CI runs them
 `make help` lists the rest. `make fast` skips the files that pay for heavyweight
 imports and real git work.
 
-The suite itself takes about five seconds, and a bare `pytest` is exactly
-that: coverage is collected by `make test`, not by default. Tracing the
+The suite itself takes about twenty seconds, and a bare `pytest` is that:
+coverage is collected by `make test`, not by default. `make fast` deselects the
+`slow`-marked files — heavyweight imports, and real git work in temporary
+repositories — and comes back in four. It was five seconds in total once; the
+documentation said so for a good while after it stopped being true. Tracing the
 langchain import tree used to add fifteen seconds on top, so `make` sets
 `COVERAGE_CORE` to `sysmon` where the interpreter has `sys.monitoring` (3.12
 and later), which removes almost all of it. If you invoke `pytest --cov`

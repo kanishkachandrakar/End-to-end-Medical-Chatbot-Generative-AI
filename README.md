@@ -159,8 +159,10 @@ The suite needs no API keys, no network and no embedding model — which is also
 why CI does not install torch. Everything in `src/` is covered; the floor is
 enforced at 95% in CI.
 
-The suite runs in about five seconds. A few files pay for heavyweight imports
-or real git work and are marked `slow`; skip them while iterating:
+The whole suite is about twenty seconds, and nearly all of that is the files
+marked `slow` — they pay for heavyweight imports and for real git work in
+temporary repositories, the deploy script's tests among them. Deselecting those
+leaves about four seconds, which is the number to work against while iterating:
 
 ```bash
 make fast                      # or: python -m pytest -m "not slow"

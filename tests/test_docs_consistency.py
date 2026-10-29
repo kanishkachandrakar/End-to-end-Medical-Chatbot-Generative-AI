@@ -428,3 +428,51 @@ def test_the_silenced_comments_are_still_there():
     makefile = (ROOT / "Makefile").read_text()
     silenced = re.findall(r"^\t\s*@#", makefile, re.MULTILINE)
     assert len(silenced) > 8, len(silenced)
+
+
+def test_the_documented_split_between_fast_and_slow_still_holds():
+    """Both files say most of the suite's time is the slow-marked files.
+
+    An unmarked test that takes seconds would make that false and nothing
+    would notice -- the number in the prose was "five seconds" for long
+    enough to become four times wrong, because a timing claim ages without
+    anything editing it. This does not check the durations, which vary by
+    machine; it checks the shape the prose describes: that there is a
+    substantial body of slow-marked tests to deselect.
+    """
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-m",
+            "not slow",
+            "--collect-only",
+            "-p",
+            "no:cacheprovider",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stdout[-2000:] + result.stderr[-2000:]
+    # Without -q: the quiet form prints per-file counts and no total, so the
+    # deselected number is not in it to be read.
+    deselected = re.search(r"(\d+) deselected", result.stdout)
+    assert deselected, result.stdout[-500:]
+    assert int(deselected.group(1)) >= 20, (
+        "the prose says deselecting the slow files is most of the saving; "
+        f"only {deselected.group(1)} are marked"
+    )
+
+
+def test_no_document_still_claims_five_seconds():
+    """The stale number, named so it cannot come back by copy-paste."""
+    for name in ("README.md", "CONTRIBUTING.md", ".pre-commit-config.yaml"):
+        text = (ROOT / name).read_text()
+        for line in text.splitlines():
+            if "five seconds" in line:
+                assert "once" in line or "said so" in line, f"{name}: {line.strip()}"
