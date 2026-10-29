@@ -7,6 +7,59 @@ the behavioural ones; the rest is in the git log.
 
 ### Fixed
 
+- **A chain that returned nonsense was untraceable; one that raised was not.**
+  The `try` around the retrieval chain covered the call and not the result, so
+  an answer of `None`, an answer that was a list, or a response that was not a
+  mapping produced a bare 500 from Flask's handler — no request id in the body,
+  no line from the route — where a raised exception produces a 502 with an id a
+  visitor can quote. The visitor saw the same sentence either way, which is why
+  it went unnoticed; the difference was entirely in whether the failure could be
+  found afterwards.
+- **One 429 said when to come back and the other left the client guessing.**
+  The token bucket's refusal carries a `Retry-After`; a 429 passed through from
+  Groq carried none, so whether a client was told depended on which side of the
+  app produced the status. The provider's own number is used when it sends one,
+  with a short default when it does not, and a date-valued header falls back
+  rather than being mis-parsed.
+- **The development server bound `0.0.0.0`** while holding the real keys, and
+  `POST /get` takes no credentials — so anyone on the network could query the
+  index and spend the Groq quota. The Makefile said `localhost`; the README said
+  `0.0.0.0` and called it a feature. Loopback now, through a `HOST` setting.
+- **Two things only broke on Python 3.10**, which is the version that has to
+  pass: `except TimeoutError` does not catch `concurrent.futures.TimeoutError`
+  there, because 3.11 merged them and 3.10 keeps them separate; and
+  `packages_distributions()` reports none of the langchain packages, so a check
+  written against 3.12 was wrong about all seven. Both reached a push and were
+  caught by CI, which is what `make test310` now exists to pre-empt.
+- **`make` read its own comments out to whoever ran the command.** Thirteen
+  recipe comments across six targets, written for readers of the Makefile:
+  `make clean` opened with two lines about `.mypy_cache`, and `make lint`
+  printed six lines of prose about shellcheck between two checks.
+- **"Caught at commit time" was caught in CI**, which is afterwards. SECURITY.md
+  and the no-secrets test both claimed a pasted key is rejected at commit time;
+  the suite is deliberately not a hook, and the only secret hook installed was
+  `detect-private-key`, which covers SSH and PEM keys and not the API prefixes
+  this project actually leaked. A key in a local commit stays in that history
+  whatever the next commit does, so the claim is now true rather than reworded.
+- **A guard against something Flask does not let through.** The redirect branch
+  in the error handler had never run: Flask returns a `RoutingException` before
+  looking for a handler, and has since 1.0.3. Coverage was the only thing that
+  said so.
+- **A stylesheet rule that has never matched anything** (`.container`, against a
+  template whose only container is `container-fluid`), and **a structure tree
+  that never listed `static/chat.js`** — the whole front end — while naming the
+  stylesheet and the avatar beside it.
+- **The suite stopped taking five seconds some time ago.** Measured: 22s for the
+  whole thing, 4s without the `slow`-marked files. Three documents said five,
+  and the hook config's "thirteen seconds is too long for a commit hook" was a
+  true argument resting on a stale number.
+- **COOP alone was described as cross-origin isolation**, which is COOP *and*
+  COEP. The header is worth having for what it does do — severing the opener
+  relationship — and the comment claimed a larger thing. COEP is deliberately
+  absent, because the avatar is a no-CORS image from an origin that sends
+  `access-control-allow-origin` and no `Cross-Origin-Resource-Policy`, and
+  enabling it today would blank that image.
+
 - **A truncated reply published the model's chain of thought.**
   `strip_reasoning` matched `<think>…</think>` and nothing else, so an
   unterminated block went to the visitor intact, tag and all — and that is the
@@ -200,6 +253,21 @@ the behavioural ones; the rest is in the git log.
 
 ### Added
 
+- `make test310` runs the suite on the interpreter the container is built from,
+  with the digest read out of the Dockerfile so there is one pinned 3.10 rather
+  than two. It installs git first, because nine tests shell out to it and
+  without it they fail for reasons unrelated to the code.
+- A pre-commit hook that refuses a file containing an API key, sharing its
+  patterns with the test that applies them to every tracked file.
+- The rate-limited refusal now tells the visitor the wait that the `Retry-After`
+  header has carried all along — "in 2 seconds", "in about a minute" — instead
+  of "shortly", which covered everything from two seconds to ten minutes.
+- Checks for: the tree listing every file in the directories it itemises, in
+  both directions; a validation rule with no test that provokes it; every CDN
+  tag carrying an integrity hash in an algorithm browsers accept; the chain
+  Protocol being satisfied by all three things passed to `create_app`; and
+  style.css agreeing with the markup that uses it.
+
 - A check that nothing is imported without being declared — the direction that
   was claimed to exist and did not.
 - Checks that every CDN tag carries a subresource integrity hash, in an
@@ -280,6 +348,11 @@ the behavioural ones; the rest is in the git log.
   disagrees with the changelog.
 
 ### Changed
+
+- The `slow` marker means "slow for a reason other than the code under test"
+  rather than "needs a heavyweight import", which was already untrue of one of
+  its three users. Two pytest-subprocess tests move behind it, taking 2.3
+  seconds out of a fast run that is now 3.4.
 
 - The deploy ships the payload as of `HEAD` rather than the working tree, so
   committing first is now required to deploy a change. Documented in DEPLOY.md
