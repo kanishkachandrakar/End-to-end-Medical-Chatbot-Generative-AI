@@ -80,3 +80,32 @@ def test_an_answer_following_an_unclosed_tag_is_sacrificed_knowingly():
 def test_is_not_greedy_across_separate_blocks():
     """A greedy pattern would delete 'kept' along with both blocks."""
     assert strip_reasoning("<think>a</think>kept<think>b</think>") == "kept"
+
+
+@pytest.mark.parametrize(
+    "seconds, expected",
+    [
+        (0, "1 second"),
+        (1, "1 second"),
+        (2, "2 seconds"),
+        (59, "59 seconds"),
+        (60, "about a minute"),
+        (89, "about a minute"),
+        (120, "about 2 minutes"),
+        (600, "about 10 minutes"),
+    ],
+)
+def test_a_wait_is_worded_for_a_sentence(seconds, expected):
+    """"1 seconds" in a refusal makes the rest of it less believable."""
+    from src.text import seconds_in_words
+
+    assert seconds_in_words(seconds) == expected
+
+
+def test_no_wait_renders_as_a_bare_number():
+    """So the message always reads as English rather than as a field."""
+    from src.text import seconds_in_words
+
+    for seconds in range(0, 300):
+        rendered = seconds_in_words(seconds)
+        assert rendered.endswith(("second", "seconds", "minute", "minutes")), rendered

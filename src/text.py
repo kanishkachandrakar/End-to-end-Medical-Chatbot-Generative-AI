@@ -66,6 +66,23 @@ def chunk_ids(chunks: Iterable) -> list[str]:
     ]
 
 
+def seconds_in_words(seconds: int) -> str:
+    """A wait, worded for a sentence shown to a visitor.
+
+    The rate limiter knows exactly how far away the next token is, and the
+    refusal said "shortly" while the Retry-After header beside it carried the
+    number. This renders it, with the plural right -- "1 seconds" in a
+    user-facing message is the sort of thing that makes the rest of the
+    sentence less believable.
+    """
+    if seconds <= 1:
+        return "1 second"
+    if seconds < 60:
+        return f"{seconds} seconds"
+    minutes = round(seconds / 60)
+    return "about a minute" if minutes == 1 else f"about {minutes} minutes"
+
+
 def batched(items: Sequence[T], size: int) -> Iterator[list[T]]:
     """Yield consecutive slices of ``items`` of at most ``size`` entries.
 

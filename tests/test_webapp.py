@@ -166,8 +166,30 @@ def test_the_limiter_refuses_a_question_once_the_budget_is_spent(client_for):
     assert client.post("/get", data={"msg": "first"}).status_code == 200
     refused = client.post("/get", data={"msg": "second"})
     assert refused.status_code == 429
-    assert refused.data.decode() == TOO_BUSY
+    assert refused.data.decode().startswith(TOO_BUSY.split("{")[0])
     assert len(chain.calls) == 1, "the refused question must not reach the model"
+
+
+def test_the_refusal_says_the_same_wait_the_header_does():
+    """The message said "shortly" while Retry-After carried the number.
+
+    Both come from one call to seconds_until now, so a visitor reading the
+    bubble and a client reading the header cannot be told different things.
+    """
+    from src.text import seconds_in_words
+
+    app = create_app(StubChain(), limiter=TokenBucket(capacity=1, rate=1 / 30))
+    client = app.test_client()
+    assert client.post("/get", data={"msg": "first"}).status_code == 200
+
+    refused = client.post("/get", data={"msg": "second"})
+    assert refused.status_code == 429
+    wait = int(refused.headers["Retry-After"])
+    assert seconds_in_words(wait) in refused.data.decode(), (
+        refused.data.decode(),
+        wait,
+    )
+    assert "shortly" not in refused.data.decode()
 
 
 def test_a_rejected_question_does_not_spend_budget(client_for):

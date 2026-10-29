@@ -17,9 +17,13 @@ NO_ANSWER = "I don't have an answer for that."
 
 # Asked for too much.
 TOO_LONG = "That question is too long -- please keep it under {limit} characters."
+# {wait} is rendered by src.text.seconds_in_words. The limiter knows exactly
+# how far away the next token is -- the Retry-After header beside this message
+# has carried that number all along -- and "shortly" was the vaguest available
+# way to say it.
 TOO_BUSY = (
     "This demo answers a limited number of questions a minute -- "
-    "please try again shortly."
+    "please try again in {wait}."
 )
 
 # Something on this side is wrong.

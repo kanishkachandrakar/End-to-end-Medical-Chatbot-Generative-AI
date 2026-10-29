@@ -21,7 +21,7 @@ from src.config import LOG_LEVEL, MAX_CONTENT_BYTES, MAX_QUESTION_CHARS
 from src.errors import UNAVAILABLE, failure_reply
 from src.messages import NO_ANSWER, NO_QUESTION, TOO_BUSY, TOO_LONG
 from src.ratelimit import TokenBucket
-from src.text import strip_reasoning
+from src.text import seconds_in_words, strip_reasoning
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -179,11 +179,13 @@ def create_app(
         # Checked after validation so a rejected question costs no budget.
         if limiter is not None and not limiter.take():
             app.logger.warning("rate limit reached, question refused")
-            refusal = text_reply(TOO_BUSY, 429)
             # Correct for a 429, and it saves a client guessing: at this rate
-            # the next token is a known number of seconds away.
-            wait = math.ceil(limiter.seconds_until())
-            refusal.headers["Retry-After"] = str(max(1, wait))
+            # the next token is a known number of seconds away. The same
+            # number goes into the sentence, so the header and the visitor
+            # are told the same thing by the same arithmetic.
+            wait = max(1, math.ceil(limiter.seconds_until()))
+            refusal = text_reply(TOO_BUSY.format(wait=seconds_in_words(wait)), 429)
+            refusal.headers["Retry-After"] = str(wait)
             refusal.headers["X-RateLimit-Limit"] = str(int(limiter.capacity))
             refusal.headers["X-RateLimit-Remaining"] = "0"
             return refusal

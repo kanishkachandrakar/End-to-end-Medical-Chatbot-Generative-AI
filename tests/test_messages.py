@@ -69,7 +69,9 @@ def test_the_only_placeholder_is_the_documented_one():
     """A stray brace would render literally or raise on .format()."""
     for text in messages.ALL:
         for field in re.findall(r"\{(\w*)\}", text):
-            assert field == "limit", f"{text!r} has an unexpected {{{field}}}"
+            assert field in ("limit", "wait"), (
+                f"{text!r} has an unexpected {{{field}}}"
+            )
 
 
 def test_the_banner_text_follows_the_same_rule():
