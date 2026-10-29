@@ -195,6 +195,18 @@ def create_app(
         started = time.perf_counter()
         try:
             response = rag_chain.invoke({"input": msg})
+            # Reading the answer is inside the try on purpose. A chain that
+            # returns something unusable -- an answer of None, a list, or a
+            # response that is not a mapping at all -- has failed exactly as
+            # much as one that raised, and with only the call covered it took
+            # the other path: a bare 500 from Flask's handler, carrying no
+            # request id, where a raised exception gets a 502 and an id to
+            # quote. Same cause, and only one of them traceable.
+            #
+            # A response with no "answer" key is not in that group: a chain
+            # may legitimately have nothing to say, and that is NO_ANSWER
+            # below with a 200.
+            answer = strip_reasoning(response.get("answer", ""))
         except Exception as exc:  # noqa: BLE001 - mapped to a reply below
             app.logger.exception(
                 "[%s] the retrieval chain failed after %.1fs",
@@ -206,7 +218,6 @@ def create_app(
             # log, which is otherwise guesswork on a shared deployment.
             return text_reply(f"{message} (ref {g.request_id})", status)
 
-        answer = strip_reasoning(response.get("answer", ""))
         # Retrieval plus generation, which is the only number that explains a
         # slow demo -- and the reasoning tokens that get stripped are part of it.
         app.logger.info(

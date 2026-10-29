@@ -842,3 +842,49 @@ def test_the_revision_header_follows_the_build_arg(monkeypatch):
     finally:
         monkeypatch.delenv("APP_REVISION", raising=False)
         importlib.reload(webapp)
+
+
+@pytest.mark.parametrize(
+    "unusable",
+    [
+        pytest.param({"answer": None}, id="answer-is-none"),
+        pytest.param({"answer": ["a", "b"]}, id="answer-is-a-list"),
+        pytest.param("not a mapping at all", id="response-is-not-a-mapping"),
+    ],
+)
+def test_an_unusable_chain_response_is_traceable_like_a_raised_one(unusable):
+    """Reading the answer used to sit outside the try that covers the call.
+
+    So a chain that returned something unusable produced a bare 500 from
+    Flask's handler -- no request id in the body, and the log line written
+    by the generic handler rather than the route's, which records the
+    duration and the id. A chain that raised produced a 502 with an id to
+    quote in a report. Same cause, one of them traceable.
+    """
+
+    class Returns:
+        def invoke(self, payload):
+            return unusable
+
+    response = create_app(Returns()).test_client().post("/get", data={"msg": "q"})
+    assert response.status_code == 502, response.data
+    assert response.mimetype == "text/plain"
+    body = response.data.decode()
+    assert "(ref " in body, body
+    assert response.headers["X-Request-Id"] in body, (body, response.headers)
+
+
+def test_a_response_with_no_answer_key_is_still_a_success():
+    """Not every chain result without an answer is a malfunction.
+
+    A chain may legitimately have nothing to say, which is NO_ANSWER and a
+    200 -- so the stricter handling above must not swallow this case.
+    """
+
+    class Empty:
+        def invoke(self, payload):
+            return {"context": []}
+
+    response = create_app(Empty()).test_client().post("/get", data={"msg": "q"})
+    assert response.status_code == 200
+    assert response.data.decode() == NO_ANSWER
