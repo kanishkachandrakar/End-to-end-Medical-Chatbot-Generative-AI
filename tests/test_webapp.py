@@ -428,9 +428,16 @@ def test_an_unhandled_exception_is_answered_in_text_too():
 def test_a_redirect_is_left_alone():
     """werkzeug.routing.RequestRedirect is an HTTPException as well.
 
-    No rule here ends in a slash, so none redirects today; a handler that
-    answered one with a sentence would drop the Location header and strand
-    the client, which is a hard failure to attribute later.
+    This passes because of Flask, not because of anything in this project.
+    handle_http_exception returns a RoutingException before it looks for a
+    handler -- "not passed to error handlers" since 1.0.3 -- so a plain-text
+    handler registered against HTTPException cannot intercept one. The guard
+    written here for that case was unreachable, and coverage was the only
+    thing that said so.
+
+    Kept, because the property it asserts is one this app depends on and
+    does not control: a rule written with a trailing slash must keep
+    redirecting rather than answering a sentence with a 308.
     """
     from flask import Flask
 

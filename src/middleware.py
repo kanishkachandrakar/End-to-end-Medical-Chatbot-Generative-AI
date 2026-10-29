@@ -58,12 +58,16 @@ def install(app: Flask, text_reply, revision: str) -> None:
         runs, and that one came back as HTML. Flask finds this handler for an
         unhandled exception too, by looking up InternalServerError.
         """
-        # A redirect is an HTTPException as well, and its Location header is
-        # the whole response; replacing it with a sentence would strand the
-        # client. None of the current rules redirect, but a rule written with
-        # a trailing slash would.
-        if error.code is not None and 300 <= error.code < 400:
-            return error
+        # No redirect guard here. A redirect is an HTTPException too, and
+        # this handler is registered against the base class -- but Flask
+        # returns a RoutingException before it looks for a handler at all:
+        #
+        #     if isinstance(e, RoutingException):
+        #         return e
+        #
+        # documented since 1.0.3 as "not passed to error handlers", and this
+        # project requires flask>=3.0. The guard that used to sit here was
+        # unreachable, which coverage said and nothing else did.
         status = error.code or 500
         return text_reply(_VISITOR_WORDING.get(status, f"{error.name}."), status)
 
