@@ -47,7 +47,22 @@ SECURITY_HEADERS = {
     # A text box and a button need none of these. Listing them denies the
     # permission rather than leaving it to the browser's default.
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
-    # Cross-origin isolation for the page itself; harmless for the CDN assets,
-    # which are loaded as subresources rather than documents.
+    # Not cross-origin isolation, which this comment used to claim: that is
+    # COOP *and* COEP together, and only then does crossOriginIsolated become
+    # true. What this one header does is sever the window.opener relationship
+    # -- a page that opens this one, or that this one opens, cannot reach into
+    # it -- which is worth having on its own and is all that is being had.
+    #
+    # COEP is deliberately absent. Under require-corp every no-CORS
+    # cross-origin subresource needs a Cross-Origin-Resource-Policy header,
+    # and the user avatar is an <img> that chat.js builds with no crossorigin
+    # attribute, from an origin that sends none:
+    #
+    #     $ curl -sI https://i.ibb.co/...png
+    #     access-control-allow-origin: *      <- CORS, which is not CORP
+    #
+    # So adding COEP would blank that avatar. It could be made CORS-loaded,
+    # since the origin does allow it, but that is a browser-visible change
+    # and not one to make from a comment.
     "Cross-Origin-Opener-Policy": "same-origin",
 }

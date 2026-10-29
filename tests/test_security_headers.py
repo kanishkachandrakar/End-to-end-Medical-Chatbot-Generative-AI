@@ -138,3 +138,49 @@ def test_device_permissions_are_denied():
 
 def test_the_page_is_cross_origin_isolated():
     assert SECURITY_HEADERS["Cross-Origin-Opener-Policy"] == "same-origin"
+
+
+def test_coep_is_absent_or_the_avatar_is_cors_loaded():
+    """COEP require-corp blanks a no-CORS cross-origin image.
+
+    The avatar is an <img> chat.js builds with no crossorigin attribute,
+    from an origin that sends access-control-allow-origin but no
+    Cross-Origin-Resource-Policy -- and CORS is not CORP. So the two cannot
+    both be true at once: whoever adds COEP has to make that image
+    CORS-loaded in the same change, and this is what will tell them.
+    """
+    coep = SECURITY_HEADERS.get("Cross-Origin-Embedder-Policy")
+    if coep is None or coep == "unsafe-none":
+        return
+
+    # chat.js only. PAGE_SOURCES includes the template, whose three CDN tags
+    # all carry crossorigin="anonymous" -- so searching it finds the attribute
+    # and says nothing about the one image that needs it. The first version of
+    # this test did exactly that and passed with COEP switched on.
+    import pathlib
+
+    script = (
+        pathlib.Path(__file__).resolve().parent.parent / "static" / "chat.js"
+    ).read_text()
+    assert "crossOrigin" in script or "crossorigin" in script, (
+        f"COEP is {coep!r}, and chat.js builds the avatar <img> without "
+        "crossorigin, from an origin that sends no CORP -- it would be blank"
+    )
+
+
+def test_the_opener_policy_is_not_described_as_isolation():
+    """It was. COOP alone does not make a document cross-origin isolated.
+
+    crossOriginIsolated requires COOP and COEP together; with one of them a
+    page gets its browsing context group severed from its opener and nothing
+    more. The header is worth having for that -- the comment just claimed a
+    different and larger thing.
+    """
+    import pathlib
+
+    source = (
+        pathlib.Path(__file__).resolve().parent.parent / "src" / "headers.py"
+    ).read_text()
+    coop_section = source.split("Cross-Origin-Opener-Policy")[0]
+    claim = "Cross-origin isolation for the page itself"
+    assert claim not in coop_section, "COOP alone is not cross-origin isolation"
