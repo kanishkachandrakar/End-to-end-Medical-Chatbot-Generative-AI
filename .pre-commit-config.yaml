@@ -18,6 +18,20 @@ repos:
         types: [python]
         require_serial: true
 
+  # The one check where "at commit time" is the whole value: a key in a local
+  # commit is in that history permanently, and removing it in the next commit
+  # does not remove it from the one before. CI catching it is catching it after
+  # the fact. detect-private-key below covers SSH and PEM keys, not the API key
+  # prefixes this project actually leaked.
+  - repo: local
+    hooks:
+      - id: no-api-keys
+        name: no api keys
+        entry: python scripts/check_no_keys.py
+        language: system
+        types: [text]
+        require_serial: true
+
   # A notebook is one JSON document, and the scripts in this history have
   # corrupted it more than once by editing it as text. check-json does not
   # cover .ipynb, so this does.

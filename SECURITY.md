@@ -58,8 +58,12 @@ What is in place now:
 - **Dependabot proposes every bump as a pull request**, and CI builds the image
   and boots it before the bump is believed. Bounds are only tolerable because
   the updates still arrive.
-- **A test fails on any tracked file containing a key-shaped string**, so a
-  pasted secret is caught at commit time.
+- **A pre-commit hook rejects any file containing a key-shaped string**
+  (`scripts/check_no_keys.py`), and a test applies the same patterns to every
+  tracked file. The hook is what makes "at commit time" true: a key in a local
+  commit stays in that history whatever the next commit does, so catching it in
+  CI is catching it afterwards. This section claimed commit-time cover for some
+  time while only the test existed.
 - **`requirements.txt` and `requirements-dev.txt` are held to identical bounds**
   on shared packages. Testing against versions the container will not install
   is how both failures stayed hidden.

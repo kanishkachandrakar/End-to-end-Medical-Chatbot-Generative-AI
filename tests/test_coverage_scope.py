@@ -27,6 +27,11 @@ UNMEASURED = {
     "setup.py",
     # A one-shot scaffold that finished before the first commit.
     "template.py",
+    # A pre-commit hook. The suite drives it as a subprocess and loads it by
+    # path for its patterns, but it is not under any coverage source entry --
+    # and adding scripts/ to the source would mix a dev tool's lines into the
+    # figure that describes the shipped app.
+    "scripts/check_no_keys.py",
 }
 
 

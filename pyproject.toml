@@ -70,6 +70,11 @@ filterwarnings = [
 #   setup.py          Run by pip, never by this project.
 #   template.py       A one-shot scaffold whose job finished before the first
 #                     commit; running it again is a no-op by design.
+#   scripts/check_no_keys.py
+#                     A pre-commit hook. The suite drives it as a subprocess
+#                     and loads it by path for its patterns, but adding
+#                     scripts/ to the source would mix a dev tool's lines into
+#                     a figure that describes the shipped app.
 #
 # tests/test_coverage_scope.py holds that list to being complete, so the next
 # module cannot go unmeasured the way store_index.py did.
