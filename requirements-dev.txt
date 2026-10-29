@@ -25,7 +25,7 @@ langchain-huggingface>=1.0,<2
 langchain-pinecone>=0.2,<1
 # The grpc extra, matching requirements.txt: store_index.py imports
 # pinecone.grpc, which needs it.
-pinecone[grpc]>=5.0
+pinecone[grpc]>=10.2.0
 pypdf>=4.0
 python-dotenv>=1.0
 
