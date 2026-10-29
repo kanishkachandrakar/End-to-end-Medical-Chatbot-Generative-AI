@@ -143,3 +143,68 @@ def test_the_shipped_defaults_satisfy_the_cross_checks():
         + config._FORM_FIELD_OVERHEAD
     )
     assert config.RATE_LIMIT_PER_MINUTE >= 0
+
+
+@pytest.mark.parametrize("empty", ["", "   ", "\t"])
+def test_an_empty_host_is_rejected(monkeypatch, empty):
+    """HOST="" binds every interface, which is the opposite of the default.
+
+    Flask and Werkzeug treat an empty host as 0.0.0.0, so a HOST that got
+    through as blank -- an unset shell variable expanded into a .env line,
+    a trailing `HOST=` -- would quietly undo the loopback default and serve
+    the network, with the real keys loaded and /get needing none.
+
+    This rule was added with the HOST setting and without a test, in a
+    function where the other nine rules all have one. Coverage was pointing
+    at the line.
+    """
+    with pytest.raises(ValueError, match="HOST"):
+        _reload_with(monkeypatch, HOST=empty)
+
+
+def test_a_real_host_is_accepted(monkeypatch):
+    """So the check above is rejecting blankness rather than the variable."""
+    for host in ("127.0.0.1", "0.0.0.0", "localhost", "::1"):
+        assert _reload_with(monkeypatch, HOST=host).HOST == host
+
+
+def test_every_setting_validate_rejects_has_a_test_that_provokes_it():
+    """The HOST rule went untested because nothing connected the two lists.
+
+    Each rule in _validate() names the setting it is about, and each
+    rejection test says which message it expects with `match=`. So the
+    settings named in the one have to appear in the other.
+
+    The limit: this catches a rule about a setting no test provokes, which
+    is the case that happened. It does not catch a second rule about a
+    setting already covered -- comparing counts would, and the first
+    version of this test did exactly that and caught nothing, because the
+    count it compared against already had slack in it.
+    """
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+    config = (root / "src" / "config.py").read_text()
+    body = config.split("def _validate()")[1].split("\ndef ")[0]
+
+    # The setting each message is about: the first uppercase name inside the
+    # problems.append(...) that the rule raises.
+    rejected = set()
+    for append in re.findall(r"problems\.append\((.*?)\)\n", body, re.DOTALL):
+        names = re.findall(r"\b([A-Z][A-Z_]{3,})\b", append)
+        if names:
+            rejected.add(names[0])
+
+    tests = (root / "tests" / "test_config_validation.py").read_text()
+    provoked = set(re.findall(r'pytest\.raises\(ValueError, match="([^"]+)"', tests))
+
+    assert rejected, "no rules found in _validate"
+    unprovoked = sorted(
+        name
+        for name in rejected
+        if not any(name in expected for expected in provoked)
+    )
+    assert not unprovoked, (
+        f"_validate rejects these and nothing provokes it: {unprovoked}"
+    )
