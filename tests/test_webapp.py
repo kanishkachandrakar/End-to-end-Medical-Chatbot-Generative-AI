@@ -910,3 +910,36 @@ def test_a_response_with_no_answer_key_is_still_a_success():
     response = create_app(Empty()).test_client().post("/get", data={"msg": "q"})
     assert response.status_code == 200
     assert response.data.decode() == NO_ANSWER
+
+
+def test_a_rate_limit_from_the_provider_also_says_when_to_come_back():
+    """Through the route, not the function.
+
+    retry_after() had tests and the route's use of it had none, so deleting
+    the two lines that attach the header failed nothing -- the reply went
+    back bare again and every test still passed.
+    """
+
+    class Throttled:
+        def invoke(self, payload):
+            exc = RuntimeError("provider rate limit")
+            exc.response = type(
+                "R", (), {"headers": {"retry-after": "17"}, "status_code": 429}
+            )()
+            raise exc
+
+    response = create_app(Throttled()).test_client().post("/get", data={"msg": "q"})
+    assert response.status_code == 429
+    assert response.headers.get("Retry-After") == "17"
+
+
+def test_a_provider_failure_that_is_not_a_rate_limit_gets_no_retry_after():
+    """A number on a 502 would be a guess presented as information."""
+
+    class Broken:
+        def invoke(self, payload):
+            raise RuntimeError("something else entirely")
+
+    response = create_app(Broken()).test_client().post("/get", data={"msg": "q"})
+    assert response.status_code == 502
+    assert "Retry-After" not in response.headers

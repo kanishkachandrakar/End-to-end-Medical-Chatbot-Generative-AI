@@ -18,7 +18,7 @@ from flask import Flask, Response, g, make_response, render_template, request
 
 from src import assets, middleware
 from src.config import LOG_LEVEL, MAX_CONTENT_BYTES, MAX_QUESTION_CHARS
-from src.errors import UNAVAILABLE, failure_reply
+from src.errors import UNAVAILABLE, failure_reply, retry_after
 from src.messages import NO_ANSWER, NO_QUESTION, TOO_BUSY, TOO_LONG
 from src.ratelimit import TokenBucket
 from src.text import seconds_in_words, strip_reasoning
@@ -218,7 +218,14 @@ def create_app(
             message, status = failure_reply(exc)
             # The id lets a reported failure be matched to its traceback in the
             # log, which is otherwise guesswork on a shared deployment.
-            return text_reply(f"{message} (ref {g.request_id})", status)
+            reply = text_reply(f"{message} (ref {g.request_id})", status)
+            # Our own 429 says when to come back; one passed through from the
+            # provider said nothing, so the same status left a client guessing
+            # depending on which side of the app produced it.
+            upstream_wait = retry_after(exc)
+            if upstream_wait is not None:
+                reply.headers["Retry-After"] = str(upstream_wait)
+            return reply
 
         # Retrieval plus generation, which is the only number that explains a
         # slow demo -- and the reasoning tokens that get stripped are part of it.

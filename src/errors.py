@@ -7,7 +7,18 @@ there cannot be tested.
 
 from src.messages import RATE_LIMITED, TIMED_OUT, UNAVAILABLE
 
-__all__ = ["RATE_LIMITED", "TIMED_OUT", "UNAVAILABLE", "failure_reply"]
+__all__ = [
+    "RATE_LIMITED",
+    "TIMED_OUT",
+    "UNAVAILABLE",
+    "failure_reply",
+    "retry_after",
+]
+
+# What to tell a client when the provider rate-limited us and did not say for
+# how long. Short, because a provider's throttle usually clears in seconds and
+# a client told to wait a minute waits a minute.
+DEFAULT_RETRY_AFTER = 5
 
 
 def _status_of(exc: BaseException) -> int | None:
@@ -16,6 +27,40 @@ def _status_of(exc: BaseException) -> int | None:
     if status is None:
         status = getattr(getattr(exc, "response", None), "status_code", None)
     return status if isinstance(status, int) else None
+
+
+def retry_after(exc: BaseException) -> int | None:
+    """Seconds to wait, read off the provider's own response if it said.
+
+    The app's own 429 carries a Retry-After computed from the token bucket;
+    a 429 passed through from Groq carried none, so the same status told a
+    client when to come back on one path and left it guessing on the other.
+
+    Groq's is an httpx response underneath, so the header is on
+    exc.response.headers. A provider that sends a date rather than a count
+    is ignored rather than mis-parsed -- the default below is better than a
+    number read wrongly.
+    """
+    # One try around the whole access. getattr's default only covers an
+    # AttributeError, so a response object whose .headers raises anything else
+    # came straight back out of here -- and this runs on the failure path,
+    # where adding a second failure is the one thing it must not do.
+    try:
+        raw = exc.response.headers.get("retry-after")  # type: ignore[attr-defined]
+    except Exception:
+        raw = None
+
+    if raw is not None:
+        try:
+            seconds = int(float(str(raw).strip()))
+        except (TypeError, ValueError):
+            # The HTTP-date form is legal and is not a count of seconds.
+            # Falling back beats reading "Wed," as a number.
+            seconds = None
+        if seconds is not None and seconds >= 0:
+            return max(1, seconds)
+
+    return DEFAULT_RETRY_AFTER if _status_of(exc) == 429 else None
 
 
 def failure_reply(exc: BaseException) -> tuple[str, int]:
