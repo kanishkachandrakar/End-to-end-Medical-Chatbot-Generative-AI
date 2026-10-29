@@ -219,7 +219,9 @@ def test_every_makefile_target_is_documented():
     """`make help` reads the ## comments, so an undocumented target is hidden."""
     makefile = (ROOT / "Makefile").read_text()
     declared = set(re.findall(r"^\.PHONY: (.+)$", makefile, re.MULTILINE)[0].split())
-    documented = set(re.findall(r"^([a-z-]+):.*?## ", makefile, re.MULTILINE))
+    # [a-z0-9-] rather than [a-z-]: test310 was invisible to this and to the
+    # help target's own grep, both of which had no digits in their patterns.
+    documented = set(re.findall(r"^([a-z0-9-]+):.*?## ", makefile, re.MULTILINE))
     assert declared == documented, f"undocumented: {declared - documented}"
 
 
@@ -289,7 +291,13 @@ def test_the_makefile_honours_a_python_override():
     import re
 
     makefile = (ROOT / "Makefile").read_text()
-    recipes = [line for line in makefile.splitlines() if line.startswith("\t")]
+    # Continuations joined first, so a logical recipe line is matched whole.
+    # The exemptions below are per line, and a line ending in `\` put the
+    # `docker run` and the interpreter it chooses on different ones -- so a
+    # command running inside a container read as a host command ignoring
+    # PYTHON=, which is the opposite of what it is.
+    joined = re.sub(r"\\\n\s*", " ", makefile)
+    recipes = [line for line in joined.splitlines() if line.startswith("\t")]
     assert recipes, "no recipe lines found"
 
     offenders = [
@@ -342,3 +350,50 @@ def test_every_tree_entry_describes_something_that_exists():
     for name in named:
         found = (ROOT / name).exists() or (ROOT / "src" / name).exists()
         assert found, f"the tree names {name}, which does not exist"
+
+
+def test_the_local_310_run_uses_the_pinned_interpreter():
+    """One 3.10 in this repository, not two that can drift.
+
+    `make test310` reads the image out of the Dockerfile rather than naming
+    a digest of its own, so the interpreter the suite is checked against
+    locally is the one the container is built on.
+    """
+    import re
+
+    makefile = (ROOT / "Makefile").read_text()
+    assert re.search(r"^PY310_IMAGE := \$\(shell grep", makefile, re.MULTILINE), (
+        "test310 should derive its image from the Dockerfile, not hardcode one"
+    )
+    # An actual digest, not the word: the shell pattern that extracts it
+    # contains "sha256:[0-9a-f]+", which is a regex and not a pin.
+    assert not re.search(r"sha256:[0-9a-f]{12,}", makefile), (
+        "a digest pinned in two places is two pins"
+    )
+
+
+def test_the_local_310_run_matches_the_matrix_floor():
+    """It exists to stand in for the 3.10 leg, so it has to be that version."""
+    import re
+
+    makefile = (ROOT / "Makefile").read_text()
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    dockerfile = (ROOT / "Dockerfile").read_text()
+
+    matrix = re.search(r"python-version: \[(.+?)\]", workflow)
+    assert matrix, "no version matrix in the workflow"
+    versions = re.findall(r"\d+\.\d+", matrix.group(1))
+    floor = min(versions, key=lambda v: tuple(int(p) for p in v.split(".")))
+
+    # Backslashes stripped: the Makefile spells the image inside a grep
+    # pattern, where the dot is escaped.
+    unescaped = makefile.replace("\\", "")
+    assert f"python:{floor}-slim" in dockerfile, (floor, "Dockerfile")
+    assert f"python:{floor}-slim" in unescaped, (floor, "Makefile")
+    assert f"test{floor.replace('.', '')}" in makefile, floor
+
+
+def test_contributing_says_to_run_the_310_suite():
+    """The two bugs it exists for both reached a push; the habit is the fix."""
+    contributing = (ROOT / "CONTRIBUTING.md").read_text()
+    assert "make test310" in contributing

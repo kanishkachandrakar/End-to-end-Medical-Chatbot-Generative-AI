@@ -14,11 +14,18 @@ PYTHON ?= python
 COVERAGE_CORE := $(shell $(PYTHON) -c 'import sys; print("sysmon" if sys.version_info >= (3, 12) else "ctrace")')
 export COVERAGE_CORE
 
-.DEFAULT_GOAL := help
-.PHONY: help install test fast lint fix hooks check run index dry-run image clean
+# The interpreter `make test310` runs the suite under, read out of the
+# Dockerfile so there is one pinned 3.10 in this repository rather than two.
+PY310_IMAGE := $(shell grep -oE 'python:3\.10-slim@sha256:[0-9a-f]+' Dockerfile)
 
+.DEFAULT_GOAL := help
+.PHONY: help install test test310 fast lint fix hooks check run index dry-run image clean
+
+# [a-z0-9-] rather than [a-z-]: test310 was invisible to this the moment it
+# existed, because the pattern had no digits in it -- as did the test that
+# checks every target is documented.
 help:  ## Show this list
-	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) \
+	@grep -E '^[a-z0-9-]+:.*?## ' $(MAKEFILE_LIST) \
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
 
 install:  ## Install runtime and test dependencies
@@ -27,6 +34,28 @@ install:  ## Install runtime and test dependencies
 # --cov before --cov-fail-under, never before a path: see pyproject.toml.
 test:  ## Run the whole suite with the coverage gate CI applies
 	$(PYTHON) -m pytest --cov --cov-fail-under=95
+
+# Why this exists: 3.10 is the version that has to pass -- it is what the
+# Dockerfile and setup.py's python_requires target -- and a local checkout is
+# whatever interpreter happens to be installed, which here is 3.12. Two bugs
+# have now reached a push because of the gap: `except TimeoutError` not
+# catching concurrent.futures.TimeoutError, which 3.11 merged and 3.10 keeps
+# separate, and packages_distributions() reporting no langchain packages on
+# 3.10. Both were caught by CI, which is three minutes later than here.
+#
+# git is installed because nine tests shell out to it, and without it they fail
+# for reasons that have nothing to do with the code -- the first run of this by
+# hand reported ten failures of which one was real. safe.directory because the
+# mount belongs to another uid, and no:cacheprovider so the container does not
+# leave a root-owned .pytest_cache in the checkout.
+test310:  ## Run the suite on the pinned 3.10, as CI's other matrix leg does
+	@test -n "$(PY310_IMAGE)" || { echo "no 3.10 image pinned in the Dockerfile"; exit 1; }
+	docker run --rm -v "$(CURDIR):/w" -w /w $(PY310_IMAGE) sh -c '\
+		apt-get -qq update >/dev/null 2>&1 \
+		&& apt-get -qq install -y git >/dev/null 2>&1; \
+		git config --global --add safe.directory /w; \
+		pip install -q -r requirements-dev.txt; \
+		COVERAGE_CORE=ctrace python -m pytest -p no:cacheprovider'
 
 fast:  ## Run the suite without the slow-marked files
 	$(PYTHON) -m pytest -m "not slow"

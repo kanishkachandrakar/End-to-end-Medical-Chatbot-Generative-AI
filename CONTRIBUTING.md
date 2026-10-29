@@ -27,6 +27,17 @@ argument, so `pytest tests/test_one_thing.py` ran all 490 tests and reported
 no coverage at all. If you add a flag with an optional value to `addopts`,
 check what it does to a positional argument.
 
+Run `make test310` before pushing. The suite is checked against two
+interpreters in CI, and 3.10 is the one that has to pass — it is what the
+Dockerfile and `python_requires` target — while a local checkout is whatever
+interpreter you happen to have. That gap has now sent two bugs to a push:
+`except TimeoutError` not catching `concurrent.futures.TimeoutError`, which
+3.11 merged into the builtin and 3.10 keeps separate, and
+`packages_distributions()` reporting none of the langchain packages on 3.10.
+Both were caught by CI, which is several minutes later and after the fact. The
+target runs the suite in the same pinned image the container is built from, and
+takes about a minute after the first pull.
+
 Optionally `pip install pre-commit && pre-commit install` runs the quick checks
 before each commit. CI runs the same hooks, so the only thing you lose by not
 installing them is finding out later.
