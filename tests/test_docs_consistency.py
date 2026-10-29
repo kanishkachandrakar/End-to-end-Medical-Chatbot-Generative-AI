@@ -339,16 +339,58 @@ def test_the_structure_tree_lists_every_module():
     assert not missing, f"absent from the README's structure tree: {missing}"
 
 
+# The other directories the tree describes file by file. src/ is handled
+# above; these two were listed and never checked, which is how static/ came
+# to omit chat.js -- the whole front end -- while naming the stylesheet and
+# the avatar beside it.
+LISTED_DIRECTORIES = {
+    "static": ("*.js", "*.css", "*.jpeg"),
+    "scripts": ("*.sh", "*.py"),
+}
+
+
+def test_the_tree_lists_every_file_in_the_directories_it_itemises():
+    """A tree that names two of three files reads as naming all three."""
+    missing = []
+    for directory, patterns in LISTED_DIRECTORIES.items():
+        for pattern in patterns:
+            for path in (ROOT / directory).glob(pattern):
+                if path.name not in README:
+                    missing.append(f"{directory}/{path.name}")
+    assert not missing, f"absent from the README's structure tree: {sorted(missing)}"
+
+
+def test_those_directories_are_not_empty():
+    """So the check above is comparing against something."""
+    for directory, patterns in LISTED_DIRECTORIES.items():
+        found = [p for pattern in patterns for p in (ROOT / directory).glob(pattern)]
+        assert len(found) >= 2, (directory, found)
+
+
 def test_every_tree_entry_describes_something_that_exists():
     """And the other direction: a tree naming a deleted module misleads too."""
     import re
 
     tree = re.search(r"```\n\.\n(.*?)```", README, re.DOTALL)
     assert tree, "no structure tree found in the README"
-    named = re.findall(r"([a-z_]+\.py)", tree.group(1))
+    # The stem may contain a dot: gunicorn.conf.py was read as "conf.py" by a
+    # pattern that stopped at the first one, so adding it to the tree made
+    # this test report a file that does not exist.
+    named = re.findall(r"([a-z_][a-z_.]*\.py)", tree.group(1))
     assert named, "no python files named in the tree"
+    # Anywhere git tracks it, not just the root and src/: the tree itemises
+    # scripts/ too, and check_no_keys.py living there was reported as a file
+    # that does not exist.
+    import subprocess
+
+    tracked = {
+        pathlib.PurePosixPath(line).name
+        for line in subprocess.run(
+            ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True
+        ).stdout.split()
+    }
     for name in named:
-        found = (ROOT / name).exists() or (ROOT / "src" / name).exists()
+        found = name in tracked
         assert found, f"the tree names {name}, which does not exist"
 
 

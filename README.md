@@ -93,8 +93,10 @@ Data/Medical_book.pdf
 ├── .env.example         # Names of the environment variables the app expects
 ├── Data/
 │   └── Medical_book.pdf # Source document that gets indexed
+├── gunicorn.conf.py     # How the container serves it: bind, workers, timeouts
 ├── scripts/
-│   └── deploy_space.sh  # Pushes the runtime files at HEAD to a Space
+│   ├── deploy_space.sh  # Pushes the runtime files at HEAD to a Space
+│   └── check_no_keys.py # Pre-commit hook: refuses a file holding an API key
 ├── tests/               # pytest suite; no keys or network required
 ├── src/
 │   ├── assets.py        # Cache-busting for the static files
@@ -114,6 +116,7 @@ Data/Medical_book.pdf
 ├── templates/
 │   └── chat.html        # Chat page
 ├── static/
+│   ├── chat.js          # The whole chat UI: sends questions, renders replies
 │   ├── style.css
 │   └── medicalbotpic.jpeg  # Bot avatar
 └── research/
