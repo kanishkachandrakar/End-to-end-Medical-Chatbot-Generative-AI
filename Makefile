@@ -65,23 +65,23 @@ lint:  ## Check formatting, imports, types and the non-Python files
 	$(PYTHON) -m mypy src app.py store_index.py
 	node --check static/chat.js
 	bash -n scripts/deploy_space.sh
-	# shellcheck too, as CI does. `bash -n` finds a syntax error and nothing
-	# else; the findings that matter in this script -- an unquoted expansion,
-	# a loop variable that cannot be empty -- are only shellcheck's. Guarded
-	# because not every machine has it, and announced rather than skipped
-	# quietly: `make check` passing while CI fails on a finding nobody local
-	# can see is the whole failure this is fixing.
+	@# shellcheck too, as CI does. `bash -n` finds a syntax error and nothing
+	@# else; the findings that matter in this script -- an unquoted expansion,
+	@# a loop variable that cannot be empty -- are only shellcheck's. Guarded
+	@# because not every machine has it, and announced rather than skipped
+	@# quietly: `make check` passing while CI fails on a finding nobody local
+	@# can see is the whole failure this is fixing.
 	@if command -v shellcheck >/dev/null 2>&1; then \
 		shellcheck --severity=error scripts/deploy_space.sh; \
 	else \
 		echo "shellcheck is not installed, so this check did NOT run"; \
 		echo "  CI runs it regardless -- install with: brew install shellcheck"; \
 	fi
-	# Catches a syntax error in a module the suite never imports, as CI does.
+	@# Catches a syntax error in a module the suite never imports, as CI does.
 	$(PYTHON) -m compileall -q app.py store_index.py template.py setup.py \
 		gunicorn.conf.py src
-	# The same Dockerfile lint CI runs; it is what found the shell-form CMD
-	# that was swallowing SIGTERM.
+	@# The same Dockerfile lint CI runs; it is what found the shell-form CMD
+	@# that was swallowing SIGTERM.
 	docker buildx build --check .
 
 fix:  ## Apply the lint fixes that are safe to apply
@@ -103,12 +103,12 @@ index:  ## Rebuild the index from scratch, clearing duplicates
 
 image:  ## Build the container and run the checks CI runs against it
 	docker build -t medibot:local .
-	# Same budget as CI: losing the CPU-only torch wheel is silent otherwise.
+	@# Same budget as CI: losing the CPU-only torch wheel is silent otherwise.
 	@bytes=$$(docker image inspect medibot:local --format '{{.Size}}'); \
 		printf 'image is %s MB\n' "$$((bytes / 1024 / 1024))"; \
 		test "$$bytes" -le $$((3 * 1024 * 1024 * 1024)) \
 		|| { echo "image is over its 3GB budget -- is a CUDA torch back?"; exit 1; }
-	# -W error, as CI does: these are the import paths the suite cannot reach.
+	@# -W error, as CI does: these are the import paths the suite cannot reach.
 	docker run --rm --entrypoint python medibot:local -W error -c \
 		"from src.webapp import create_app; \
 		 c = create_app(type('S', (), {'invoke': lambda s, p: {'answer': 'ok'}})()).test_client(); \
@@ -127,7 +127,7 @@ image:  ## Build the container and run the checks CI runs against it
 		 assert m.bind.endswith(':7860') and m.workers == 1"
 
 clean:  ## Remove caches and coverage data
-	# .mypy_cache was missing from this list while being, at 128MB, far the
-	# largest thing the tooling writes into the checkout.
+	@# .mypy_cache was missing from this list while being, at 128MB, far the
+	@# largest thing the tooling writes into the checkout.
 	rm -rf .pytest_cache .ruff_cache .mypy_cache .coverage htmlcov
 	find . -name __pycache__ -type d -prune -exec rm -rf {} +

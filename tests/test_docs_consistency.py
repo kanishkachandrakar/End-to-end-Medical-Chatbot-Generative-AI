@@ -397,3 +397,34 @@ def test_contributing_says_to_run_the_310_suite():
     """The two bugs it exists for both reached a push; the habit is the fix."""
     contributing = (ROOT / "CONTRIBUTING.md").read_text()
     assert "make test310" in contributing
+
+
+def test_no_recipe_comment_is_printed_to_whoever_runs_it():
+    """make echoes every recipe line it is not told to suppress.
+
+    These comments are written for someone reading the Makefile, and make
+    read them out to anyone running the command: `make clean` opened with
+    two lines about .mypy_cache before deleting anything, and `make lint`
+    printed six lines of prose about shellcheck in the middle of a run,
+    where output is what the reader is scanning for.
+
+    `@#` keeps the comment next to the command it explains, which is the
+    point of having it there, and stops it being echoed.
+    """
+    import re
+
+    offenders = [
+        line.strip()
+        for line in (ROOT / "Makefile").read_text().splitlines()
+        if re.match(r"^\t\s*#", line)
+    ]
+    assert not offenders, f"recipe comments make will echo: {offenders}"
+
+
+def test_the_silenced_comments_are_still_there():
+    """So the fix is suppression rather than deletion."""
+    import re
+
+    makefile = (ROOT / "Makefile").read_text()
+    silenced = re.findall(r"^\t\s*@#", makefile, re.MULTILINE)
+    assert len(silenced) > 8, len(silenced)
