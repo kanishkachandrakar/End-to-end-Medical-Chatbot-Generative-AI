@@ -9,7 +9,6 @@ both do.
 import hashlib
 import re
 from collections.abc import Iterable, Iterator, Sequence
-from typing import TypeVar
 
 # deepseek-r1 wraps its chain of thought in <think>...</think>. It is useful in
 # a log and should never reach the user.
@@ -23,8 +22,6 @@ _UNTERMINATED_THINK = re.compile(r"<think>.*\Z", re.DOTALL)
 # A closing tag with no opener, from a reply whose beginning was lost. Whatever
 # precedes it is the tail of the reasoning.
 _ORPHAN_CLOSE = re.compile(r"\A.*?</think>", re.DOTALL)
-
-T = TypeVar("T")
 
 
 def strip_reasoning(answer: str) -> str:
@@ -83,7 +80,7 @@ def seconds_in_words(seconds: int) -> str:
     return "about a minute" if minutes == 1 else f"about {minutes} minutes"
 
 
-def batched(items: Sequence[T], size: int) -> Iterator[list[T]]:
+def batched[T](items: Sequence[T], size: int) -> Iterator[list[T]]:
     """Yield consecutive slices of ``items`` of at most ``size`` entries.
 
     Used to upsert the book a few hundred chunks at a time rather than in one

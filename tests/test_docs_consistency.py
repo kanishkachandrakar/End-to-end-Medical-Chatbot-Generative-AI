@@ -221,7 +221,7 @@ def test_every_makefile_target_is_documented():
     """`make help` reads the ## comments, so an undocumented target is hidden."""
     makefile = (ROOT / "Makefile").read_text()
     declared = set(re.findall(r"^\.PHONY: (.+)$", makefile, re.MULTILINE)[0].split())
-    # [a-z0-9-] rather than [a-z-]: test310 was invisible to this and to the
+    # [a-z0-9-] rather than [a-z-]: test312 was invisible to this and to the
     # help target's own grep, both of which had no digits in their patterns.
     documented = set(re.findall(r"^([a-z0-9-]+):.*?## ", makefile, re.MULTILINE))
     assert declared == documented, f"undocumented: {declared - documented}"
@@ -249,10 +249,23 @@ def test_the_documented_coverage_core_matches_the_makefile():
 
 
 def test_ci_sets_the_coverage_core_too():
-    """Otherwise CI pays the overhead the docs say has been removed."""
+    """Otherwise CI pays the overhead the docs say has been removed.
+
+    No ctrace here any more. It was handed to the 3.10 leg by name, because
+    3.10 has no sys.monitoring; every version in the matrix has it now. The
+    Makefile still chooses between the two, because a local interpreter can
+    be older than anything CI tests.
+    """
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
     assert "COVERAGE_CORE" in workflow
-    assert "sysmon" in workflow and "ctrace" in workflow
+    assert "sysmon" in workflow
+
+
+def test_the_makefile_still_chooses_a_coverage_core_by_version():
+    """CI can assume sys.monitoring; a developer's interpreter cannot."""
+    makefile = (ROOT / "Makefile").read_text()
+    assert "sysmon" in makefile and "ctrace" in makefile
+    assert "version_info" in makefile, "the choice should be computed, not fixed"
 
 
 def test_the_slow_marker_is_used_and_registered():
@@ -399,15 +412,15 @@ def test_every_tree_entry_describes_something_that_exists():
 def test_the_local_310_run_uses_the_pinned_interpreter():
     """One 3.10 in this repository, not two that can drift.
 
-    `make test310` reads the image out of the Dockerfile rather than naming
+    `make test312` reads the image out of the Dockerfile rather than naming
     a digest of its own, so the interpreter the suite is checked against
     locally is the one the container is built on.
     """
     import re
 
     makefile = (ROOT / "Makefile").read_text()
-    assert re.search(r"^PY310_IMAGE := \$\(shell grep", makefile, re.MULTILINE), (
-        "test310 should derive its image from the Dockerfile, not hardcode one"
+    assert re.search(r"^PY3\d\d_IMAGE := \$\(shell grep", makefile, re.MULTILINE), (
+        "the local run should derive its image from the Dockerfile, not hardcode one"
     )
     # An actual digest, not the word: the shell pattern that extracts it
     # contains "sha256:[0-9a-f]+", which is a regex and not a pin.
@@ -440,7 +453,7 @@ def test_the_local_310_run_matches_the_matrix_floor():
 def test_contributing_says_to_run_the_310_suite():
     """The two bugs it exists for both reached a push; the habit is the fix."""
     contributing = (ROOT / "CONTRIBUTING.md").read_text()
-    assert "make test310" in contributing
+    assert "make test312" in contributing
 
 
 def test_no_recipe_comment_is_printed_to_whoever_runs_it():

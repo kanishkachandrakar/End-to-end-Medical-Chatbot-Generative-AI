@@ -30,13 +30,14 @@ argument, so `pytest tests/test_one_thing.py` ran all 490 tests and reported
 no coverage at all. If you add a flag with an optional value to `addopts`,
 check what it does to a positional argument.
 
-Run `make test310` before pushing. The suite is checked against two
-interpreters in CI, and 3.10 is the one that has to pass — it is what the
+Run `make test312` before pushing. The suite is checked against two
+interpreters in CI, and 3.12 is the one that has to pass — it is what the
 Dockerfile and `python_requires` target — while a local checkout is whatever
 interpreter you happen to have. That gap has now sent two bugs to a push:
 `except TimeoutError` not catching `concurrent.futures.TimeoutError`, which
-3.11 merged into the builtin and 3.10 keeps separate, and
-`packages_distributions()` reporting none of the langchain packages on 3.10.
+3.11 merged into the builtin and 3.10 kept separate, and
+`packages_distributions()` reporting none of the langchain packages on 3.10 —
+both found when 3.10 was the floor.
 Both were caught by CI, which is several minutes later and after the fact. The
 target runs the suite in the same pinned image the container is built from, and
 takes about a minute after the first pull.
@@ -59,7 +60,7 @@ fails on any package not declared.
 
 ## What CI checks, and why each one is there
 
-The fast job is lint, mypy and the suite on Python 3.10 and 3.12. The slow job
+The fast job is lint, mypy and the suite on Python 3.12 and 3.13. The slow job
 builds the container and then uses it, and that distinction matters:
 
 - **It builds the image, boots it, and requests `/healthz` over HTTP.** This

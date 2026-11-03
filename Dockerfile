@@ -6,7 +6,10 @@
 # yesterday fails today with nothing in this repository having changed.
 # This is the multi-arch index digest, so it still resolves per platform.
 # Dependabot proposes digest updates; CI's build decides them.
-FROM python:3.10-slim@sha256:6ff506466f8b1e981719b468cc0023b8ef000b983cdec0eafe119d01f379e31d
+# 3.12, not 3.10: 3.10 reached end of life on 2026-10-01, so the tag stopped
+# moving for CPython fixes and the pin below had nothing left to receive. 3.12
+# is supported until 2028-10 and is the version CI has been testing all along.
+FROM python:3.12-slim@sha256:b18b261e1b4974b4f321451ad5251ded85abb22c2b8b262da527dda1d031ab30
 
 # Spaces runs the container as uid 1000, so create that user and give it a
 # home the model cache can be written to.

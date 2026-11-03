@@ -18,7 +18,7 @@ than relying on the LLM's memory alone.
 
 [![CI](https://github.com/kanishkachandrakar/End-to-end-Medical-Chatbot-Generative-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/kanishkachandrakar/End-to-end-Medical-Chatbot-Generative-AI/actions/workflows/ci.yml)
 ![Version](https://img.shields.io/badge/version-0.1.0-blue)
-![Python](https://img.shields.io/badge/python-3.10-blue)
+![Python](https://img.shields.io/badge/python-3.12-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
 ## Features
@@ -125,7 +125,7 @@ Data/Medical_book.pdf
 
 ## Prerequisites
 
-- Python 3.10 (the project was developed in a conda env named `medibot`)
+- Python 3.12 or 3.13 (the project was developed in a conda env named `medibot`)
 - A [Pinecone](https://www.pinecone.io/) account and API key
 - A [Groq](https://console.groq.com/) API key
 - ~1 GB of free disk for the sentence-transformers model, downloaded on first run
@@ -136,7 +136,7 @@ Data/Medical_book.pdf
 git clone https://github.com/kanishkachandrakar/End-to-end-Medical-Chatbot-Generative-AI.git
 cd End-to-end-Medical-Chatbot-Generative-AI
 
-conda create -n medibot python=3.10 -y
+conda create -n medibot python=3.12 -y
 conda activate medibot
 
 pip install -r requirements.txt

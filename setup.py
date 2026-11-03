@@ -13,6 +13,7 @@ setup(
     # put a package called tests into the environment -- ready to collide with
     # any other project's, and ready to ship in a wheel.
     packages=find_packages(include=["src", "src.*"]),
-    python_requires=">=3.10",
+    # 3.10 went end-of-life on 2026-10-01; 3.12 is the floor CI tests.
+    python_requires=">=3.12",
     install_requires=[],
 )
