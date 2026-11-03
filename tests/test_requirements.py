@@ -89,3 +89,32 @@ def test_the_packages_that_have_broken_this_project_have_ceilings():
     )
     for name in brittle:
         assert "<" in runtime[name], f"{name} has no upper bound"
+
+
+def test_the_pinecone_floor_stays_below_its_upstream_ceiling():
+    """langchain-pinecone caps pinecone, so a floor above that cap cannot resolve.
+
+    0.2.13 -- its latest -- requires pinecone[asyncio]<8.0.0,>=6.0.0. A
+    dependabot PR raising our floor to 10.x is unsatisfiable by construction,
+    and the install quietly backtracks rather than failing loudly, so this is
+    the thing that says so.
+    """
+    import re
+
+    floors = dict(_requirements("requirements.txt"))
+    specifier = floors.get("pinecone")
+    assert specifier, "pinecone is not declared"
+    found = re.search(r">=(\d+)", specifier)
+    assert found, specifier
+    assert int(found.group(1)) < 8, (
+        f"pinecone floor is {specifier}, and langchain-pinecone requires "
+        "pinecone<8.0.0 -- this cannot resolve"
+    )
+
+
+def test_the_reason_pinecone_is_held_back_is_written_down():
+    """Otherwise the next unmergeable bump gets investigated from scratch."""
+    text = (ROOT / "requirements.txt").read_text()
+    assert "langchain-pinecone" in text.split("pinecone>=5.0")[0] or (
+        "pinecone[asyncio]<8.0.0" in text
+    ), "requirements.txt should name the upstream ceiling"
