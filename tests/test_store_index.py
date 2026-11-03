@@ -776,6 +776,7 @@ def test_both_modules_use_the_same_pinecone_client():
     of the whole book goes through langchain-pinecone's own client, so gRPC
     was buying throughput on the one path that does not use it.
     """
+    import json
     import pathlib
 
     root = pathlib.Path(__file__).resolve().parent.parent
@@ -784,6 +785,18 @@ def test_both_modules_use_the_same_pinecone_client():
         assert "pinecone.grpc" not in source, name
         assert "PineconeGRPC" not in source, name
         assert "from pinecone import Pinecone" in source, name
+
+    # The notebook too. It was missed when store_index.py moved across, and
+    # it kept importing pinecone.grpc -- which still resolved on this machine
+    # because the old pinecone[grpc] install had left grpcio behind. A clean
+    # 3.13 container is where it showed up, as a ModuleNotFoundError from the
+    # check that every notebook import resolves.
+    notebook = json.loads((root / "research" / "trials.ipynb").read_text())
+    cells = "".join(
+        "".join(cell.get("source", [])) for cell in notebook.get("cells", [])
+    )
+    assert "pinecone.grpc" not in cells
+    assert "PineconeGRPC" not in cells
 
 
 def test_no_requirements_file_asks_for_the_grpc_extra():
