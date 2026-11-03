@@ -27,7 +27,7 @@ python-dotenv>=1.0
 # create, delete, stats) and the upsert of 5,800 chunks goes through
 # langchain-pinecone's own client, so gRPC bought throughput on the one path
 # that does not use it.
-pinecone>=5.0
+pinecone>=10.2.0
 # And it will not go past 7.x while langchain-pinecone is in this file:
 # 0.2.13, its latest, requires pinecone[asyncio]<8.0.0,>=6.0.0. So a
 # dependabot PR raising this floor to 10.x cannot resolve, whatever is done
