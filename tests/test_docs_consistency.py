@@ -571,3 +571,34 @@ def test_the_shell_in_that_step_extracts_the_version_the_same_way():
         "CI should match any 3.x slim pin, not one hardcoded version"
     )
     assert "slim@sha256:[0-9a-f]+" in makefile
+
+
+def test_the_size_budget_leaves_headroom_rather_than_a_factor_of_four():
+    """A budget set against an older, larger image stops detecting anything.
+
+    The guard exists to catch the CPU torch wheel being replaced by the CUDA
+    one, which the Dockerfile puts at about 2.5GB on its own. The budget was
+    3GB, set when the image was 2.3GB. Moving the base to 3.12 took the image
+    to 526MB -- at which point a CUDA torch could return, land somewhere near
+    3GB, and pass.
+
+    So the budget has to stay within a small multiple of the real size. This
+    does not build the image; it checks the two places that state the budget
+    agree and that the number is the recalibrated one.
+    """
+    import re
+
+    makefile = (ROOT / "Makefile").read_text()
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+
+    budgets = set()
+    for text in (makefile, workflow):
+        found = re.findall(r"(\d+) \* 1024 \* 1024 \* 1024", text)
+        assert found, "no size budget expressed in GB"
+        budgets.update(int(value) for value in found)
+    assert len(budgets) == 1, f"the two budgets disagree: {sorted(budgets)}"
+    budget = budgets.pop()
+    assert budget <= 2, (
+        f"the budget is {budget}GB against a 526MB image; a CUDA torch would "
+        "fit under it"
+    )

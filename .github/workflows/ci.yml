@@ -159,11 +159,15 @@ jobs:
       # The CPU wheel is about a fifth the size of the CUDA one, and the way
       # that regresses is silent: a dependency pulling plain `torch` from PyPI
       # builds fine and works fine, just four times larger and far slower to
-      # deploy. 3GB leaves room to grow without hiding that.
+      # deploy. 1GB, measured: the image is 526MB on the 3.12 base, with the
+      # CPU torch wheel and the model weights baked in. The budget was 3GB,
+      # set when the image was 2.3GB -- and after it dropped to 526MB, a CUDA
+      # torch could have come back and landed near 3GB without tripping it.
+      # A guard calibrated against an image four times larger is not a guard.
       - name: Guard the image size
         run: |
           bytes=$(docker image inspect medibot:ci --format '{{.Size}}')
-          budget=$((3 * 1024 * 1024 * 1024))
+          budget=$((1 * 1024 * 1024 * 1024))
           printf 'image is %s MB, budget %s MB\n' "$((bytes / 1024 / 1024))" "$((budget / 1024 / 1024))"
           if [ "$bytes" -gt "$budget" ]; then
             echo "::error::the image has grown past its budget -- is a CUDA torch back?"

@@ -107,8 +107,8 @@ image:  ## Build the container and run the checks CI runs against it
 	@# Same budget as CI: losing the CPU-only torch wheel is silent otherwise.
 	@bytes=$$(docker image inspect medibot:local --format '{{.Size}}'); \
 		printf 'image is %s MB\n' "$$((bytes / 1024 / 1024))"; \
-		test "$$bytes" -le $$((3 * 1024 * 1024 * 1024)) \
-		|| { echo "image is over its 3GB budget -- is a CUDA torch back?"; exit 1; }
+		test "$$bytes" -le $$((1 * 1024 * 1024 * 1024)) \
+		|| { echo "image is over its 1GB budget -- is a CUDA torch back?"; exit 1; }
 	@# -W error, as CI does: these are the import paths the suite cannot reach.
 	docker run --rm --entrypoint python medibot:local -W error -c \
 		"from src.webapp import create_app; \
