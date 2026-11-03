@@ -12,6 +12,16 @@ updates:
       langchain:
         patterns:
           - "langchain*"
+    # Two updates cannot be taken, and the reason is upstream rather than a
+    # preference here. Left unignored they are reopened on every release and
+    # fail CI every time, which trains everyone to stop reading dependabot.
+    ignore:
+      # langchain-pinecone 0.2.13 -- its latest -- requires
+      # pinecone[asyncio]<8.0.0,>=6.0.0. A pinecone 8+ bump cannot resolve
+      # while langchain-pinecone is a dependency; pip does not say so, it
+      # just backtracks to 7.x quietly. Drop this when that ceiling moves.
+      - dependency-name: "pinecone"
+        versions: [">=8"]
 
   - package-ecosystem: github-actions
     directory: /
@@ -26,3 +36,11 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    ignore:
+      # Same ceiling, one step removed: langchain-pinecone declares
+      # requires_python <3.14, so the image cannot be built on 3.14 or 3.15 --
+      # the dev requirements do not resolve there at all. The 3.15-slim PR was
+      # proposed, failed the check that the base image must be a version the
+      # matrix tests, and would fail again on every October release.
+      - dependency-name: "python"
+        versions: [">=3.14"]
