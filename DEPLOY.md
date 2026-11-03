@@ -1,9 +1,11 @@
 # Deploying to Hugging Face Spaces
 
 Spaces is used here because it is the only free tier with enough memory for
-this app: the embedding model runs locally inside the container, which needs
-roughly 1GB of RAM, and free tiers elsewhere cap at 512MB. A free Space gets
-2 vCPU and 16GB.
+this app: the embedding model runs locally inside the container, and measured
+inside the built image it peaks at about 530MB of resident memory — 63MB after
+imports, 478MB once the weights are loaded, 529MB after the first embedding.
+Free tiers elsewhere cap at 512MB, so it does not fit, but only just. A free
+Space gets 2 vCPU and 16GB.
 
 ## Before you deploy
 

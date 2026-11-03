@@ -128,7 +128,9 @@ Data/Medical_book.pdf
 - Python 3.12 or 3.13 (the project was developed in a conda env named `medibot`)
 - A [Pinecone](https://www.pinecone.io/) account and API key
 - A [Groq](https://console.groq.com/) API key
-- ~1 GB of free disk for the sentence-transformers model, downloaded on first run
+- ~90 MB of free disk for the sentence-transformers model, downloaded on
+  first run (the cache inside the built image measures 88MB); the torch
+  wheel it needs is a few hundred MB more
 
 ## Installation
 
