@@ -34,7 +34,7 @@ langchain-pinecone>=0.2.13,<1
 # langchain-pinecone's own client, so gRPC bought throughput on the one path
 # that does not use it.
 pinecone>=5.0
-pypdf>=4.0
+pypdf>=6.21.4
 python-dotenv>=1.0
 
 langchain-text-splitters>=1.1.3
