@@ -8,7 +8,7 @@ mypy>=2.4.0
 ruff>=0.16,<1
 # Runs the hooks locally and in CI. Declared for the same reason as ruff:
 # installed ad hoc, it is a version nothing records.
-pre-commit>=4.0
+pre-commit>=4.7.0
 # Imported by the suite to parse the dependabot and workflow YAML. It arrives
 # with pre-commit, and a transitive dependency is not a declared one.
 pyyaml>=6.0
