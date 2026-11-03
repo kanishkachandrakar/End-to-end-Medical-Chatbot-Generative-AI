@@ -62,7 +62,7 @@ jobs:
       # the step's time. Keyed on the config, so it is rebuilt when a hook
       # version changes and reused otherwise.
       - name: Cache the pre-commit environments
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/pre-commit
           key: pre-commit-${{ matrix.python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
