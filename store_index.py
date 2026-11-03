@@ -5,8 +5,7 @@ import time
 
 from dotenv import load_dotenv
 from langchain_pinecone import PineconeVectorStore
-from pinecone import ServerlessSpec
-from pinecone.grpc import PineconeGRPC as Pinecone
+from pinecone import Pinecone, ServerlessSpec
 
 from src.chunking import text_split
 from src.config import (

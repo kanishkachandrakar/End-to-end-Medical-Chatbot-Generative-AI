@@ -22,9 +22,7 @@ def store_index(monkeypatch):
     """
     pinecone = types.ModuleType("pinecone")
     pinecone.ServerlessSpec = object
-    grpc = types.ModuleType("pinecone.grpc")
-    grpc.PineconeGRPC = _unusable("pinecone client")
-    pinecone.grpc = grpc
+    pinecone.Pinecone = _unusable("pinecone client")
 
     vectorstores = types.ModuleType("langchain_pinecone")
     vectorstores.PineconeVectorStore = _unusable("vector store")
@@ -43,7 +41,6 @@ def store_index(monkeypatch):
 
     for name, module in (
         ("pinecone", pinecone),
-        ("pinecone.grpc", grpc),
         ("langchain_pinecone", vectorstores),
         ("src.helper", helper),
         ("src.loaders", loaders),
@@ -170,9 +167,7 @@ def indexer(monkeypatch):
 
     pinecone = types.ModuleType("pinecone")
     pinecone.ServerlessSpec = lambda **kw: ("spec", kw)
-    grpc = types.ModuleType("pinecone.grpc")
-    grpc.PineconeGRPC = _Client
-    pinecone.grpc = grpc
+    pinecone.Pinecone = _Client
 
     vectorstores = types.ModuleType("langchain_pinecone")
     vectorstores.PineconeVectorStore = _Store
@@ -188,7 +183,6 @@ def indexer(monkeypatch):
 
     for name, module in (
         ("pinecone", pinecone),
-        ("pinecone.grpc", grpc),
         ("langchain_pinecone", vectorstores),
         ("src.helper", helper),
         ("src.loaders", loaders),
@@ -767,3 +761,56 @@ def test_the_fake_client_matches_the_real_one():
             not in (parameter.VAR_KEYWORD, parameter.VAR_POSITIONAL)
         }
         assert declared <= real, (name, declared - real)
+
+
+def test_both_modules_use_the_same_pinecone_client():
+    """app.py used the plain client and store_index.py the gRPC one.
+
+    One service, two clients, and the gRPC one was the reason
+    requirements.txt asked for an extra that pinecone has since removed --
+    10.2.0 declares only "docs". Asking for [grpc] pinned the project to
+    7.x, the newest release that still had it, and made every dependabot
+    bump of pinecone unsatisfiable.
+
+    Nothing needed it. Our client makes six control-plane calls; the upsert
+    of the whole book goes through langchain-pinecone's own client, so gRPC
+    was buying throughput on the one path that does not use it.
+    """
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+    for name in ("store_index.py", "app.py"):
+        source = (root / name).read_text()
+        assert "pinecone.grpc" not in source, name
+        assert "PineconeGRPC" not in source, name
+        assert "from pinecone import Pinecone" in source, name
+
+
+def test_no_requirements_file_asks_for_the_grpc_extra():
+    """It does not exist any more, and asking froze the client three majors back.
+
+    Requirement lines only. requirements.txt still mentions pinecone[grpc] in
+    a comment, recording that resolving it is what walked langchain-pinecone
+    back to 0.0.1 -- which is history worth keeping, and which a substring
+    search over the whole file cannot tell apart from a live requirement.
+    """
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+    for name in ("requirements.txt", "requirements-dev.txt"):
+        for raw in (root / name).read_text().splitlines():
+            line = raw.split("#")[0].strip()
+            assert "pinecone[grpc]" not in line, f"{name}: {raw.strip()}"
+
+
+def test_the_fake_client_stands_in_for_the_class_the_code_imports(indexer):
+    """The signature check compared the stub against pinecone.Pinecone while
+    the code imported PineconeGRPC, so it was validating the stub against a
+    class the module never used. They are the same class now, and this says
+    so rather than leaving it to coincidence."""
+    module, _ = indexer
+    assert module.Pinecone is not None
+    import inspect
+
+    source = inspect.getsource(module)
+    assert "from pinecone import Pinecone, ServerlessSpec" in source

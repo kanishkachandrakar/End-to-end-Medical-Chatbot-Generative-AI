@@ -20,10 +20,14 @@ werkzeug>=3.0
 pydantic>=2.0,<3
 pypdf>=4.0
 python-dotenv>=1.0
-# The grpc extra only exists up to a point: pip warns that newer pinecone
-# releases do not provide it and backtracks to one that does. store_index.py
-# imports pinecone.grpc, so the extra has to resolve.
-pinecone[grpc]>=5.0
+# No [grpc] extra. It was removed from pinecone -- 10.2.0 declares only
+# "docs" -- so asking for it pinned this project to 7.x, the newest release
+# that still had it, and made every dependabot bump unsatisfiable. Nothing
+# here needed it: our client makes six control-plane calls (list, describe,
+# create, delete, stats) and the upsert of 5,800 chunks goes through
+# langchain-pinecone's own client, so gRPC bought throughput on the one path
+# that does not use it.
+pinecone>=5.0
 # Lower bounds matter more here than upper ones. Without this, resolving
 # pinecone[grpc] made pip walk langchain-pinecone backwards to 0.0.1 -- a 2023
 # release with no PineconeVectorStore -- and the image installed it silently.
