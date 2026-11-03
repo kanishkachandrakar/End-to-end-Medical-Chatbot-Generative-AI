@@ -543,3 +543,31 @@ def test_no_document_still_claims_five_seconds():
         for line in text.splitlines():
             if "five seconds" in line:
                 assert "once" in line or "said so" in line, f"{name}: {line.strip()}"
+
+
+def test_ci_checks_the_pin_against_its_own_tag():
+    """`FROM python:3.12-slim@sha256:...` -- docker reads the digest only.
+
+    The tag is decoration, so the two halves of that line can disagree and
+    the image will happily run an interpreter the Dockerfile does not name,
+    the matrix does not test, and python_requires may not allow. Both halves
+    were typed by hand the day the floor moved off end-of-life 3.10, which is
+    exactly when a mismatch would have been introduced.
+    """
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    assert "the version the tag claims" in workflow
+    assert "sys.version_info" in workflow
+
+
+def test_the_shell_in_that_step_extracts_the_version_the_same_way():
+    """The check and the Makefile read the same line; they should agree on how.
+
+    If one matched `python:3\\.12-slim` and the other `python:3\\.[0-9]+-slim`,
+    bumping the floor would silently stop one of them finding anything.
+    """
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    makefile = (ROOT / "Makefile").read_text()
+    assert "python:3\\.[0-9]+-slim@sha256:[0-9a-f]+" in workflow, (
+        "CI should match any 3.x slim pin, not one hardcoded version"
+    )
+    assert "slim@sha256:[0-9a-f]+" in makefile

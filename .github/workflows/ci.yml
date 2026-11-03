@@ -137,6 +137,25 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # The tag in `FROM python:3.12-slim@sha256:...` is decoration -- docker
+      # resolves the digest and ignores the rest of it. So the two can say
+      # different things, and nothing would notice: the image would run an
+      # interpreter the Dockerfile does not name, the matrix does not test,
+      # and python_requires may not allow. Both halves of that line were
+      # typed by hand the day the floor moved off end-of-life 3.10.
+      - name: The pinned digest is the version the tag claims
+        run: |
+          pin=$(grep -oE 'python:3\.[0-9]+-slim@sha256:[0-9a-f]+' Dockerfile)
+          test -n "$pin" || { echo "::error::no digest-pinned python base found"; exit 1; }
+          claimed=$(printf '%s' "$pin" | sed -E 's/^python:([0-9]+\.[0-9]+)-slim@.*/\1/')
+          actual=$(docker run --rm --entrypoint python medibot:ci -c \
+            "import sys; print('%d.%d' % sys.version_info[:2])")
+          printf 'tag claims %s, image runs %s\n' "$claimed" "$actual"
+          if [ "$claimed" != "$actual" ]; then
+            echo "::error::the tag says $claimed and the pinned digest is $actual"
+            exit 1
+          fi
+
       # The CPU wheel is about a fifth the size of the CUDA one, and the way
       # that regresses is silent: a dependency pulling plain `torch` from PyPI
       # builds fine and works fine, just four times larger and far slower to
