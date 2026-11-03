@@ -7,6 +7,9 @@ builds and then crashes on import -- and the list is maintained by hand.
 import pathlib
 import re
 
+# A child that never exits must not become a suite that never finishes.
+SUBPROCESS_TIMEOUT = 120
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SCRIPT = (ROOT / "scripts" / "deploy_space.sh").read_text()
 
@@ -119,7 +122,12 @@ def test_nothing_reaches_the_ci_image_that_the_space_s_image_lacks():
     from tests.test_dockerignore import _ignored
 
     tracked = subprocess.run(
-        ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True
+        ["git", "ls-files"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=SUBPROCESS_TIMEOUT,
     ).stdout.split()
     payload = set(_payload())
 

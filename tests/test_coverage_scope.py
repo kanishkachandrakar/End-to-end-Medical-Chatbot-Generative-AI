@@ -14,6 +14,9 @@ import pathlib
 import re
 import subprocess
 
+# A child that never exits must not become a suite that never finishes.
+SUBPROCESS_TIMEOUT = 120
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 # Shipped, deliberately not measured. The reasons are in pyproject.toml beside
@@ -43,6 +46,7 @@ def _shipped_modules():
         check=True,
         capture_output=True,
         text=True,
+        timeout=SUBPROCESS_TIMEOUT,
     ).stdout.split()
     return {name for name in listing if not name.startswith("tests/")}
 

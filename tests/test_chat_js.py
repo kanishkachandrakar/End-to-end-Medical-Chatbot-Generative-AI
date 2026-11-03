@@ -8,6 +8,9 @@ text. Nothing stops it coming back except this.
 import pathlib
 import re
 
+# A child that never exits must not become a suite that never finishes.
+SUBPROCESS_TIMEOUT = 120
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SCRIPT = (ROOT / "static" / "chat.js").read_text()
 
@@ -101,7 +104,11 @@ def _ask_node(cases):
 
     script = _HARNESS % (source.group(0), json.dumps(cases))
     result = subprocess.run(
-        [node, "-e", script], capture_output=True, text=True, check=True
+        [node, "-e", script],
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=SUBPROCESS_TIMEOUT,
     )
     return json.loads(result.stdout)
 

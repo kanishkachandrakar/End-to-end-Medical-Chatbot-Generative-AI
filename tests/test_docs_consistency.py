@@ -5,6 +5,9 @@ import re
 
 import pytest
 
+# A child that never exits must not become a suite that never finishes.
+SUBPROCESS_TIMEOUT = 120
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DEPLOY = (ROOT / "DEPLOY.md").read_text()
 README = (ROOT / "README.md").read_text()
@@ -401,7 +404,12 @@ def test_every_tree_entry_describes_something_that_exists():
     tracked = {
         pathlib.PurePosixPath(line).name
         for line in subprocess.run(
-            ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True
+            ["git", "ls-files"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=SUBPROCESS_TIMEOUT,
         ).stdout.split()
     }
     for name in named:
@@ -515,6 +523,7 @@ def test_the_documented_split_between_fast_and_slow_still_holds():
         cwd=ROOT,
         capture_output=True,
         text=True,
+        timeout=SUBPROCESS_TIMEOUT,
     )
     assert result.returncode == 0, result.stdout[-2000:] + result.stderr[-2000:]
     # Without -q: the quiet form prints per-file counts and no total, so the

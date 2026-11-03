@@ -14,6 +14,9 @@ import subprocess
 
 import pytest
 
+# A child that never exits must not become a suite that never finishes.
+SUBPROCESS_TIMEOUT = 120
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "scripts" / "deploy_space.sh"
 
@@ -27,6 +30,7 @@ def _git(*args, cwd):
         check=True,
         capture_output=True,
         text=True,
+        timeout=SUBPROCESS_TIMEOUT,
     ).stdout
 
 
@@ -64,6 +68,7 @@ def _run(space, tmp_path, argument="owner/demo.git"):
         env=env,
         capture_output=True,
         text=True,
+        timeout=SUBPROCESS_TIMEOUT,
     )
 
 
@@ -128,7 +133,12 @@ def test_a_second_run_with_nothing_changed_does_nothing(space, tmp_path):
 
 
 def test_it_refuses_without_an_argument():
-    result = subprocess.run(["bash", str(SCRIPT)], capture_output=True, text=True)
+    result = subprocess.run(
+        ["bash", str(SCRIPT)],
+        capture_output=True,
+        text=True,
+        timeout=SUBPROCESS_TIMEOUT,
+    )
     assert result.returncode == 2
     assert "usage" in result.stderr
 
@@ -196,6 +206,7 @@ def test_no_bytecode_reaches_the_space(space, tmp_path):
         cwd=ROOT,
         check=False,
         capture_output=True,
+        timeout=SUBPROCESS_TIMEOUT,
     )
     assert (ROOT / "src" / "__pycache__").is_dir(), "precondition not met"
 
@@ -247,6 +258,7 @@ def test_it_refuses_a_payload_entry_that_is_not_committed(space, tmp_path):
             env={**os.environ, "SPACES_BASE": str(space.parent.parent)},
             capture_output=True,
             text=True,
+        timeout=SUBPROCESS_TIMEOUT,
         )
     finally:
         (ROOT / "only_on_disk").unlink()

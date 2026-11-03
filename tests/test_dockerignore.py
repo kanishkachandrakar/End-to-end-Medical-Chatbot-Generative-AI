@@ -10,6 +10,9 @@ import pathlib
 import re
 import subprocess
 
+# A child that never exits must not become a suite that never finishes.
+SUBPROCESS_TIMEOUT = 120
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 # Everything the image is built from: what app.py, gunicorn and the templates
@@ -236,7 +239,12 @@ def test_the_transient_list_holds_no_tracked_path():
     """Otherwise an entry could be excused by being named here."""
     tracked = set(
         subprocess.run(
-            ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True
+            ["git", "ls-files"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=SUBPROCESS_TIMEOUT,
         ).stdout.split()
     )
     for pattern in TRANSIENT:
@@ -252,7 +260,12 @@ def test_a_local_virtualenv_is_excluded():
 def test_the_tracked_file_list_is_reachable():
     """Sanity: the repo is a git checkout, so UNWANTED reflects reality."""
     tracked = subprocess.run(
-        ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True
+        ["git", "ls-files"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=SUBPROCESS_TIMEOUT,
     ).stdout.split()
     for name in UNWANTED:
         if name != ".env":
@@ -304,6 +317,7 @@ def test_everything_git_refuses_to_track_stays_out_of_the_image_too():
             cwd=ROOT,
             capture_output=True,
             text=True,
+        timeout=SUBPROCESS_TIMEOUT,
             check=True,
         ).stdout.splitlines()
         if line.startswith("!!")

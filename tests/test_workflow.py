@@ -10,6 +10,9 @@ import pathlib
 import re
 import subprocess
 
+# A child that never exits must not become a suite that never finishes.
+SUBPROCESS_TIMEOUT = 120
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 WORKFLOW = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
 
@@ -40,7 +43,11 @@ def test_the_run_blocks_were_found():
 def test_every_run_block_is_valid_shell():
     for name, script in _run_blocks():
         result = subprocess.run(
-            ["bash", "-n"], input=script, capture_output=True, text=True
+            ["bash", "-n"],
+            input=script,
+            capture_output=True,
+            text=True,
+            timeout=SUBPROCESS_TIMEOUT,
         )
         assert result.returncode == 0, f"{name}: {result.stderr.strip()}"
 

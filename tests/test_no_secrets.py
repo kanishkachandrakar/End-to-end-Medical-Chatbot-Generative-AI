@@ -20,6 +20,9 @@ import importlib.util
 import pathlib
 import subprocess
 
+# A child that never exits must not become a suite that never finishes.
+SUBPROCESS_TIMEOUT = 120
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 
@@ -46,6 +49,7 @@ def _tracked_text_files():
         check=True,
         capture_output=True,
         text=True,
+        timeout=SUBPROCESS_TIMEOUT,
     ).stdout
     for name in listing.split("\0"):
         if not name or name in ALLOWED:
@@ -115,6 +119,7 @@ def test_the_hook_rejects_a_planted_key(tmp_path):
         [sys.executable, str(ROOT / "scripts" / "check_no_keys.py"), str(planted)],
         capture_output=True,
         text=True,
+        timeout=SUBPROCESS_TIMEOUT,
     )
     assert result.returncode == 1, result.stdout + result.stderr
     assert "looks like it contains an API key" in result.stderr
@@ -132,6 +137,7 @@ def test_the_hook_accepts_a_file_with_no_key(tmp_path):
         [sys.executable, str(ROOT / "scripts" / "check_no_keys.py"), str(ordinary)],
         capture_output=True,
         text=True,
+        timeout=SUBPROCESS_TIMEOUT,
     )
     assert result.returncode == 0, result.stderr
 

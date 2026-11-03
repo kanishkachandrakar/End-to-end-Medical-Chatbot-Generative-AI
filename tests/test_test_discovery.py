@@ -10,6 +10,9 @@ import pathlib
 
 import pytest
 
+# A child that never exits must not become a suite that never finishes.
+SUBPROCESS_TIMEOUT = 120
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 TESTS = ROOT / "tests"
 
@@ -251,6 +254,7 @@ def test_naming_one_file_collects_only_that_file():
         cwd=ROOT,
         capture_output=True,
         text=True,
+        timeout=SUBPROCESS_TIMEOUT,
     )
     assert result.returncode == 0, result.stdout + result.stderr
 
@@ -260,3 +264,29 @@ def test_naming_one_file_collects_only_that_file():
         if line.startswith("tests/")
     }
     assert named == {"tests/test_smoke.py"}, sorted(named)
+
+
+def test_every_subprocess_in_the_suite_has_a_timeout():
+    """A child that never exits must not become a suite that never finishes.
+
+    Eighteen call sites in tests/ spawned git, bash, node, the deploy script
+    and pytest itself, none of them with a timeout -- so any one of them
+    hanging hangs the run with no output and no clue which test is waiting.
+    The deploy script is the sharpest case: it calls input() when stdin is a
+    terminal, and subprocess.run passes the parent's stdin through by
+    default.
+
+    The rule is every call rather than the ones judged risky, because the
+    judgement is the part that goes wrong -- `git ls-files` in a local
+    repository cannot block until the day it is a submodule over a network.
+    """
+    import re
+
+    offenders = []
+    for path in sorted(TESTS.glob("test_*.py")):
+        source = path.read_text()
+        calls = len(re.findall(r"\b(?:subprocess|sp)\.run\(", source))
+        if calls and source.count("timeout=") < calls:
+            offenders.append(f"{path.name}: {calls} calls, "
+                             f"{source.count('timeout=')} timeouts")
+    assert not offenders, f"subprocess calls with no timeout: {offenders}"
