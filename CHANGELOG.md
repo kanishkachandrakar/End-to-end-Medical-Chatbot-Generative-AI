@@ -7,6 +7,43 @@ the behavioural ones; the rest is in the git log.
 
 ### Fixed
 
+- **The base image was an end-of-life interpreter.** Python 3.10 reached end of
+  life on 2026-10-01, and it was the Dockerfile's base, `python_requires` and
+  CI's matrix floor — so the digest pin whose purpose is to carry "Debian or
+  CPython" patches had nothing left to carry from one of them. The floor is 3.12
+  (supported to 2028-10) and the ceiling 3.13, which is not a preference:
+  `langchain-pinecone` declares `requires_python <3.14`, so 3.13 is the newest
+  interpreter this project can install on at all.
+- **An extra that pinecone removed was holding its client three majors back.**
+  `pinecone[grpc]` named an extra that no longer exists — 10.2.0 declares only
+  `docs` — so pip backtracked to 7.3.0, the newest release that still had it.
+  Nothing needed it: our client makes six control-plane calls and the upsert of
+  the whole book goes through langchain-pinecone's own client, so gRPC was
+  buying throughput on the one path that does not upsert. With 10.2.0 and no
+  extra, `pinecone.grpc` imports and constructs happily while `import grpc`
+  fails, so it was a latent break rather than a build break.
+- **The image size guard stopped being able to detect anything.** Moving to the
+  3.12 base took the image from 2.15GB to 501MB, and the budget was 3GB — set
+  when the image was 2.3GB. The regression it exists for, a CUDA torch wheel at
+  about 2.5GB, could have come back and passed. 1GB now, with a test holding it
+  within a small multiple of the measured size.
+- **Two memory figures that were guesses.** DEPLOY.md said the embedding model
+  "needs roughly 1GB of RAM", which is the sentence that decides which hosts a
+  reader thinks they can use; measured in the built image it peaks at 529MB, so
+  it misses a 512MB tier by 17MB rather than by a factor of two. The README said
+  "~1 GB of free disk" for the model, whose cache measures 88MB. CI now reports
+  and bounds the figure, since its dimension check is the only place the real
+  model is ever loaded.
+- **The notebook still imported the client the extra had been removed for**, and
+  resolved here only because the old `pinecone[grpc]` install had left grpcio in
+  this virtualenv. A clean container was what showed it — the same shape as both
+  of this project's start-up failures.
+- **Eighteen subprocess calls that could hang the suite forever.** tests/ spawns
+  git, bash, node, the deploy script and pytest itself, none of them with a
+  timeout; found while watching a container sit for twenty-eight minutes with
+  pytest having printed nothing, where the one thing worth knowing — which child
+  it was waiting on — was what none of them could say.
+
 - **A chain that returned nonsense was untraceable; one that raised was not.**
   The `try` around the retrieval chain covered the call and not the result, so
   an answer of `None`, an answer that was a list, or a response that was not a
@@ -253,6 +290,19 @@ the behavioural ones; the rest is in the git log.
 
 ### Added
 
+- A CI step asserting the pinned digest is the version its tag claims. Docker
+  resolves the digest and ignores the tag, so the two can name different
+  interpreters while every check in the repository, all of which read the text,
+  still passes. Both halves of that line were typed by hand the day the floor
+  moved.
+- A check that the notebook's hardcoded model, embedding model, index and
+  dimension still match `src/config.py`. It has drifted twice before, both times
+  caught after the fact.
+- A check that every subprocess call in the suite passes a timeout.
+- Checks on the dependabot config: the two ignores have to name the upstream
+  package that forces them, and have to be `>=` ranges rather than blanket bans,
+  since the digest pin is only tolerable while its updates still arrive.
+
 - `make test310` runs the suite on the interpreter the container is built from,
   with the digest read out of the Dockerfile so there is one pinned 3.10 rather
   than two. It installs git first, because nine tests shell out to it and
@@ -348,6 +398,14 @@ the behavioural ones; the rest is in the git log.
   disagrees with the changelog.
 
 ### Changed
+
+- Dependency floors raised to what is installed and tested: the eight langchain
+  packages, mypy (the floor said 1.10 while 2.4 produced every clean run for
+  weeks), pytest-cov (5.0 against 7.1 running), pydantic, langchain-core,
+  `actions/cache` and `docker/setup-buildx-action`.
+- Dependabot no longer proposes the two updates that cannot be taken — pinecone
+  8+ and a 3.14+ base image — both capped by langchain-pinecone rather than by
+  anything here. Six open PRs at the start of this round, none at the end.
 
 - The `slow` marker means "slow for a reason other than the code under test"
   rather than "needs a heavyweight import", which was already untrue of one of
