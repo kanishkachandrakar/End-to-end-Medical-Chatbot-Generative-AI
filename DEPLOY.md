@@ -138,8 +138,13 @@ one.
 
 ## Optional settings
 
-Everything in `.env.example` below the two keys can also be set as a Space
-*variable* (not a secret — variables are public, which is correct for these):
+Everything in `.env.example` below the two keys can be set as a Space
+*variable* (not a secret — variables are public, which is correct for these),
+with two exceptions that have no effect here: `HOST` and `FLASK_DEBUG` are read
+only by `python app.py`, the development server. A Space is served by gunicorn,
+which calls `app:create()` and never reaches that branch — so setting either in
+a Space changes nothing, including `FLASK_DEBUG`, which is worth knowing before
+anyone sets it expecting it to.
 
 | Variable | Default | Why you might change it |
 |---|---|---|

@@ -188,3 +188,52 @@ def test_the_prefetched_function_is_the_one_the_app_uses():
     assert name in (ROOT / "app.py").read_text(), (
         f"the image prefetches {name}, which app.py never calls"
     )
+
+
+def test_the_settings_only_the_dev_server_reads_are_named_as_such():
+    """DEPLOY.md offers .env.example's settings as Space variables.
+
+    Two of them are not: HOST and FLASK_DEBUG are read in app.py's
+    `__main__` branch, which gunicorn never executes -- it calls
+    app:create() directly. Setting either in a Space does nothing, and
+    FLASK_DEBUG is one somebody might set on purpose and then wonder about.
+    """
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+    app_source = (root / "app.py").read_text()
+    deploy = (root / "DEPLOY.md").read_text()
+
+    main_branch = app_source.split('if __name__ == "__main__":')[1]
+    dev_only = {
+        name
+        for name in re.findall(r"\b([A-Z][A-Z_]{3,})\b", main_branch)
+        if name in app_source.split('if __name__ == "__main__":')[0]
+        or name == "FLASK_DEBUG"
+    }
+    assert {"HOST", "FLASK_DEBUG"} <= dev_only, dev_only
+
+    for name in sorted(dev_only):
+        assert name in deploy, (
+            f"{name} is only read by the dev server and DEPLOY.md does not say so"
+        )
+
+
+def test_gunicorn_never_reaches_the_dev_server_branch():
+    """The claim above rests on this: the factory is the entry point.
+
+    Read off the CMD line itself. Splitting the file on "CMD" picks up the
+    HEALTHCHECK's own CMD and the comment above the real one, which mentions
+    app.py precisely to say that importing it runs nothing -- so the first
+    version of this failed on the sentence explaining why it passes.
+    """
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+    lines = (root / "Dockerfile").read_text().splitlines()
+    entrypoints = [line for line in lines if line.startswith("CMD ")]
+    assert len(entrypoints) == 1, entrypoints
+    command = entrypoints[0]
+    assert "app:create()" in command, command
+    assert "app.py" not in command, command
