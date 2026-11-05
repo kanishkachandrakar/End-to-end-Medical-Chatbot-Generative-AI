@@ -1,5 +1,6 @@
 import argparse
 import os
+import pathlib
 import sys
 import time
 
@@ -18,6 +19,13 @@ from src.config import (
 from src.helper import download_hugging_face_embeddings
 from src.loaders import load_pdf
 from src.text import batched, chunk_ids
+
+# The PDFs, resolved against this file rather than the working directory.
+# `load_pdf("Data/")` meant the script only worked from the repository root,
+# and from anywhere else it died inside langchain's DirectoryLoader with
+# "FileNotFoundError: Directory not found: 'Data/'" under a stack of frames.
+# It is the one command this project's README still asks an operator to run.
+DATA_DIR = pathlib.Path(__file__).resolve().parent / "Data"
 
 # Chunks per upsert. Small enough to see progress and to keep the embedding
 # batch off the heap, large enough not to pay request overhead 5,000 times.
@@ -115,6 +123,28 @@ def confirm_deletion(index_name: str) -> None:
         raise SystemExit("not confirmed, nothing was changed")
 
 
+def require_data_dir() -> None:
+    """Refuse early if there are no PDFs to read.
+
+    In the same position as prepare_index's refusals and for the same reason:
+    everything that can say no should say it before the minutes of parsing and
+    model loading, and it should say it in a sentence. Without this a deleted
+    or renamed Data/ surfaces as a FileNotFoundError from inside
+    DirectoryLoader, which names the relative path and not what to do.
+    """
+    if not DATA_DIR.is_dir():
+        raise SystemExit(
+            f"no PDFs to index: {DATA_DIR} is not a directory. The source "
+            "book lives there in this repository; restore it, or point "
+            "store_index.py at another copy."
+        )
+    if not any(DATA_DIR.glob("*.pdf")):
+        raise SystemExit(
+            f"no PDFs to index: {DATA_DIR} holds no *.pdf files. Chunking "
+            "would produce nothing and the upsert would leave the index empty."
+        )
+
+
 def prepare_index(api_key: str, recreate: bool, yes: bool) -> Pinecone:
     """Leave the index in a state the upsert can use, or refuse.
 
@@ -200,6 +230,7 @@ def main(argv=None) -> None:
     """Chunk the PDFs in Data/, create the index if needed and upsert them."""
     args = parse_args(argv)
     load_dotenv()
+    require_data_dir()
 
     # A dry run answers a question about the PDF, so it needs none of this:
     # no key, no connection, no index created, no confirmation prompt.
@@ -214,7 +245,7 @@ def main(argv=None) -> None:
         pc = prepare_index(api_key, recreate=args.recreate, yes=args.yes)
 
     started = time.monotonic()
-    extracted_data = load_pdf("Data/")
+    extracted_data = load_pdf(str(DATA_DIR))
     text_chunks = text_split(extracted_data)
     print(
         f"loaded {len(extracted_data)} pages -> {len(text_chunks)} chunks "

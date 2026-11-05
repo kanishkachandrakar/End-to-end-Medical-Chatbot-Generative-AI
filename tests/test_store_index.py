@@ -827,3 +827,58 @@ def test_the_fake_client_stands_in_for_the_class_the_code_imports(indexer):
 
     source = inspect.getsource(module)
     assert "from pinecone import Pinecone, ServerlessSpec" in source
+
+
+class TestDataDirectory:
+    """`load_pdf("Data/")` resolved against the working directory.
+
+    So the script only worked from the repository root, and from anywhere
+    else it died inside langchain's DirectoryLoader --
+    "FileNotFoundError: Directory not found: 'Data/'" under a stack of
+    frames, naming a relative path and not what to do about it. It is the
+    one command the README still asks an operator to run.
+    """
+
+    def test_the_path_is_anchored_to_the_script(self, store_index):
+        import pathlib
+
+        root = pathlib.Path(__file__).resolve().parent.parent
+        assert store_index.DATA_DIR.is_absolute()
+        assert store_index.DATA_DIR == root / "Data"
+
+    def test_a_missing_directory_is_refused_in_a_sentence(
+        self, store_index, monkeypatch, tmp_path
+    ):
+        monkeypatch.setattr(store_index, "DATA_DIR", tmp_path / "absent")
+        with pytest.raises(SystemExit) as raised:
+            store_index.require_data_dir()
+        message = str(raised.value)
+        assert "no PDFs to index" in message
+        assert "absent" in message
+
+    def test_a_directory_with_no_pdfs_is_refused_too(
+        self, store_index, monkeypatch, tmp_path
+    ):
+        """Chunking an empty set would leave the index empty, silently."""
+        (tmp_path / "notes.txt").write_text("not a pdf\n")
+        monkeypatch.setattr(store_index, "DATA_DIR", tmp_path)
+        with pytest.raises(SystemExit) as raised:
+            store_index.require_data_dir()
+        assert "no *.pdf files" in str(raised.value)
+
+    def test_the_real_directory_passes(self, store_index):
+        """So the checks above are not rejecting everything."""
+        store_index.require_data_dir()
+
+    def test_it_refuses_before_the_pdf_is_opened(
+        self, store_index, monkeypatch, tmp_path
+    ):
+        """Same position as prepare_index's refusals, for the same reason."""
+
+        def refuse(*args, **kwargs):
+            raise AssertionError("load_pdf must not run without a Data/")
+
+        monkeypatch.setattr(store_index, "DATA_DIR", tmp_path / "absent")
+        monkeypatch.setattr(store_index, "load_pdf", refuse)
+        with pytest.raises(SystemExit, match="no PDFs to index"):
+            store_index.main(["--dry-run"])
