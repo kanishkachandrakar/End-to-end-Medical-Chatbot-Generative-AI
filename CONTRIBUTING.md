@@ -42,6 +42,13 @@ Both were caught by CI, which is several minutes later and after the fact. The
 target runs the suite in the same pinned image the container is built from, and
 takes about a minute after the first pull.
 
+`make test` reports line coverage and the 95% gate; it does not count
+branches. If you have touched a conditional, run `make branches` as well — it
+measures them, and it found three never-taken branches in two files that line
+coverage called complete. It is not the default because branch measurement
+cannot use `sys.monitoring`, so it runs under the C tracer and takes minutes
+instead of seconds.
+
 Optionally `pip install pre-commit && pre-commit install` runs the quick checks
 before each commit. CI runs the same hooks, so the only thing you lose by not
 installing them is finding out later.

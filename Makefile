@@ -19,7 +19,7 @@ export COVERAGE_CORE
 PY312_IMAGE := $(shell grep -oE 'python:3\.12-slim@sha256:[0-9a-f]+' Dockerfile)
 
 .DEFAULT_GOAL := help
-.PHONY: help install test test312 fast lint fix hooks check run index dry-run image clean
+.PHONY: help install test test312 branches fast lint fix hooks check run index dry-run image clean
 
 # [a-z0-9-] rather than [a-z-]: test312 was invisible to this the moment it
 # existed, because the pattern had no digits in it -- as did the test that
@@ -57,6 +57,15 @@ test312:  ## Run the suite on the pinned 3.12, as CI's floor matrix leg does
 		git config --global --add safe.directory /w; \
 		pip install -q -r requirements-dev.txt; \
 		COVERAGE_CORE=sysmon python -m pytest -p no:cacheprovider'
+
+# Branch coverage is not in the config and this is why it is a target instead.
+# It cannot use sys.monitoring -- coverage reports "sys.monitoring can't measure
+# branches in this version", and the suite turns that warning into an error --
+# so it runs under the C tracer and takes minutes rather than seconds. Worth it
+# after touching a conditional: it found three untaken branches in files that
+# line coverage called complete.
+branches:  ## Run the suite with branch coverage, which `make test` does not
+	COVERAGE_CORE=ctrace $(PYTHON) -m pytest --cov --cov-branch
 
 fast:  ## Run the suite without the slow-marked files
 	$(PYTHON) -m pytest -m "not slow"

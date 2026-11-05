@@ -602,3 +602,25 @@ def test_the_size_budget_leaves_headroom_rather_than_a_factor_of_four():
         f"the budget is {budget}GB against a 526MB image; a CUDA torch would "
         "fit under it"
     )
+
+
+def test_the_branch_coverage_target_does_not_use_sysmon():
+    """It cannot: coverage refuses, and the suite turns that warning into an error.
+
+    `COVERAGE_CORE` is exported at the top of the Makefile and computed from
+    the interpreter, so it is sysmon on 3.12 -- which would make this target
+    fail rather than run. The recipe has to override it, and the recipe
+    saying ctrace is the whole reason the target works.
+    """
+    makefile = (ROOT / "Makefile").read_text()
+    recipe = makefile.split("branches:")[1].split("\n\n")[0]
+    assert "--cov-branch" in recipe, recipe
+    assert "COVERAGE_CORE=ctrace" in recipe, (
+        "branch measurement cannot run under sys.monitoring; the recipe must "
+        "override the exported COVERAGE_CORE"
+    )
+
+
+def test_contributing_mentions_the_branch_target():
+    """A recipe nobody can find is a recipe nobody runs."""
+    assert "make branches" in (ROOT / "CONTRIBUTING.md").read_text()
