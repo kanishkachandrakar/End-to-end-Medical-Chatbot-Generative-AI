@@ -869,6 +869,9 @@ class TestDataDirectory:
     def test_the_real_directory_passes(self, store_index):
         """So the checks above are not rejecting everything."""
         store_index.require_data_dir()
+        assert list(store_index.DATA_DIR.glob("*.pdf")), (
+            "the repository's source PDF is missing"
+        )
 
     def test_it_refuses_before_the_pdf_is_opened(
         self, store_index, monkeypatch, tmp_path
