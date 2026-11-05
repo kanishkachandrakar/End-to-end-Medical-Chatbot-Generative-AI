@@ -7,6 +7,43 @@ the behavioural ones; the rest is in the git log.
 
 ### Fixed
 
+- **The indexer called a 6× duplicated index a success.** `confirm_upsert`
+  waited for the vector count to reach what was sent and then reported it —
+  `count >= expected` — so a count far above expected, which means vectors
+  under ids this run never wrote, read as fine. That is the state the live index
+  has been in for weeks. It now says how many are extra and that `--recreate`
+  is the only way to clear them.
+- **Two packages that decide the index contents had no ceiling.** Chunk ids are
+  hashes of the chunk text, which is what makes a re-index an overwrite rather
+  than an append — and pypdf decides that text while langchain-text-splitters
+  decides where it is cut. Measured across this round's own bump: pypdf 6.19.0
+  produces 5,860 chunks from the book and 6.21.4 produces 5,861, so some ids
+  move and the vectors under the old ones stay.
+- **`store_index.py` only worked from the repository root.** `load_pdf("Data/")`
+  resolved against the working directory, so the command the README has been
+  asking an operator to run answered from anywhere else with a langchain
+  traceback naming a relative path. Anchored to the script, and a missing or
+  empty `Data/` is now refused in a sentence before the minutes of parsing.
+- **6.3MB of font warnings buried that command's output.** pypdf warns 3,878
+  times while reading the book without fontTools. Declaring it takes that to
+  zero; the extraction is byte-identical either way, which was measured rather
+  than assumed, so this buys legible output and not better text.
+- **Eleven indentation violations in a file every check claimed to cover.**
+  ruff's `select = ["E"]` reads as all of pycodestyle and is not — the
+  indentation rules sit behind preview — so `template.py` was indented three
+  spaces throughout, against this repository's own `.editorconfig`.
+- **`/healthz` has a fourth answer and DEPLOY.md's table had three.**
+  `ok <rev> vectors=unknown` is served whenever the startup read of the count
+  fails, and is not the same thing as a healthy 200: it says the app answers and
+  that the one failure `/healthz` exists to surface could not be checked. The
+  check meant to keep those states in agreement only matched on `degraded`.
+- **Two settings offered as Space variables that do nothing there.** `HOST` and
+  `FLASK_DEBUG` are read only in `app.py`'s `__main__` branch, which a Space
+  never executes — it runs `app:create()` through gunicorn.
+- **A zero timeout made `confirm_upsert` report "None of 5861 vectors"**, the
+  one figure it exists to deliver, because the loop tested its deadline before
+  reading.
+
 - **The base image was an end-of-life interpreter.** Python 3.10 reached end of
   life on 2026-10-01, and it was the Dockerfile's base, `python_requires` and
   CI's matrix floor — so the digest pin whose purpose is to carry "Debian or
@@ -290,6 +327,20 @@ the behavioural ones; the rest is in the git log.
 
 ### Added
 
+- `make branches` runs the suite with branch coverage, which `make test` does
+  not. It found three never-taken branches in two files reporting 100% line
+  coverage: `url_for` on a non-static endpoint, `url_for` for a static file
+  whose digest cannot be read, and the request-id header when there is no id.
+  It is not the default because branch measurement cannot use `sys.monitoring`,
+  so it costs minutes rather than seconds.
+- A docstring on `src/prompt.py`, the only module in `src/` without one and the
+  one with the most influence over what a visitor reads, recording why each
+  clause is there; plus a check that every module has one, and that the
+  prompt's scope and the page's subtitle still agree.
+- Checks that: every package deciding the index has a ceiling in both
+  requirements files; the state table counts its own rows; and the settings only
+  the dev server reads are named as such.
+
 - A CI step asserting the pinned digest is the version its tag claims. Docker
   resolves the digest and ignores the tag, so the two can name different
   interpreters while every check in the repository, all of which read the text,
@@ -398,6 +449,13 @@ the behavioural ones; the rest is in the git log.
   disagrees with the changelog.
 
 ### Changed
+
+- Floors raised to what is installed: pypdf (the declared minimum was two major
+  releases below what has been reading the book), python-dotenv,
+  sentence-transformers and pre-commit.
+- ruff runs pycodestyle as ruff currently implements it — `preview` on, with the
+  indentation rules named. That also widened the rules already selected, which
+  brought four blank-line findings with it.
 
 - Dependency floors raised to what is installed and tested: the eight langchain
   packages, mypy (the floor said 1.10 while 2.4 produced every clean run for
