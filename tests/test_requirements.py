@@ -118,3 +118,47 @@ def test_the_reason_pinecone_is_held_back_is_written_down():
     assert "langchain-pinecone" in text.split("pinecone>=5.0")[0] or (
         "pinecone[asyncio]<8.0.0" in text
     ), "requirements.txt should name the upstream ceiling"
+
+
+# Packages whose version decides what ends up in the Pinecone index. Not a
+# style rule: chunk ids are content hashes, so "re-indexing is an overwrite"
+# holds only while the text and the boundaries are the same. A major release
+# of any of these changes them, some ids move, and the vectors under the old
+# ids stay behind -- which is the duplicate problem this project is clearing.
+DECIDES_THE_INDEX = {
+    # the embedding values, and the dimension the index was created with
+    "sentence-transformers",
+    # the extracted text: 6.19.0 gives 5,860 chunks from the book, 6.21.4 gives
+    # 5,861, measured across the bump in this file
+    "pypdf",
+    # the chunk boundaries, one step closer to the ids than pypdf
+    "langchain-text-splitters",
+}
+
+
+def test_everything_that_decides_the_index_has_a_ceiling():
+    """A floor stops a backslide; only a ceiling stops a silent re-chunking.
+
+    sentence-transformers had one and the other two did not, though all three
+    decide the contents of the index in the same way.
+    """
+    declared = dict(_requirements("requirements.txt"))
+    missing = []
+    for name in sorted(DECIDES_THE_INDEX):
+        specifier = declared.get(name)
+        assert specifier, f"{name} is not declared in requirements.txt"
+        if "<" not in specifier:
+            missing.append(f"{name}{specifier}")
+    assert not missing, f"no upper bound on packages that decide the index: {missing}"
+
+
+def test_those_packages_are_bounded_in_both_files():
+    """Testing against a version prod will not install is how this hides."""
+    runtime = dict(_requirements("requirements.txt"))
+    dev = dict(_requirements("requirements-dev.txt"))
+    for name in sorted(DECIDES_THE_INDEX):
+        if name in dev:
+            assert dev[name] == runtime[name], (
+                f"{name}: {runtime[name]!r} in requirements.txt, "
+                f"{dev[name]!r} in requirements-dev.txt"
+            )

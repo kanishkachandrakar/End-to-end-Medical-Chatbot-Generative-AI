@@ -18,7 +18,15 @@ flask>=3.0
 werkzeug>=3.0
 # Imported for SecretStr; transitive via langchain, but we import it.
 pydantic>=2.14.2,<3
-pypdf>=6.21.4
+# A ceiling for the same reason sentence-transformers has one: this package's
+# version decides what goes into the index. It extracts the text, the text
+# decides the chunk boundaries, and the boundaries decide the content-hash ids
+# that make a re-index an overwrite rather than an append. Measured across the
+# bump in this file: pypdf 6.19.0 produces 5,860 chunks from the book and
+# 6.21.4 produces 5,861, so some ids change and the vectors under the old ones
+# stay behind -- which is the duplicate problem this project is still trying to
+# clear.
+pypdf>=6.21.4,<7
 # pypdf warns 3,878 times while reading the book without this -- 6.3MB of font
 # dictionaries on stderr, burying the two lines store_index.py actually prints.
 # It is the dependency the warning names, and installing it removes the
@@ -57,6 +65,8 @@ langchain-huggingface>=1.2.3,<2
 # langchain, and was declared only in requirements-dev.txt on the grounds that
 # the suite imports it -- but store_index.py imports it too, from code this
 # file is responsible for installing.
-langchain-text-splitters>=1.1.3
+# Bounded for the same reason: its splitter decides the chunk boundaries
+# directly, which is one step closer to the ids than pypdf is.
+langchain-text-splitters>=1.1.3,<2
 gunicorn>=21.0
 -e .
