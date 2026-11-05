@@ -35,6 +35,7 @@ langchain-pinecone>=0.2.13,<1
 # that does not use it.
 pinecone>=5.0
 pypdf>=6.21.4
+fonttools>=4.68.0
 python-dotenv>=1.2.4
 
 langchain-text-splitters>=1.1.3

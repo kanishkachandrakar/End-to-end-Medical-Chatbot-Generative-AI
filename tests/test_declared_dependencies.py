@@ -39,6 +39,12 @@ JUSTIFIED = {
     "langchain",
     # Read by langchain-community's PyPDFLoader, not by this code.
     "pypdf",
+    # Read by pypdf when a PDF uses a CFF Type1 font, which this book does on
+    # nearly every page. Without it pypdf warns 3,878 times -- 6.3MB of font
+    # dictionaries on stderr -- while extracting identical text. Declared for
+    # the quiet, not for the output: measured both ways, 5,861 chunks and the
+    # same first chunk byte for byte.
+    "fonttools",
 }
 
 

@@ -19,6 +19,17 @@ werkzeug>=3.0
 # Imported for SecretStr; transitive via langchain, but we import it.
 pydantic>=2.14.2,<3
 pypdf>=6.21.4
+# pypdf warns 3,878 times while reading the book without this -- 6.3MB of font
+# dictionaries on stderr, burying the two lines store_index.py actually prints.
+# It is the dependency the warning names, and installing it removes the
+# condition rather than silencing the message, so a PDF where the encoding
+# genuinely matters would still be heard.
+#
+# Measured on this book: the extraction is identical either way. 637 pages,
+# 5,861 chunks, 5,861 unique ids, first chunk byte-for-byte the same. So this
+# buys legible output and not better text -- worth saying, because the warning
+# implies otherwise. 1.2MB in the image, which never reads a PDF.
+fonttools>=4.68.0
 python-dotenv>=1.2.4
 # No [grpc] extra. It was removed from pinecone -- 10.2.0 declares only
 # "docs" -- so asking for it pinned this project to 7.x, the newest release
