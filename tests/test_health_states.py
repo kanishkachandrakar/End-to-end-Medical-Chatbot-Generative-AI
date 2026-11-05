@@ -20,6 +20,12 @@ DEPLOY = (ROOT / "DEPLOY.md").read_text()
 LITERAL = re.compile(r'degraded \{APP_REVISION\} ([a-z-]+)')
 ASSIGNED = re.compile(r'unavailable = "([a-z-]+)"')
 
+# The 200 reply has a variant of its own: vectors= carries a count, or a word
+# when the startup read failed. Only the degraded states were tracked here, so
+# `ok <rev> vectors=unknown` -- a real response, served to anyone asking --
+# went undocumented in DEPLOY.md for as long as it has existed.
+OK_VARIANT = re.compile(r'vectors = "(\w+)" if index_size is None')
+
 
 def _states():
     states = set(LITERAL.findall(WEBAPP)) | set(ASSIGNED.findall(APP))
@@ -115,3 +121,37 @@ def test_the_script_has_no_done_handler_for_healthz():
     """
     healthz_call = SCRIPT.split('url: "/healthz"')[1].split('$("#messageArea")')[0]
     assert ".done(" not in healthz_call, healthz_call[:200]
+
+
+def test_the_unknown_count_reply_is_documented():
+    """A 200 that cannot confirm the index is not the same as a healthy 200.
+
+    An operator reading `ok abc1234 vectors=unknown` is being told the app
+    answers and that the one failure /healthz exists to surface -- an empty
+    index -- could not be checked. That is worth a row of its own.
+    """
+    found = OK_VARIANT.search(WEBAPP)
+    assert found, "the ok reply no longer has a variant this test can find"
+    token = f"vectors={found.group(1)}"
+    assert token in DEPLOY, f"{token} is a /healthz response and DEPLOY.md omits it"
+
+
+def test_the_state_table_counts_its_own_rows():
+    """The prose said three states while the table had four.
+
+    Counting the rows that describe a response -- the ones with a status --
+    keeps the sentence above the table honest when a state is added.
+    """
+    import re as _re
+
+    rows = [
+        line
+        for line in DEPLOY.splitlines()
+        if line.startswith("| `") and _re.search(r"\| (200|503) \|", line)
+    ]
+    assert len(rows) >= 4, rows
+    words = {3: "three", 4: "four", 5: "five", 6: "six"}
+    assert f"which of {words[len(rows)]}" in DEPLOY, (
+        f"the table describes {len(rows)} responses; the prose above it "
+        "names a different number"
+    )
