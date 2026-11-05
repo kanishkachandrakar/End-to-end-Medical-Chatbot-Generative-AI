@@ -943,3 +943,61 @@ def test_a_provider_failure_that_is_not_a_rate_limit_gets_no_retry_after():
     response = create_app(Broken()).test_client().post("/get", data={"msg": "q"})
     assert response.status_code == 502
     assert "Retry-After" not in response.headers
+
+
+def test_url_for_a_non_static_endpoint_is_left_alone():
+    """The fingerprinting hook runs for every url_for, not just static ones.
+
+    Line coverage called this covered because the hook is called constantly;
+    branch coverage showed the false arm never taken, so nothing had ever
+    confirmed that url_for('index') comes back without a ?v= bolted on.
+    """
+    from flask import url_for
+
+    app = create_app(StubChain())
+    with app.test_request_context():
+        assert url_for("index") == "/"
+        assert url_for("robots") == "/robots.txt"
+
+
+def test_url_for_an_unreadable_static_file_omits_the_version():
+    """static_version returns "" and the hook must not add `?v=`.
+
+    There was a test that static_version returns "" for a missing file, and
+    none that url_for does the right thing with that -- the two halves of the
+    same behaviour, with the branch between them untaken.
+    """
+    from flask import url_for
+
+    app = create_app(StubChain())
+    with app.test_request_context():
+        url = url_for("static", filename="no-such-file.js")
+        assert "?v=" not in url, url
+        assert url.endswith("/static/no-such-file.js"), url
+
+
+def test_the_request_id_header_is_omitted_when_there_is_no_id():
+    """after_request runs even if before_request never set one.
+
+    `g.get("request_id")` is None in a context where _assign_request_id has
+    not run, and the guard against that was the third branch the suite never
+    took. It must omit the header rather than raise -- an exception in
+    after_request replaces whatever the response was going to be.
+    """
+    from flask import Flask
+
+    from src import middleware
+    from src.webapp import text_reply
+
+    app = Flask(__name__)
+    middleware.install(app, text_reply, "test-rev")
+    handlers = app.after_request_funcs[None]
+    assert handlers, "no after_request handler registered"
+
+    with app.test_request_context():
+        response = text_reply("body")
+        for handler in handlers:
+            response = handler(response)
+
+    assert "X-Request-Id" not in response.headers
+    assert response.headers["X-App-Revision"] == "test-rev"
