@@ -33,3 +33,39 @@ def test_is_a_single_nonempty_string():
 def test_words_are_not_run_together():
     """Adjacent literals need a trailing space, or 'conciseWrite' sneaks in."""
     assert not re.search(r"[a-z][A-Z]", system_prompt.replace("{context}", ""))
+
+
+def test_every_module_in_src_explains_why_it_exists():
+    """Each docstring here records a decision, which is the convention.
+
+    src/prompt.py had none -- the one module with no behaviour in it and the
+    most influence over what a visitor reads, so the clauses in it looked
+    arbitrary rather than chosen. src/__init__.py is exempt: it is empty on
+    purpose, which is what makes src/ a package.
+    """
+    import ast
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+    missing = [
+        path.name
+        for path in sorted((root / "src").glob("*.py"))
+        if path.name != "__init__.py"
+        and not ast.get_docstring(ast.parse(path.read_text()))
+    ]
+    assert not missing, f"no module docstring: {missing}"
+
+
+def test_the_prompt_and_the_page_agree_about_what_the_bot_does():
+    """The page promises a lookup of medical terms; the prompt has to ask for it.
+
+    Two statements of the same scope, in two files, shown to the same person
+    -- one as a subtitle under the name and one to the model. If they drift,
+    the page is advertising something the prompt does not request.
+    """
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+    page = (root / "templates" / "chat.html").read_text()
+    assert "medical terms" in page, "the page no longer says what it looks up"
+    assert "medical term" in system_prompt, "the prompt no longer asks for it"
