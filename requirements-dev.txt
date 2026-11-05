@@ -8,7 +8,7 @@ mypy>=2.4.1
 ruff>=0.16,<1
 # Runs the hooks locally and in CI. Declared for the same reason as ruff:
 # installed ad hoc, it is a version nothing records.
-pre-commit>=4.0
+pre-commit>=4.7.0
 # Imported by the suite to parse the dependabot and workflow YAML. It arrives
 # with pre-commit, and a transitive dependency is not a declared one.
 pyyaml>=6.0
@@ -34,7 +34,7 @@ langchain-pinecone>=0.2.13,<1
 # langchain-pinecone's own client, so gRPC bought throughput on the one path
 # that does not use it.
 pinecone>=5.0
-pypdf>=4.0
-python-dotenv>=1.0
+pypdf>=6.21.4
+python-dotenv>=1.2.4
 
 langchain-text-splitters>=1.1.3

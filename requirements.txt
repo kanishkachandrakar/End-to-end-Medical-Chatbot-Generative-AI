@@ -3,7 +3,7 @@
 # cached_download; langchain 1.0 moving langchain.chains to langchain-classic.
 # Both were only noticed from a clean install. Dependabot proposes the bumps;
 # the image build and the dimension check in CI judge them.
-sentence-transformers>=6.1,<7
+sentence-transformers>=6.2.0,<7
 langchain>=1.4.7,<2
 # create_retrieval_chain and create_stuff_documents_chain moved here in
 # langchain 1.0; it is a dependency of langchain but listed because we import it.
@@ -18,8 +18,8 @@ flask>=3.0
 werkzeug>=3.0
 # Imported for SecretStr; transitive via langchain, but we import it.
 pydantic>=2.14.2,<3
-pypdf>=4.0
-python-dotenv>=1.0
+pypdf>=6.21.4
+python-dotenv>=1.2.4
 # No [grpc] extra. It was removed from pinecone -- 10.2.0 declares only
 # "docs" -- so asking for it pinned this project to 7.x, the newest release
 # that still had it, and made every dependabot bump unsatisfiable. Nothing
