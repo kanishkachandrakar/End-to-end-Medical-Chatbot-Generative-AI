@@ -885,3 +885,56 @@ class TestDataDirectory:
         monkeypatch.setattr(store_index, "load_pdf", refuse)
         with pytest.raises(SystemExit, match="no PDFs to index"):
             store_index.main(["--dry-run"])
+
+
+class TestExtraVectors:
+    """`count >= expected` called a 6x duplicated index a success.
+
+    confirm_upsert waits for the count to reach what was sent and then says
+    "now reports N vectors". More than was sent means vectors under ids this
+    run did not write -- an earlier index built from different chunking --
+    and that is the exact state the live index has been in for weeks, which
+    the comparison read as fine.
+    """
+
+    def test_a_count_above_expected_is_called_out(self, indexer, capsys):
+        module, calls = indexer
+        calls["reported"] = 35166
+        module.confirm_upsert(module.Pinecone(api_key="k"), 5861)
+        output = capsys.readouterr().out
+        assert "35166 vectors" in output
+        assert "29305 more than the 5861" in output
+        assert "--recreate" in output
+
+    def test_an_exact_count_says_nothing_extra(self, indexer, capsys):
+        """The clean case must stay quiet, or the note means nothing."""
+        module, calls = indexer
+        calls["reported"] = 5861
+        module.confirm_upsert(module.Pinecone(api_key="k"), 5861)
+        output = capsys.readouterr().out
+        assert "5861 vectors" in output
+        assert "more than the" not in output
+
+    def test_a_lagging_count_still_reports_the_shortfall(self, indexer, capsys):
+        """Unchanged behaviour: eventual consistency is not a duplicate."""
+        module, calls = indexer
+        calls["reported"] = 10
+        module.confirm_upsert(module.Pinecone(api_key="k"), 5861, timeout=0)
+        output = capsys.readouterr().out
+        assert "10 of 5861" in output
+        assert "more than the" not in output
+
+
+def test_a_zero_timeout_still_reports_a_number(indexer, capsys):
+    """The loop tested the deadline before reading, so it never read.
+
+    With timeout=0 the message said "reports None of 5861 vectors" -- the one
+    figure the function exists to deliver, replaced by the initial value of a
+    local. It reads once and then tests the deadline.
+    """
+    module, calls = indexer
+    calls["reported"] = 10
+    module.confirm_upsert(module.Pinecone(api_key="k"), 5861, timeout=0)
+    output = capsys.readouterr().out
+    assert "10 of 5861" in output
+    assert "None" not in output

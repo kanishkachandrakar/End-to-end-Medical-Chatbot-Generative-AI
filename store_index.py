@@ -296,13 +296,34 @@ def confirm_upsert(pc: Pinecone, expected: int, timeout: float = 60.0) -> None:
     """
     index = pc.Index(INDEX_NAME)
     deadline = time.monotonic() + timeout
-    count = None
+    count = 0
 
-    while time.monotonic() < deadline:
+    # Read once before testing the deadline. With the loop the other way round
+    # a timeout of zero never read at all, and the message below reported
+    # "None of 5861 vectors" -- the one number it exists to deliver, missing.
+    while True:
         count = index.describe_index_stats().get("total_vector_count") or 0
         if count >= expected:
             print(f"index {INDEX_NAME!r} now reports {count} vectors")
+            # More than was sent means vectors are there under ids this run
+            # did not write: upserts left by an earlier run whose chunking
+            # differed. Bumping pypdf or langchain-text-splitters is enough to
+            # do that, since the ids are hashes of the chunk text -- so a
+            # re-index appends instead of overwriting and the old vectors stay.
+            # This is the state the live index has been in for weeks, 6x over,
+            # and `count >= expected` called it success.
+            if count > expected:
+                extra = count - expected
+                print(
+                    f"  note: {extra} more than the {expected} just upserted. "
+                    "Those are under ids this run did not write -- an earlier "
+                    "index built from different chunking. Retrieval will "
+                    "return them alongside the new ones. `--recreate` is the "
+                    "only way to clear them."
+                )
             return
+        if time.monotonic() >= deadline:
+            break
         time.sleep(2)
 
     print(
