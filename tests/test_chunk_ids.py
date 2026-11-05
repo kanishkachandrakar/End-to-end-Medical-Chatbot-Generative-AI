@@ -79,7 +79,6 @@ class TestBatched:
 
     def test_a_zero_size_is_rejected(self):
 
-
         with pytest.raises(ValueError):
             list(batched([1], 0))
 

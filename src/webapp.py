@@ -45,6 +45,7 @@ class RagChain(Protocol):
 
     def invoke(self, payload: dict[str, str]) -> dict[str, Any]: ...
 
+
 # Crawlers cannot reach /get now that it is POST-only, but indexing the page
 # invites traffic that spends the shared rate limit on nobody's question.
 _ROBOTS_TXT = "User-agent: *\nDisallow: /\n"
@@ -52,7 +53,6 @@ _ROBOTS_TXT = "User-agent: *\nDisallow: /\n"
 # Advertised when the chain could not be built. Long enough not to invite a
 # retry storm against a service that needs a human or a restart.
 DEGRADED_RETRY_AFTER = 60
-
 
 
 def text_reply(body: str, status: int = 200) -> Response:

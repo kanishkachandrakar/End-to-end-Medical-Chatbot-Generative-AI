@@ -12,6 +12,19 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B"]
+# "E" reads as all of pycodestyle and is not: ruff keeps the indentation rules
+# behind preview, so E111 and E117 were selected and never ran. template.py was
+# indented three spaces throughout -- against this repo's own .editorconfig,
+# which declares four for Python -- and eleven violations sat in a file every
+# check claimed to cover.
+#
+# Naming them is not enough: preview has to be on for ruff to run them at all,
+# and preview also widens the rules already selected -- it brought four
+# blank-line findings in src/webapp.py and tests/ with it, all fair and all
+# auto-fixed. So this is not two extra rules, it is pycodestyle as ruff
+# currently implements it, which is what "E" was always meant to mean here.
+preview = true
+extend-select = ["E111", "E117"]
 
 [tool.ruff.lint.per-file-ignores]
 # The notebook's prototype code is kept as a record of how the pipeline was

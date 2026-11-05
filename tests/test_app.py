@@ -281,7 +281,6 @@ class TestCreate:
         assert any(line.startswith("revision:") for line in records), records
         assert any("index=" in line for line in records), records
 
-
     def test_the_revision_and_config_are_logged(self, app_module, monkeypatch, caplog):
         """Which build, and what it was configured with, before anything else."""
         import logging
