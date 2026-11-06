@@ -147,8 +147,14 @@ def require_data_dir() -> None:
         )
 
 
-def prepare_index(api_key: str, recreate: bool, yes: bool) -> Pinecone:
+def prepare_index(api_key: str, *, recreate: bool, yes: bool) -> Pinecone:
     """Leave the index in a state the upsert can use, or refuse.
+
+    The two flags are keyword-only. `recreate` decides whether the index is
+    deleted and `yes` decides whether that deletion is confirmed first, so
+    prepare_index(key, True, True) and prepare_index(key, True, False) differ
+    by whether anyone is asked before the data goes -- which is not a
+    distinction to leave resting on argument order.
 
     Everything that can say no lives here -- an unreachable Pinecone, a
     declined confirmation, a dimension that disagrees with the embedding model

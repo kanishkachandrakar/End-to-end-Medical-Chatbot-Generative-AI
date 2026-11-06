@@ -938,3 +938,23 @@ def test_a_zero_timeout_still_reports_a_number(indexer, capsys):
     output = capsys.readouterr().out
     assert "10 of 5861" in output
     assert "None" not in output
+
+
+def test_the_destructive_flags_cannot_be_passed_positionally(indexer):
+    """`recreate` decides whether the index is deleted; `yes` whether anyone
+    is asked first.
+
+    prepare_index(key, True, True) and prepare_index(key, True, False) differ
+    by exactly that, so a swap of two adjacent booleans is the difference
+    between a confirmed rebuild and an unannounced one. Keyword-only removes
+    the possibility rather than documenting it.
+    """
+    import inspect
+
+    module, _ = indexer
+    parameters = inspect.signature(module.prepare_index).parameters
+    for name in ("recreate", "yes"):
+        assert parameters[name].kind is inspect.Parameter.KEYWORD_ONLY, name
+
+    with pytest.raises(TypeError):
+        module.prepare_index("key", True, False)  # noqa: FBT003

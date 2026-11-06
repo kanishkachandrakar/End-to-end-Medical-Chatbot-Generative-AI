@@ -18,7 +18,10 @@ select = ["E", "F", "W", "I", "UP", "B", "S"]
 # anyone reviewing it. There were seven, for BLE001, N802 and S324, none of
 # them enabled; one was mine, added an hour before this and already redundant
 # because usedforsecurity=False satisfies S324 on its own.
-extend-select = ["E111", "E117", "RUF100"]
+# FBT002/FBT001 as well: prepare_index took `recreate` and `yes` positionally,
+# and those two differ by whether a destructive delete is confirmed before it
+# happens. Argument order is a poor place to keep that.
+extend-select = ["E111", "E117", "RUF100", "FBT"]
 # "E" reads as all of pycodestyle and is not: ruff keeps the indentation rules
 # behind preview, so E111 and E117 were selected and never ran. template.py was
 # indented three spaces throughout -- against this repo's own .editorconfig,
