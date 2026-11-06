@@ -180,3 +180,56 @@ class TestTokensAvailable:
         bucket = TokenBucket(capacity=2, rate=1, clock=clock)
         clock.advance(3600)
         assert bucket.tokens_available() == 2
+
+
+class TestUnderConcurrency:
+    """The bucket has a lock, and every other test here is single-threaded.
+
+    gunicorn.conf.py runs one worker with four threads, so concurrent takes
+    are the condition this runs under in production -- and the lock was the
+    only thing claiming they are safe. Without it two threads can read the
+    same token count and both spend it, which is how a rate limiter leaks
+    exactly when it is under the load it exists for.
+    """
+
+    @staticmethod
+    def _race(bucket, workers):
+        """Have `workers` threads call take() as simultaneously as possible."""
+        import threading
+
+        granted = []
+        tally = threading.Lock()
+        start = threading.Barrier(workers)
+
+        def worker():
+            start.wait()
+            if bucket.take():
+                with tally:
+                    granted.append(1)
+
+        threads = [threading.Thread(target=worker) for _ in range(workers)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        return len(granted)
+
+    @pytest.mark.parametrize(
+        "workers, capacity",
+        [(8, 5), (32, 10), (64, 1), (16, 16)],
+    )
+    def test_exactly_capacity_requests_are_granted(self, workers, capacity):
+        """No more than the budget, and no fewer -- a lock that over-refuses
+        would throttle the demo for no reason."""
+        # A refill rate low enough that no token accrues during the race, so
+        # the count is the capacity and not the capacity plus whatever time
+        # the scheduler took.
+        bucket = TokenBucket(capacity=capacity, rate=1e-9)
+        assert self._race(bucket, workers) == capacity
+
+    def test_the_bucket_is_empty_afterwards(self):
+        """And reports so, since the header is built from that reading."""
+        bucket = TokenBucket(capacity=4, rate=1e-9)
+        assert self._race(bucket, 20) == 4
+        assert bucket.tokens_available() < 1
+        assert bucket.take() is False
