@@ -98,3 +98,46 @@ def test_every_static_file_the_template_names_exists():
     assert named, "the template names no static files"
     for name in named:
         assert (ROOT / "static" / name).is_file(), name
+
+
+def test_the_files_editorconfig_declares_tab_indented_are():
+    """.editorconfig says tabs for the template and the stylesheet.
+
+    Nothing checked it, and template.py was found three spaces deep the same
+    way -- against the four its own section declares. The stylesheet had two
+    space-indented lines and one with no indentation at all, which is how a
+    file stops being obviously hand-maintained.
+    """
+    import re
+
+    editorconfig = (ROOT / ".editorconfig").read_text()
+    section = re.search(
+        r"\[\{?([^\]]*?)\}?\]\s*\nindent_style = tab", editorconfig
+    )
+    assert section, "no tab-indented section in .editorconfig"
+    patterns = [part.strip() for part in section.group(1).split(",")]
+    assert patterns, patterns
+
+    offenders = []
+    for pattern in patterns:
+        for path in sorted(ROOT.glob(pattern)):
+            for number, line in enumerate(path.read_text().splitlines(), 1):
+                if line.startswith(" "):
+                    offenders.append(f"{path.name}:{number}")
+    assert not offenders, f"space-indented where .editorconfig says tab: {offenders}"
+
+
+def test_that_check_is_looking_at_the_files_we_think():
+    """An empty glob would pass the check above without reading anything."""
+    import re
+
+    editorconfig = (ROOT / ".editorconfig").read_text()
+    section = re.search(r"\[\{?([^\]]*?)\}?\]\s*\nindent_style = tab", editorconfig)
+    assert section
+    found = [
+        path.name
+        for pattern in (p.strip() for p in section.group(1).split(","))
+        for path in ROOT.glob(pattern)
+    ]
+    assert "chat.html" in found, found
+    assert "style.css" in found, found
