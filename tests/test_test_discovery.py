@@ -290,3 +290,32 @@ def test_every_subprocess_in_the_suite_has_a_timeout():
             offenders.append(f"{path.name}: {calls} calls, "
                              f"{source.count('timeout=')} timeouts")
     assert not offenders, f"subprocess calls with no timeout: {offenders}"
+
+
+def test_no_test_writes_a_file_into_src():
+    """A scratch file in src/ is visible to every check that globs src/*.py.
+
+    Two deploy tests needed an untracked file inside the payload to exist,
+    and put it in src/. test_sunset_imports.py, test_dockerignore.py,
+    test_coverage_scope.py and the README structure tree check all scan
+    src/*.py -- so the suite passed only because nothing else happened to be
+    running at that moment. Under `pytest -n 4` it failed:
+
+        AssertionError: {'src/_dirty_probe.py'} are in src/ but absent from
+        APP_GRAPH, so nothing checks what they import
+
+    static/ is in the payload too and a .txt there is scanned by nothing,
+    which is where they write now.
+    """
+    import re
+
+    offenders = []
+    for path in sorted(TESTS.glob("test_*.py")):
+        source = path.read_text()
+        for match in re.finditer(r'ROOT\s*/\s*"src"\s*/\s*"([^"]+)"', source):
+            name = match.group(1)
+            # Reading is fine; it is creating one that other tests can see.
+            window = source[match.end() : match.end() + 200]
+            if "write_text" in window or "mkdir" in window:
+                offenders.append(f"{path.name}: creates src/{name}")
+    assert not offenders, f"tests that write into src/: {offenders}"

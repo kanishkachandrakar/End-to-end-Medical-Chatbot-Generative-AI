@@ -223,12 +223,16 @@ def test_what_is_deployed_is_the_revision_that_is_stamped(space, tmp_path):
     reported a revision it was not running -- which is the one question
     /healthz's revision exists to answer.
     """
-    scratch = ROOT / "src" / "_deploy_probe.py"
+    # static/, not src/: static/ is in the payload too, and a .txt there
+    # is scanned by nothing. A scratch .py inside src/ was visible to
+    # every check that globs src/*.py -- test_sunset_imports failed on it
+    # the moment the suite was run in parallel.
+    scratch = ROOT / "static" / "_deploy_probe.txt"
     scratch.write_text("# untracked, must not ship\n")
     try:
         assert _run(space, tmp_path).returncode == 0
         deployed = _deployed(space, tmp_path)
-        assert not (deployed / "src" / "_deploy_probe.py").exists()
+        assert not (deployed / "static" / "_deploy_probe.txt").exists()
     finally:
         scratch.unlink()
 
@@ -283,7 +287,7 @@ def test_it_warns_when_the_tree_is_not_what_ships(space, tmp_path):
     The case that matters is deploying immediately after a fix: the deploy
     succeeds, the Space reports the revision, and the fix is not in it.
     """
-    scratch = ROOT / "src" / "_dirty_probe.py"
+    scratch = ROOT / "static" / "_dirty_probe.txt"
     scratch.write_text("# uncommitted\n")
     try:
         result = _run(space, tmp_path)
@@ -292,7 +296,7 @@ def test_it_warns_when_the_tree_is_not_what_ships(space, tmp_path):
 
     assert result.returncode == 0, result.stderr
     assert "what ships" in result.stderr, result.stderr
-    assert "src/_dirty_probe.py" in result.stderr
+    assert "static/_dirty_probe.txt" in result.stderr
     assert "pushed" in result.stdout, "it warns, it does not refuse"
 
 
