@@ -43,6 +43,13 @@ preview = true
 
 [tool.mypy]
 python_version = "3.12"
+# strict, which found fourteen gaps the four warnings below did not. The two
+# worth naming: TokenBucket took an unannotated clock, so every float derived
+# from it was an Any and the `-> float` on tokens_available and seconds_until
+# was declared and never checked; and seven functions across store_index.py,
+# middleware.py and app.py had no parameter or return annotations at all, in a
+# project that annotates everything else.
+strict = true
 # Most of the dependency tree ships no stubs; checking our own annotations is
 # the point, not re-typing langchain.
 ignore_missing_imports = true

@@ -624,3 +624,17 @@ def test_the_branch_coverage_target_does_not_use_sysmon():
 def test_contributing_mentions_the_branch_target():
     """A recipe nobody can find is a recipe nobody runs."""
     assert "make branches" in (ROOT / "CONTRIBUTING.md").read_text()
+
+
+def test_mypy_runs_in_strict_mode():
+    """Four warnings left fourteen gaps that strict finds.
+
+    The one that mattered: TokenBucket's clock parameter had no annotation,
+    so every float computed from it was an Any -- and `-> float` on
+    tokens_available and seconds_until was declared and never checked. A
+    declared type nothing verifies is the same shape of problem as a test
+    that asserts nothing.
+    """
+    config = (ROOT / "pyproject.toml").read_text()
+    mypy_section = config.split("[tool.mypy]")[1].split("\n[")[0]
+    assert "strict = true" in mypy_section, mypy_section

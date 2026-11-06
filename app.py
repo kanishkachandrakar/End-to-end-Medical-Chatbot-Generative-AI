@@ -9,6 +9,7 @@ module can be imported, inspected and tested without keys or a network.
 import concurrent.futures
 import logging
 import os
+from typing import Any
 
 from dotenv import load_dotenv
 from flask import Flask
@@ -121,7 +122,7 @@ def read_index_size(api_key: str, timeout: float = 15.0) -> int | None:
         pool.shutdown(wait=False)
 
 
-def build_chain(pinecone_api_key: str, groq_api_key: str):
+def build_chain(pinecone_api_key: str, groq_api_key: str) -> Any:
     """Assemble the retrieval chain: Pinecone retriever + Groq answerer."""
     embeddings = download_hugging_face_embeddings()
 

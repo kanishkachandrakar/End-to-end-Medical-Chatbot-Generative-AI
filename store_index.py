@@ -3,6 +3,8 @@ import os
 import pathlib
 import sys
 import time
+from collections.abc import Callable, Sequence
+from typing import Any
 
 from dotenv import load_dotenv
 from langchain_pinecone import PineconeVectorStore
@@ -54,7 +56,7 @@ def _at_least_one(value: str) -> int:
     return number
 
 
-def parse_args(argv=None) -> argparse.Namespace:
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     """Command line for the indexer."""
     parser = argparse.ArgumentParser(
         description="Chunk the PDFs in Data/ and upsert them into Pinecone."
@@ -89,7 +91,7 @@ def parse_args(argv=None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _bounded(operation, what: str) -> None:
+def _bounded(operation: Callable[[], Any], what: str) -> None:
     """Run a control-plane call that waits, and say so if the wait runs out.
 
     The client's own timeout turns an unbounded block into an exception; this
@@ -197,7 +199,9 @@ def prepare_index(api_key: str, recreate: bool, yes: bool) -> Pinecone:
     return pc
 
 
-def upsert_chunks(embeddings, chunks: list, ids: list[str]) -> None:
+def upsert_chunks(
+    embeddings: Any, chunks: list[Any], ids: list[str]
+) -> None:
     """Embed and upload the chunks, reporting progress as it goes.
 
     A rebuild is several minutes of work. The rate and the estimate are what
@@ -226,7 +230,7 @@ def upsert_chunks(embeddings, chunks: list, ids: list[str]) -> None:
         )
 
 
-def main(argv=None) -> None:
+def main(argv: Sequence[str] | None = None) -> None:
     """Chunk the PDFs in Data/, create the index if needed and upsert them."""
     args = parse_args(argv)
     load_dotenv()

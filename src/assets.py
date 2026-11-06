@@ -9,6 +9,7 @@ without the fingerprinting that makes it safe.
 import functools
 import hashlib
 import pathlib
+from typing import Any
 
 from flask import Flask, Response, request
 
@@ -62,7 +63,7 @@ def install(app: Flask) -> None:
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = _CACHE_SECONDS
 
     @app.url_defaults
-    def _fingerprint_static(endpoint: str, values: dict) -> None:
+    def _fingerprint_static(endpoint: str, values: dict[str, Any]) -> None:
         if endpoint == "static" and "filename" in values:
             version = static_version(app, values["filename"])
             if version:

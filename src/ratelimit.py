@@ -12,12 +12,21 @@ the right trade; the limit is generous and configurable.
 
 import threading
 import time
+from collections.abc import Callable
 
 
 class TokenBucket:
     """Allows a burst of ``capacity``, then one request per ``1/rate`` seconds."""
 
-    def __init__(self, capacity: float, rate: float, clock=time.monotonic):
+    def __init__(
+        self,
+        capacity: float,
+        rate: float,
+        # Annotated because it was not: an untyped clock made every float
+        # derived from it an Any, so the `-> float` on the two methods
+        # below was declared and never checked.
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
         if capacity <= 0:
             raise ValueError("capacity must be positive")
         if rate <= 0:
@@ -68,7 +77,9 @@ class TokenBucket:
             return False
 
 
-def per_minute(limit: int, clock=time.monotonic) -> TokenBucket | None:
+def per_minute(
+    limit: int, clock: Callable[[], float] = time.monotonic
+) -> TokenBucket | None:
     """Build a bucket allowing ``limit`` requests a minute, or None to disable."""
     if limit <= 0:
         return None

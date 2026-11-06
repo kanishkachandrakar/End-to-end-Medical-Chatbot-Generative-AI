@@ -11,6 +11,7 @@ promises.
 """
 
 import uuid
+from collections.abc import Callable
 
 from flask import Flask, Response, g
 from werkzeug.exceptions import HTTPException
@@ -31,7 +32,13 @@ _VISITOR_WORDING = {
 }
 
 
-def install(app: Flask, text_reply, revision: str) -> None:
+def install(
+    app: Flask,
+    # The route module's text_reply, passed in rather than imported to
+    # keep this free of a circular import back into src.webapp.
+    text_reply: Callable[..., Response],
+    revision: str,
+) -> None:
     """Attach the request id, the headers and the plain-text error handlers.
 
     ``text_reply`` is passed in rather than imported to keep this module free
@@ -44,7 +51,7 @@ def install(app: Flask, text_reply, revision: str) -> None:
     """
 
     @app.errorhandler(HTTPException)
-    def _plain_error(error: HTTPException):
+    def _plain_error(error: HTTPException) -> Response | HTTPException:
         """Answer errors in text too.
 
         Flask's defaults are HTML pages. The front end appends whatever comes
