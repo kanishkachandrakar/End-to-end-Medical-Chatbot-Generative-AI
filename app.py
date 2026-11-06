@@ -125,10 +125,16 @@ def build_chain(pinecone_api_key: str, groq_api_key: str):
     """Assemble the retrieval chain: Pinecone retriever + Groq answerer."""
     embeddings = download_hugging_face_embeddings()
 
-    docsearch = PineconeVectorStore.from_existing_index(
-        index_name=INDEX_NAME,
-        embedding=embeddings,
+    # Not from_existing_index. That classmethod does exactly this -- fetch the
+    # index, then construct the store -- except it does not forward a key, so
+    # it falls through to os.environ.get("PINECONE_API_KEY") inside langchain.
+    # Which meant this function took a pinecone_api_key and never used one: the
+    # signature said the credential was passed and the environment supplied it.
+    # ChatGroq below is handed its key explicitly for the same reason.
+    index = PineconeVectorStore.get_pinecone_index(
+        INDEX_NAME, pinecone_api_key=pinecone_api_key
     )
+    docsearch = PineconeVectorStore(index, embeddings)
     retriever = docsearch.as_retriever(
         search_type="similarity", search_kwargs={"k": TOP_K}
     )

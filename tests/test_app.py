@@ -14,9 +14,34 @@ import pytest
 from tests.stubs import StubChain
 
 
+class _FakeVectorStore:
+    """Stands in for PineconeVectorStore, recording the key it is handed.
+
+    build_chain used from_existing_index, which takes no key and lets
+    langchain read PINECONE_API_KEY out of the environment -- so the
+    pinecone_api_key parameter was unused and the credential was implicit.
+    This records both halves so a test can see one is passed.
+    """
+
+    handed: dict = {}
+
+    @classmethod
+    def get_pinecone_index(cls, index_name, pinecone_api_key=None):
+        cls.handed = {"index_name": index_name, "api_key": pinecone_api_key}
+        return "index"
+
+    def __init__(self, index, embedding, *args, **kwargs):
+        type(self).handed["constructed_with"] = (index, embedding)
+
+    def as_retriever(self, **kwargs):
+        type(self).handed["retriever_kwargs"] = kwargs
+        return "retriever"
+
+
 @pytest.fixture
 def app_module(monkeypatch):
     """Import app.py with its third-party dependencies stubbed out."""
+    _FakeVectorStore.handed = {}
     stubs = {
         "langchain_classic.chains": {"create_retrieval_chain": lambda *a: "chain"},
         "langchain_classic.chains.combine_documents": {
@@ -28,13 +53,7 @@ def app_module(monkeypatch):
             )
         },
         "langchain_groq": {"ChatGroq": lambda **kw: "llm"},
-        "langchain_pinecone": {
-            "PineconeVectorStore": types.SimpleNamespace(
-                from_existing_index=lambda **kw: types.SimpleNamespace(
-                    as_retriever=lambda **k: "retriever"
-                )
-            )
-        },
+        "langchain_pinecone": {"PineconeVectorStore": _FakeVectorStore},
     }
     for name, attributes in stubs.items():
         module = types.ModuleType(name)
@@ -302,3 +321,31 @@ class TestCreate:
 class TestBuildChain:
     def test_wires_the_retriever_and_the_llm_together(self, app_module):
         assert app_module.build_chain("p", "g") == "chain"
+
+    def test_the_pinecone_key_is_passed_rather_than_read_from_the_environment(
+        self, app_module, monkeypatch
+    ):
+        """The parameter was unused, so the credential came from os.environ.
+
+        from_existing_index takes no key and falls through to
+        os.environ.get("PINECONE_API_KEY") inside langchain, which meant
+        build_chain accepted a pinecone_api_key and never used one. ChatGroq
+        beside it is handed its key explicitly, with a comment about why.
+        """
+        monkeypatch.delenv("PINECONE_API_KEY", raising=False)
+        app_module.build_chain("pcsk_validated", "gsk_groq")
+
+        handed = _FakeVectorStore.handed
+        assert handed["api_key"] == "pcsk_validated"
+        assert handed["index_name"] == app_module.INDEX_NAME
+        assert "constructed_with" in handed, "the store was never constructed"
+
+    def test_the_retriever_asks_for_the_configured_number_of_passages(
+        self, app_module
+    ):
+        """TOP_K decides how much context an answer is built from."""
+        app_module.build_chain("p", "g")
+        assert _FakeVectorStore.handed["retriever_kwargs"] == {
+            "search_type": "similarity",
+            "search_kwargs": {"k": app_module.TOP_K},
+        }
