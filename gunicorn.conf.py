@@ -33,8 +33,32 @@ errorlog = "-"
 # Restart the worker periodically. torch and sentence-transformers hold on to
 # allocator arenas across requests, and on a 16GB free tier a slow climb is
 # cheaper to pre-empt than to diagnose. The jitter stops a restart landing at a
-# predictable moment; with one worker a recycle is a brief pause, so it should
-# not be frequent.
+# predictable moment.
+#
+# A recycle is not "a brief pause", which is what this comment used to say.
+# Measured inside the built image:
+#
+#   import torch and langchain   2.8s
+#   build the embedding model   24.2s
+#   first embedding              1.2s
+#                              -----
+#                               28.1s before the worker can answer
+#
+# plus up to fifteen more if read_index_size has to time out. With one worker
+# there is nothing else serving meanwhile, so every recycle is roughly half a
+# minute of unavailability -- the same cost DEPLOY.md quotes for a cold start,
+# because it is the same work.
+#
+# preload_app would remove it: gunicorn would build the app once in the master
+# and fork, so a replacement worker inherits a loaded model instead of building
+# one. It is not enabled here because the master would then hold open Pinecone
+# and Groq HTTP connections across the fork, and a connection pool shared with
+# a forked child is a classic source of intermittent, hard-to-attribute
+# failures. That needs trying against a real deployment, not a config comment.
+#
+# So the number stays high rather than the interval short: at the demo's own
+# cap of 30 answers a minute, a thousand requests is at least half an hour of
+# saturated traffic, and most days it is never reached.
 max_requests = 1000
 max_requests_jitter = 100
 

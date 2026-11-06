@@ -237,3 +237,41 @@ def test_gunicorn_never_reaches_the_dev_server_branch():
     command = entrypoints[0]
     assert "app:create()" in command, command
     assert "app.py" not in command, command
+
+
+def test_the_recycle_cost_is_not_described_as_brief():
+    """It is about half a minute, measured, and the config said "brief pause".
+
+    28.1s inside the built image -- 2.8s of imports, 24.2s building the
+    embedding model, 1.2s for the first embedding -- plus up to fifteen more
+    if read_index_size times out. With one worker nothing else serves
+    meanwhile, so the figure matters: it is what DEPLOY.md quotes for a cold
+    start, because it is the same work.
+    """
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+    config = (root / "gunicorn.conf.py").read_text()
+    assert "max_requests" in config
+    # The affirmative form. Searching for "brief pause" alone matches the
+    # comment that exists to say it is not one -- the third time a check of
+    # mine has been tripped by its own explanation.
+    assert "is a brief pause" not in config, "the recycle is ~30s"
+    assert "28.1s" in config, "the measured cost should be written down"
+
+
+def test_preload_app_is_left_off_with_a_reason():
+    """It would remove the recycle cost and needs a real deployment to judge.
+
+    Forking a master that holds Pinecone and Groq connection pools is the
+    part that cannot be settled from here, and a future reader should find
+    that written down rather than rediscover it.
+    """
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+    config = (root / "gunicorn.conf.py").read_text()
+    assert "preload_app" in config, "the option should at least be discussed"
+    assert "preload_app = True" not in config.replace("# ", ""), (
+        "if preload_app is enabled, the fork-safety question needs answering"
+    )
