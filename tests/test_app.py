@@ -81,7 +81,7 @@ def _pinecone(stats=None, raises=None):
             if raises is not None:
                 raise raises
 
-        def Index(self, name):  # noqa: N802 - matches the real client
+        def Index(self, name):  # capitalised to match the real client
             return types.SimpleNamespace(describe_index_stats=lambda: stats or {})
 
     module.Pinecone = Client
@@ -150,7 +150,7 @@ class TestReadIndexSize:
             def __init__(self, api_key=None):
                 pass
 
-            def Index(self, name):  # noqa: N802 - matches the real client
+            def Index(self, name):  # capitalised to match the real client
                 return types.SimpleNamespace(
                     describe_index_stats=lambda: time.sleep(30) or {}
                 )
@@ -176,7 +176,7 @@ class TestReadIndexSize:
             def __init__(self, api_key=None):
                 pass
 
-            def Index(self, name):  # noqa: N802 - matches the real client
+            def Index(self, name):  # capitalised to match the real client
                 return types.SimpleNamespace(
                     describe_index_stats=lambda: time.sleep(30) or {}
                 )

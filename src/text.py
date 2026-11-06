@@ -62,7 +62,7 @@ def chunk_ids(chunks: Iterable) -> list[str]:
     # digest -- checked, because every id in the live index depends on that,
     # and an id change turns a re-index into an append.
     return [
-        hashlib.sha1(  # noqa: S324 - content addressing, see above
+        hashlib.sha1(
             chunk.page_content.encode("utf-8"), usedforsecurity=False
         ).hexdigest()
         for chunk in chunks

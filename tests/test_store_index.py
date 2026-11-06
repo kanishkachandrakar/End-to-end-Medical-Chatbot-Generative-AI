@@ -123,7 +123,7 @@ def _recording_client(calls):
             calls["created"].append(kwargs)
             calls.setdefault("create_timeouts", []).append(kwargs.get("timeout"))
 
-        def Index(self, name):  # noqa: N802 - matches the real client
+        def Index(self, name):  # capitalised to match the real client
             calls.setdefault("stats_reads", []).append(name)
             return types.SimpleNamespace(
                 describe_index_stats=lambda: {

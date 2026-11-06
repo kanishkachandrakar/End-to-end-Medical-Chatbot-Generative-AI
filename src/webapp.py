@@ -209,7 +209,8 @@ def create_app(
             # may legitimately have nothing to say, and that is NO_ANSWER
             # below with a 200.
             answer = strip_reasoning(response.get("answer", ""))
-        except Exception as exc:  # noqa: BLE001 - mapped to a reply below
+        # Broad on purpose: every chain failure is mapped to a reply below.
+        except Exception as exc:
             app.logger.exception(
                 "[%s] the retrieval chain failed after %.1fs",
                 g.request_id,

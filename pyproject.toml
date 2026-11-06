@@ -12,6 +12,13 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "S"]
+# RUF100 on its own, not the whole RUF set: a `# noqa` for a rule nothing runs
+# reads as "a linter objects here and we decided it is fine" when no linter
+# objects -- and if that rule is ever selected, the suppression applies without
+# anyone reviewing it. There were seven, for BLE001, N802 and S324, none of
+# them enabled; one was mine, added an hour before this and already redundant
+# because usedforsecurity=False satisfies S324 on its own.
+extend-select = ["E111", "E117", "RUF100"]
 # "E" reads as all of pycodestyle and is not: ruff keeps the indentation rules
 # behind preview, so E111 and E117 were selected and never ran. template.py was
 # indented three spaces throughout -- against this repo's own .editorconfig,
@@ -24,7 +31,6 @@ select = ["E", "F", "W", "I", "UP", "B", "S"]
 # auto-fixed. So this is not two extra rules, it is pycodestyle as ruff
 # currently implements it, which is what "E" was always meant to mean here.
 preview = true
-extend-select = ["E111", "E117"]
 
 [tool.ruff.lint.per-file-ignores]
 # The suite is assertions, subprocess calls to git and bash, and a couple of

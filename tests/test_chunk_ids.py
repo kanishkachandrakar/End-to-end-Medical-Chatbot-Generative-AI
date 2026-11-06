@@ -105,6 +105,6 @@ def test_the_ids_are_plain_sha1_of_the_chunk_text():
     texts = ["hypertension is a condition", "acne is a skin condition", ""]
     chunks = [Chunk(text) for text in texts]
     assert chunk_ids(chunks) == [
-        hashlib.sha1(text.encode("utf-8")).hexdigest()  # noqa: S324
+        hashlib.sha1(text.encode("utf-8")).hexdigest()
         for text in texts
     ]
