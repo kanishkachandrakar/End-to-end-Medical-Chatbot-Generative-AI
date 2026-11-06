@@ -57,8 +57,14 @@ def chunk_ids(chunks: Iterable) -> list[str]:
     which is wanted: duplicates embed to the same vector, so keeping several
     only wastes space and lets one passage fill a top-k result on its own.
     """
+    # usedforsecurity=False: this is a content address, not a signature, and
+    # the flag says so to bandit and to a reader. It does not change the
+    # digest -- checked, because every id in the live index depends on that,
+    # and an id change turns a re-index into an append.
     return [
-        hashlib.sha1(chunk.page_content.encode("utf-8")).hexdigest()
+        hashlib.sha1(  # noqa: S324 - content addressing, see above
+            chunk.page_content.encode("utf-8"), usedforsecurity=False
+        ).hexdigest()
         for chunk in chunks
     ]
 

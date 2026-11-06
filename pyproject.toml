@@ -11,7 +11,7 @@ line-length = 88
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "B"]
+select = ["E", "F", "W", "I", "UP", "B", "S"]
 # "E" reads as all of pycodestyle and is not: ruff keeps the indentation rules
 # behind preview, so E111 and E117 were selected and never ran. template.py was
 # indented three spaces throughout -- against this repo's own .editorconfig,
@@ -27,6 +27,10 @@ preview = true
 extend-select = ["E111", "E117"]
 
 [tool.ruff.lint.per-file-ignores]
+# The suite is assertions, subprocess calls to git and bash, and a couple of
+# 0.0.0.0 literals it checks the app does *not* bind. Every S rule that fires
+# there fires on the thing the test is for.
+"tests/*" = ["S"]
 # The notebook's prototype code is kept as a record of how the pipeline was
 # built; it is not maintained to the same standard as src/.
 "research/*" = ["ALL"]

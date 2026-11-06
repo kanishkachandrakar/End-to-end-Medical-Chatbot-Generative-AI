@@ -272,7 +272,15 @@ def main(argv=None) -> None:
     # Past the dry-run return above, so prepare_index has run and the client
     # exists. Stated rather than assumed: mypy cannot see the connection
     # between the two branches, and neither could a reader.
-    assert pc is not None
+    #
+    # A raise rather than an assert, because `python -O` strips asserts and
+    # this is the last thing standing between a None client and an
+    # AttributeError thirty lines into the upsert.
+    if pc is None:  # pragma: no cover - unreachable past the dry-run return
+        raise RuntimeError(
+            "prepare_index did not run; this is reachable only if the "
+            "dry-run branch above stopped returning early"
+        )
 
     started = time.monotonic()
     embeddings = download_hugging_face_embeddings()

@@ -90,3 +90,21 @@ class TestBatched:
         pairs = list(zip(batched(docs, 3), batched(ids, 3), strict=True))
         assert [len(d) for d, _ in pairs] == [3, 3, 1]
         assert all(len(d) == len(i) for d, i in pairs)
+
+
+def test_the_ids_are_plain_sha1_of_the_chunk_text():
+    """usedforsecurity=False must not change a single id.
+
+    Every vector in the live index is stored under one of these, and an id
+    that moves turns a re-index into an append rather than an overwrite. The
+    flag is documentation for bandit and for a reader; this is the check that
+    it is only that.
+    """
+    import hashlib
+
+    texts = ["hypertension is a condition", "acne is a skin condition", ""]
+    chunks = [Chunk(text) for text in texts]
+    assert chunk_ids(chunks) == [
+        hashlib.sha1(text.encode("utf-8")).hexdigest()  # noqa: S324
+        for text in texts
+    ]
