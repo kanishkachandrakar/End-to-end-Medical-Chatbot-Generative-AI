@@ -123,6 +123,15 @@ echo "    build log: $SPACES_BASE/$SPACE?logs=build"
 # derived from the owner and name. /healthz reports the revision it was built
 # from, which is the one question worth asking after a deploy: did this one
 # take effect, or is the old build still answering?
-app_host="$(printf '%s' "$SPACE" | tr '/' '-' | sed 's/\.git$//')"
+# Lowercased, and every character that cannot appear in a hostname folded to
+# a dash. An underscore is not legal in a DNS hostname, so a Space called
+# owner/my_space produced a verify URL that cannot resolve -- and this line is
+# the script's last word, the one thing an operator copies.
+app_host="$(
+    printf '%s' "$SPACE" \
+        | sed 's/\.git$//' \
+        | tr '[:upper:]' '[:lower:]' \
+        | tr '/_.' '---'
+)"
 echo "    verify:    curl -s https://${app_host}.hf.space/healthz"
 echo "               expect it to name $source_rev once the build finishes"

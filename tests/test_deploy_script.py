@@ -158,6 +158,52 @@ def test_the_app_host_follows_hugging_face_s_scheme(space, tmp_path):
     assert "https://owner-demo.hf.space/healthz" in result.stdout, result.stdout
 
 
+@pytest.mark.parametrize(
+    "argument, expected",
+    [
+        ("owner/demo.git", "owner-demo"),
+        ("owner/demo", "owner-demo"),
+        ("Owner/MySpace", "owner-myspace"),
+        ("owner/my_space", "owner-my-space"),
+        ("owner/a.b.c", "owner-a-b-c"),
+    ],
+)
+def test_the_verify_url_is_always_a_legal_hostname(argument, expected):
+    """It was the Space path with slashes swapped for dashes, and nothing else.
+
+    An underscore is not legal in a DNS hostname, so owner/my_space printed a
+    URL that cannot resolve -- and this line is the script's last word, the
+    one thing an operator copies and runs. Uppercase and dots fold too.
+
+    The pipeline is lifted out of the script and run by bash, rather than
+    reimplemented here. Deriving it twice in two languages would make this a
+    test of the copy: it would pass with the script unchanged, which is the
+    failure it exists to catch.
+    """
+    import re
+    import subprocess
+
+    source = SCRIPT.read_text()
+    found = re.search(r'app_host="\$\(\n(.*?)\n\)"', source, re.DOTALL)
+    assert found, "the app_host pipeline is no longer where this test looks"
+
+    result = subprocess.run(
+        [
+            "bash",
+            "-c",
+            f'SPACE="$1"\nprintf "%s" "$(\n{found.group(1)}\n)"',
+            "_",
+            argument,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=SUBPROCESS_TIMEOUT,
+    )
+    assert result.returncode == 0, result.stderr
+    host = result.stdout.strip()
+    assert host == expected, host
+
+
 @pytest.fixture
 def space_with_a_stale_module(space, tmp_path):
     """A Space as an earlier deploy would have left it: holding a module
