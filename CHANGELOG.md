@@ -7,6 +7,47 @@ the behavioural ones; the rest is in the git log.
 
 ### Fixed
 
+- **`build_chain` took a Pinecone key and never used one.** `from_existing_index`
+  accepts no key and calls `get_pinecone_index` without forwarding one, so
+  langchain fell through to `os.environ.get("PINECONE_API_KEY")`: the signature
+  said the credential was passed and the environment supplied it. The key is
+  handed over explicitly now, as `ChatGroq` beside it already was.
+- **A declared return type that was never checked.** `TokenBucket` took an
+  unannotated clock, so every float derived from it was an `Any` — and
+  `tokens_available() -> float` and `seconds_until() -> float`, which feed
+  `Retry-After` and the rate-limit headers, claimed a type nothing verified.
+  mypy runs with `strict` now, which found that and thirteen missing
+  annotations.
+- **Two booleans whose order decided whether a delete was confirmed.**
+  `prepare_index(key, recreate, yes)` — `recreate` deletes the index, `yes`
+  skips the confirmation — took both positionally. Every caller used keywords,
+  which is a habit rather than a guarantee; they are keyword-only now.
+- **Two tests wrote scratch files into `src/`,** where four other checks glob
+  `src/*.py`. Serially the window is milliseconds; under `pytest -n 4` the
+  suite failed. The probes write to `static/` with a non-Python extension now,
+  and a check stops any test creating a file under `src/`.
+- **A gradient that cannot apply, in colours that were never the design.** The
+  `-webkit-` prefixed declaration sits before the standard one, so the cascade
+  discards it — and its three colour stops differ from the live ones, so had it
+  ever applied the page would have been a different colour.
+- **The verify URL could not resolve for a Space with an underscore.** The
+  deploy script's last line, the one an operator copies, was the Space path with
+  slashes swapped for dashes and nothing else; an underscore is not legal in a
+  hostname. Lowercased and folded now.
+- **Eleven indentation violations** in `template.py` against the four spaces its
+  own `.editorconfig` section declares, invisible because ruff keeps the
+  indentation rules behind `preview` while `select = ["E"]` reads as all of
+  pycodestyle.
+- **Seven `# noqa` directives suppressing rules nothing runs** — for `BLE001`,
+  `N802` and `S324`, none of them selected. One was mine, added an hour earlier
+  and already redundant.
+- **Two bandit findings:** the chunk-id `sha1` now says `usedforsecurity=False`
+  (verified not to change a single id), and an `assert` that `python -O` would
+  strip is a `raise`.
+- **The binaries were left to git's content sniffing.** `* text=auto` decides
+  per file by looking for NUL bytes; a wrong guess means CRLF normalisation
+  inside a 15MB PDF. Declared instead.
+
 - **The indexer called a 6× duplicated index a success.** `confirm_upsert`
   waited for the vector count to reach what was sent and then reported it —
   `count >= expected` — so a count far above expected, which means vectors
@@ -327,6 +368,15 @@ the behavioural ones; the rest is in the git log.
 
 ### Added
 
+- A test that the lock `TokenBucket` depends on actually holds. Its docstring
+  said "Thread-safe", every test of it was single-threaded, and concurrent takes
+  are the condition it runs under — one gunicorn worker with four threads. Four
+  races grant exactly the capacity; without the lock, 8 against a capacity of 5.
+- Tests for the three branches that line coverage hid, and for the four response
+  shapes the security-header tests did not cover — including the routing
+  redirect, which is the one reply that bypasses the error handler by design.
+- `S`, `RUF100` and `FBT` selected in ruff; `strict` in mypy.
+
 - `make branches` runs the suite with branch coverage, which `make test` does
   not. It found three never-taken branches in two files reporting 100% line
   coverage: `url_for` on a non-static endpoint, `url_for` for a static file
@@ -449,6 +499,14 @@ the behavioural ones; the rest is in the git log.
   disagrees with the changelog.
 
 ### Changed
+
+- The measured cost of a worker recycle is written into `gunicorn.conf.py`,
+  which called it "a brief pause". It is 28.1 seconds before a replacement
+  worker can answer — 24.2 of them building the embedding model — plus up to
+  fifteen more if the index-size read has to time out, with nothing else
+  serving. `preload_app` would remove it and is not enabled: the master would
+  hold Pinecone and Groq connection pools across the fork, which wants trying
+  against a real deployment.
 
 - Floors raised to what is installed: pypdf (the declared minimum was two major
   releases below what has been reading the book), python-dotenv,
