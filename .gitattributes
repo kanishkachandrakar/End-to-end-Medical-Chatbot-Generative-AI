@@ -14,3 +14,14 @@ Data/** linguist-vendored
 
 # Normalise line endings through the index; this repo is LF throughout.
 * text=auto
+
+# Declared rather than sniffed. `text=auto` makes git decide per file by
+# looking for NUL bytes, and it decides correctly for these two -- but a wrong
+# guess means CRLF normalisation applied inside a binary, which for a 15MB
+# source PDF and the one image the page loads is a corruption committed
+# through the index. Saying so costs two lines and removes the guess; it also
+# stops git trying to diff them as text.
+*.pdf binary
+*.jpeg binary
+*.jpg binary
+*.png binary
