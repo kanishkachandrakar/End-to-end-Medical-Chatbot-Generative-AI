@@ -94,3 +94,34 @@ def test_both_jobs_are_bounded_by_a_timeout():
 
 def test_the_token_is_read_only():
     assert re.search(r"^permissions:\n  contents: read$", WORKFLOW, re.MULTILINE)
+
+
+def test_no_checkout_leaves_the_token_on_disk():
+    """actions/checkout writes the job's token into .git/config by default.
+
+    Every later step in the job can then read it. Nothing in this workflow
+    pushes -- the token is wanted for the clone and nothing after it -- and
+    it is read-only anyway, since permissions is contents: read at the top.
+    So this is the second lock rather than the first, which is the only kind
+    worth adding without an incident to point at.
+    """
+    import yaml
+
+    workflow = yaml.safe_load(WORKFLOW)
+    checkouts = [
+        step
+        for job in workflow["jobs"].values()
+        for step in job["steps"]
+        if "actions/checkout" in str(step.get("uses", ""))
+    ]
+    assert len(checkouts) == 2, len(checkouts)
+    for step in checkouts:
+        assert step.get("with", {}).get("persist-credentials") is False, step
+
+
+def test_the_workflow_asks_for_no_more_than_read_access():
+    """The first lock, and the reason the one above is only the second."""
+    import yaml
+
+    workflow = yaml.safe_load(WORKFLOW)
+    assert workflow["permissions"] == {"contents": "read"}, workflow["permissions"]

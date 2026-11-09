@@ -42,7 +42,14 @@ jobs:
         # can install on at all.
         python-version: ["3.12", "3.13"]
     steps:
+      # persist-credentials: false -- checkout writes the job's token into
+      # .git/config by default, where every later step can read it. Nothing
+      # here pushes: the token is wanted for the clone and nothing after it.
+      # It is read-only already, because permissions is contents: read at the
+      # top of this file, so this is the second lock rather than the first.
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
@@ -128,6 +135,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
