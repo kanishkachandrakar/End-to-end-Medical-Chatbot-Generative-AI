@@ -155,3 +155,22 @@ def test_the_state_table_counts_its_own_rows():
         f"the table describes {len(rows)} responses; the prose above it "
         "names a different number"
     )
+
+
+def test_the_prose_does_not_count_the_degraded_states():
+    """It said "a banner for either degraded state" when there were two.
+
+    There are three. A sentence that counts goes stale the moment one is
+    added, and nothing reads prose -- so the wording no longer counts, and
+    this keeps it that way. The table above it does carry a number, and
+    test_the_state_table_counts_its_own_rows checks that one against its own
+    rows.
+    """
+    for phrase in ("either degraded state", "both degraded states"):
+        assert phrase not in DEPLOY, phrase
+
+
+def test_there_are_more_degraded_states_than_the_prose_used_to_admit():
+    """So the check above is not guarding a claim nobody would make again."""
+    degraded = {state for state in _states()}
+    assert len(degraded) >= 3, degraded

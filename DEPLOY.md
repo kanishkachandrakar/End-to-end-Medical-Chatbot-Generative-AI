@@ -175,7 +175,8 @@ would be trivially spoofed. One busy visitor can therefore make others wait.
 - **Request logs appear in the runtime log**, one line per request, so you can
   tell a question that failed from one that never arrived.
 - **The chat page says so when answers would not be grounded.** It asks
-  `/healthz` on load and shows a banner for either degraded state; an
+  `/healthz` on load and shows a banner naming whichever degraded state it
+  reports; an
   unexplained failure is confirmed against `/livez` before it claims an outage,
   so one dropped request does not alarm every visitor.
 - **Replies carry the rate-limit budget.** `X-RateLimit-Limit` and

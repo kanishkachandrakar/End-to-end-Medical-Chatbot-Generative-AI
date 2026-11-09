@@ -133,9 +133,12 @@ def test_the_script_asks_healthz_on_load():
     assert '"/healthz"' in SCRIPT
 
 
-def test_the_banner_recognises_both_degraded_states():
-    for state in ("chain-unavailable", "index-empty"):
-        assert state in SCRIPT, state
+# Removed: test_the_banner_recognises_both_degraded_states, which named
+# "chain-unavailable" and "index-empty" by hand. There are three degraded
+# states now -- keys-missing joined them -- and a hardcoded pair cannot
+# notice. test_health_states.py::test_every_state_is_recognised_by_the_page
+# derives the list from src/webapp.py and app.py and asserts chat.js knows
+# every one, which is the same claim without the list to keep.
 
 
 def test_the_banner_text_is_set_as_text():
