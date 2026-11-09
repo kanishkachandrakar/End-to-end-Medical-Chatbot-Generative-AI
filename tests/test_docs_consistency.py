@@ -638,3 +638,37 @@ def test_mypy_runs_in_strict_mode():
     config = (ROOT / "pyproject.toml").read_text()
     mypy_section = config.split("[tool.mypy]")[1].split("\n[")[0]
     assert "strict = true" in mypy_section, mypy_section
+
+
+def test_preflight_runs_check_and_the_floor_interpreter():
+    """One command for the pre-push habit, because two was one too many.
+
+    CONTRIBUTING asked for `make check` and then `make test312`. The second
+    is the only CI leg a local run does not cover -- this machine is 3.12 and
+    CI tests 3.12 and 3.13 -- and two bugs reached a push through that gap.
+    """
+    import re
+
+    makefile = (ROOT / "Makefile").read_text()
+    target = re.search(r"^preflight: (.+?)(?:  ##|$)", makefile, re.MULTILINE)
+    assert target, "no preflight target"
+    assert set(target.group(1).split()) == {"check", "test312"}, target.group(1)
+
+
+def test_preflight_is_not_folded_into_check():
+    """`make check` must keep working on a machine without docker.
+
+    test312 runs the suite in a container; check does not need one. Folding
+    them together would make the cheap command depend on the expensive
+    prerequisite.
+    """
+    import re
+
+    makefile = (ROOT / "Makefile").read_text()
+    check = re.search(r"^check: (.+?)(?:  ##|$)", makefile, re.MULTILINE)
+    assert check, "no check target"
+    assert "test312" not in check.group(1), check.group(1)
+
+
+def test_contributing_asks_for_preflight():
+    assert "make preflight" in (ROOT / "CONTRIBUTING.md").read_text()

@@ -19,7 +19,7 @@ export COVERAGE_CORE
 PY312_IMAGE := $(shell grep -oE 'python:3\.12-slim@sha256:[0-9a-f]+' Dockerfile)
 
 .DEFAULT_GOAL := help
-.PHONY: help install test test312 branches fast lint fix hooks hooks-update check run index dry-run image clean
+.PHONY: help install test test312 branches fast lint fix hooks hooks-update check preflight run index dry-run image clean
 
 # [a-z0-9-] rather than [a-z-]: test312 was invisible to this the moment it
 # existed, because the pattern had no digits in it -- as did the test that
@@ -107,6 +107,18 @@ hooks:  ## Run the pre-commit hooks, as CI does
 	SKIP=ruff $(PYTHON) -m pre_commit run --all-files
 
 check: lint hooks test  ## Everything CI checks, except the image build
+
+# What to run before pushing. `check` plus the floor interpreter, which is the
+# one CI leg a local run does not cover: this machine is 3.12 and CI tests 3.12
+# and 3.13, and two bugs have reached a push through that gap -- `except
+# TimeoutError` not catching concurrent.futures.TimeoutError on 3.10, which was
+# the floor then, and packages_distributions() reporting no langchain packages
+# there. CONTRIBUTING told people to run both commands; one is easier to
+# remember than two, and remembering was the part that failed.
+#
+# Not folded into `check`, because this half needs docker and that half does
+# not -- `make check` has to keep working on a machine without it.
+preflight: check test312  ## Everything above, plus the floor interpreter
 
 run:  ## Serve the app on localhost:8080
 	$(PYTHON) app.py

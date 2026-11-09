@@ -30,7 +30,8 @@ argument, so `pytest tests/test_one_thing.py` ran all 490 tests and reported
 no coverage at all. If you add a flag with an optional value to `addopts`,
 check what it does to a positional argument.
 
-Run `make test312` before pushing. The suite is checked against two
+Run `make preflight` before pushing — `make check` plus `make test312`. The
+suite is checked against two
 interpreters in CI, and 3.12 is the one that has to pass — it is what the
 Dockerfile and `python_requires` target — while a local checkout is whatever
 interpreter you happen to have. That gap has now sent two bugs to a push:
