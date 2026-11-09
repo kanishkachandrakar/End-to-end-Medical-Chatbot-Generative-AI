@@ -154,3 +154,33 @@ def test_an_unexplained_healthz_failure_is_confirmed_before_alarming():
 def test_the_banner_only_claims_an_outage_on_a_real_failure():
     """A 4xx from /healthz is not an outage, so it must not say so."""
     assert "jqXHR.status === 0 || jqXHR.status >= 500" in SCRIPT
+
+
+# HTML5 has no self-closing syntax: the `/` before `>` on a void element is
+# ignored. The W3C validator says so, and says why it is worth not writing --
+# "interacts badly with unquoted attribute values" -- which is exactly the
+# shape `required/>` had.
+VOID_ELEMENTS = ("meta", "link", "img", "input", "br", "hr", "source")
+
+
+def test_no_void_element_is_written_self_closing():
+    """Six of the eight were already plain; two were not, and were the two
+    the validator flagged.
+
+    The rendered page was put through validator.w3.org for the first time
+    while writing this: no errors and no warnings, two info messages, both
+    of them these.
+    """
+    import re
+
+    pattern = r"<(" + "|".join(VOID_ELEMENTS) + r")\b[^>]*/>"
+    offenders = [match.group(0)[:60] for match in re.finditer(pattern, MARKUP)]
+    assert not offenders, f"self-closing void elements: {offenders}"
+
+
+def test_the_void_elements_are_there_to_check():
+    """An empty list would pass the check above without reading anything."""
+    import re
+
+    found = re.findall(r"<(" + "|".join(VOID_ELEMENTS) + r")\b", MARKUP)
+    assert len(found) >= 6, found
