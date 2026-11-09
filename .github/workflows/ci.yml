@@ -87,7 +87,8 @@ jobs:
       # The floor belongs here rather than in pytest.ini: it is only
       # meaningful across the whole suite, which is what CI runs.
       - name: Type-check
-        run: mypy src app.py store_index.py
+        run: mypy src app.py store_index.py template.py setup.py
+          gunicorn.conf.py scripts/check_no_keys.py
 
       # COVERAGE_CORE picks sys.monitoring. Under the default tracer coverage
       # spends about fourteen seconds tracing the langchain import tree it then
@@ -103,7 +104,8 @@ jobs:
 
       # Catches a syntax error in a module the unit tests do not import.
       - name: Byte-compile every module
-        run: python -m compileall -q app.py store_index.py template.py setup.py src
+        run: python -m compileall -q app.py store_index.py template.py
+          setup.py gunicorn.conf.py scripts/check_no_keys.py src
 
       # Neither of these files is Python, so nothing above looks at them:
       # static/chat.js is the whole chat UI and scripts/deploy_space.sh is how

@@ -26,8 +26,8 @@ list_of_files = [
     "research/trials.ipynb"
 ]
 
-for filepath in list_of_files:
-    filepath = Path(filepath)
+for entry in list_of_files:
+    filepath = Path(entry)
     filedir, filename = os.path.split(filepath)
 
     if filedir != "":

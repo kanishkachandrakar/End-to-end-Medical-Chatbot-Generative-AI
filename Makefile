@@ -72,7 +72,11 @@ fast:  ## Run the suite without the slow-marked files
 
 lint:  ## Check formatting, imports, types and the non-Python files
 	ruff check .
-	$(PYTHON) -m mypy src app.py store_index.py
+	@# Every tracked module outside tests/, not just the ones the app imports:
+	@# the omitted four included the pre-commit hook that stands between a
+	@# secret and a push, and template.py, which had a real error in it.
+	$(PYTHON) -m mypy src app.py store_index.py template.py setup.py \
+		gunicorn.conf.py scripts/check_no_keys.py
 	node --check static/chat.js
 	bash -n scripts/deploy_space.sh
 	@# shellcheck too, as CI does. `bash -n` finds a syntax error and nothing
@@ -89,7 +93,7 @@ lint:  ## Check formatting, imports, types and the non-Python files
 	fi
 	@# Catches a syntax error in a module the suite never imports, as CI does.
 	$(PYTHON) -m compileall -q app.py store_index.py template.py setup.py \
-		gunicorn.conf.py src
+		gunicorn.conf.py scripts/check_no_keys.py src
 	@# The same Dockerfile lint CI runs; it is what found the shell-form CMD
 	@# that was swallowing SIGTERM.
 	docker buildx build --check .

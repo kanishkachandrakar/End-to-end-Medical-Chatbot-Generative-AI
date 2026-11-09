@@ -102,13 +102,14 @@ def test_the_makefile_runs_what_ci_runs():
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
     commands = (
         "ruff check .",
-        "mypy src app.py store_index.py",
         "node --check static/chat.js",
         "bash -n scripts/deploy_space.sh",
         # `bash -n` catches a syntax error; every other finding in a shell
         # script is shellcheck's, and only CI was running it.
         "shellcheck --severity=error scripts/deploy_space.sh",
-        "compileall",
+        # mypy's and compileall's argument lists are compared file by file in
+        # test_the_hand_kept_module_lists_name_every_module, below; matching
+        # the bare word "compileall" here let CI's list lose gunicorn.conf.py.
         # The Makefile runs `python -m pre_commit` so that PYTHON= works; CI
         # uses the console script. Compare the operation, not the spelling.
         "run --all-files",
@@ -117,6 +118,69 @@ def test_the_makefile_runs_what_ci_runs():
     for command in commands:
         assert command in makefile, f"Makefile omits {command!r}"
         assert command in workflow, f"CI omits {command!r}"
+
+
+def _logical_command(text: str, keyword: str) -> str:
+    """The one command containing `keyword`, with its continuation joined.
+
+    The Makefile continues a command with a trailing backslash; the workflow
+    continues a plain `run:` scalar by indenting the next line further. Both
+    collapse to a single line here, and nothing outside the command comes with
+    them. The first version of this helper partitioned on the keyword and kept
+    the rest of the file, so deleting a name from one list still passed -- the
+    other list, further down the same file, supplied it. The mutation below
+    found that, which is the only reason this docstring exists.
+    """
+    lines = text.replace("\\\n", " ").splitlines()
+    for index, line in enumerate(lines):
+        if keyword not in line:
+            continue
+        command = line
+        indent = len(line) - len(line.lstrip())
+        for following in lines[index + 1 :]:
+            stripped = following.strip()
+            deeper = len(following) - len(following.lstrip()) > indent
+            if not stripped or not deeper or stripped.startswith("- "):
+                break
+            if re.match(r"[a-z-]+:", stripped):
+                break
+            command += " " + stripped
+        return command
+    raise AssertionError(f"neither file runs anything containing {keyword!r}")
+
+
+def test_the_hand_kept_module_lists_name_every_module():
+    """mypy and compileall take explicit file lists, so a new file never joins.
+
+    Four never had: gunicorn.conf.py, setup.py, template.py, and the
+    scripts/check_no_keys.py pre-commit hook -- the one thing standing between
+    an API key and a push, and so the last Python in the repo that should go
+    unchecked. Adding them to mypy found a real error in template.py, where the
+    loop variable was rebound from str to Path. CI's compileall list had also
+    drifted from the Makefile's by one file, which the word-match in
+    test_the_makefile_runs_what_ci_runs could not see, because it compared the
+    word "compileall" and not the names after it.
+
+    `ruff check .` needs no list and so cannot drift; these two can.
+    """
+    makefile = (ROOT / "Makefile").read_text()
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    tracked = {
+        str(path.relative_to(ROOT))
+        for path in ROOT.rglob("*.py")
+        if not {".venv", "tests", "research", "build"} & set(path.parts)
+        and not path.name.startswith("_")
+    }
+    # src/ goes in as a directory, which is how both commands name it.
+    expected = {p for p in tracked if not p.startswith("src/")} | {"src"}
+    assert "scripts/check_no_keys.py" in expected, "the hook stopped being found"
+
+    for name, text in (("Makefile", makefile), ("CI", workflow)):
+        for keyword in ("mypy src", "compileall -q"):
+            command = _logical_command(text, keyword)
+            named = set(command.split())
+            missing = expected - named
+            assert not missing, f"{name}'s {keyword} list omits {sorted(missing)}"
 
 
 def test_the_coverage_floor_is_actually_enforced():
