@@ -174,3 +174,43 @@ def test_there_are_more_degraded_states_than_the_prose_used_to_admit():
     """So the check above is not guarding a claim nobody would make again."""
     degraded = {state for state in _states()}
     assert len(degraded) >= 3, degraded
+
+
+# Spelled-out counts, because that is how the prose writes them.
+WORDS = {"two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7}
+
+
+def _state_count():
+    """Every distinct string /healthz can answer with.
+
+    The degraded ones are named in the code and collected by `_states()`. The
+    200 reply is one of two: `vectors=` carries a count, or it carries the word
+    the conditional below substitutes when the startup read failed. The
+    conditional is binary, which is where the two comes from -- asserted
+    rather than assumed, so moving it fails here instead of quietly making the
+    arithmetic wrong.
+    """
+    assert OK_VARIANT.search(WEBAPP), "the ok-reply conditional moved; recount"
+    return len(_states()) + 2
+
+
+def test_no_document_miscounts_the_states():
+    """DEPLOY.md was corrected to five; CHANGELOG.md still said three.
+
+    The earlier guard for this only read DEPLOY.md, because that was the file
+    that had been wrong. Counting prose goes stale wherever it is written, so
+    this reads every markdown file in the repo and checks the number against
+    the states the code can actually emit.
+    """
+    pattern = re.compile(r"(?:which|one) of (\w+) states")
+    counted = 0
+    for path in sorted(ROOT.rglob("*.md")):
+        if ".venv" in path.parts:
+            continue
+        for word in pattern.findall(path.read_text()):
+            counted += 1
+            assert WORDS.get(word) == _state_count(), (
+                f"{path.name} says /healthz has {word} states; "
+                f"the code emits {_state_count()}"
+            )
+    assert counted, "no document counts the states any more; drop this test"

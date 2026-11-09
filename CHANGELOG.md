@@ -7,6 +7,40 @@ the behavioural ones; the rest is in the git log.
 
 ### Fixed
 
+- **A deployment with no API keys set crash-looped instead of saying so.**
+  `create()` raised on the missing `PINECONE_API_KEY` and `GROQ_API_KEY`,
+  which killed the gunicorn worker before it could serve anything: the Space
+  restarted, failed again, and showed a build error naming neither variable.
+  The likeliest way to get this deployment wrong produced its least readable
+  failure. It now comes up and reports `degraded <rev> keys-missing` at
+  `/healthz`, with a banner saying the credentials are missing and that the
+  fix is server-side. `/livez` stays 200, because a restart cannot set a
+  secret. Checked in CI against a real container with an empty environment,
+  which is the only place that can run gunicorn without credentials — the
+  suite reaches the app only through Flask's test client, and the failure
+  being fixed was gunicorn's.
+- **Four modules mypy never checked**, among them
+  `scripts/check_no_keys.py`: the pre-commit hook that stands between an API
+  key and a push, and so the last Python here that should go unchecked. The
+  list read `src app.py store_index.py`, written when that was all there was.
+  Adding `template.py`, `setup.py`, `gunicorn.conf.py` and the hook found a
+  real error — `template.py` rebound its loop variable from `str` to `Path`,
+  giving one name two types, which `os.path` accepts and so nothing caught.
+  CI's `compileall` list had separately drifted from the Makefile's by one
+  file, which the test meant to catch that could not see, because it compared
+  the word `compileall` and not the names after it. Both lists are now checked
+  file by file against every tracked module.
+- **The changelog counted the health states and was two behind.** This line,
+  the one below about `/healthz`, said three. The guard written for that
+  mistake read only DEPLOY.md, the file that had been wrong; counting prose
+  goes stale wherever it is written, so the number is now checked against the
+  states the code emits in every markdown file in the repo.
+- **Nineteen internal documentation links, none of them checked.** One was
+  already broken: the notebook's table sent a reader to `src/helper.py` for
+  `load_pdf`, which lives in `src/loaders.py`. Every relative link in the
+  markdown and the notebooks now has to resolve, and an anchor has to match a
+  real heading.
+
 - **`build_chain` took a Pinecone key and never used one.** `from_existing_index`
   accepts no key and calls `get_pinecone_index` without forwarding one, so
   langchain fell through to `os.environ.get("PINECONE_API_KEY")`: the signature
@@ -797,7 +831,7 @@ Everything below was fixed or added on the way there.
   for the template contract tests.
 - `src/config.py` cross-checks the settings whose meaning is relative to each
   other, and `--recreate` asks for confirmation before deleting an index.
-- `/healthz` reports one of three states; see [DEPLOY.md](DEPLOY.md).
+- `/healthz` reports one of five states; see [DEPLOY.md](DEPLOY.md).
 
 ### Known limitations
 
