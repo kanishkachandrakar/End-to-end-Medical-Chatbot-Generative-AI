@@ -90,7 +90,12 @@ $(document).ready(function () {
     $.ajax({ type: "GET", url: "/healthz", dataType: "text" })
         .fail(function (jqXHR) {
             const body = String(jqXHR.responseText || "");
-            if (body.indexOf("chain-unavailable") !== -1) {
+            if (body.indexOf("keys-missing") !== -1) {
+                showBanner(
+                    "This deployment has not been given its API credentials, " +
+                    "so questions cannot be answered. That is a server-side fix."
+                );
+            } else if (body.indexOf("chain-unavailable") !== -1) {
                 showBanner(
                     "The service cannot reach its search index right now, so " +
                     "questions will not be answered. Please try again later."

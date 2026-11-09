@@ -35,7 +35,7 @@ from src.env import require_env, warn_on_suspicious_keys
 from src.helper import download_hugging_face_embeddings
 from src.prompt import system_prompt
 from src.ratelimit import per_minute
-from src.webapp import APP_REVISION, create_app
+from src.webapp import APP_REVISION, RagChain, create_app
 
 
 def configure_logging() -> logging.Logger:
@@ -195,7 +195,24 @@ def create() -> Flask:
     """Build the application. Gunicorn calls this; see gunicorn.conf.py."""
     logger = configure_logging()
     load_dotenv()
-    keys = require_env("PINECONE_API_KEY", "GROQ_API_KEY")
+
+    # Missing secrets used to raise here, which kills the gunicorn worker,
+    # which restarts the container, which tries again -- the crash loop the
+    # chain-unavailable path below exists to avoid, reached by the single most
+    # likely mistake on a first deploy: not setting the two Space secrets.
+    # DEPLOY.md's state table called that outcome "no response at all. Check
+    # the build log, then the runtime log", when /healthz could simply say so.
+    chain: RagChain | None = None
+    unavailable: str | None = None
+    keys: dict[str, str] = {}
+    try:
+        keys = require_env("PINECONE_API_KEY", "GROQ_API_KEY")
+    except RuntimeError as exc:
+        unavailable = "keys-missing"
+        # The message names variables, never values.
+        logger.error("%s", exc)
+        chain = _Refusing(exc)
+
     for complaint in warn_on_suspicious_keys(keys):
         logger.warning("%s", complaint)
 
@@ -204,20 +221,28 @@ def create() -> Flask:
     logger.info("revision: %s", APP_REVISION)
     logger.info("config: %s", config_summary())
 
-    index_size = read_index_size(keys["PINECONE_API_KEY"])
+    # Both of these need the keys, so neither is attempted without them.
+    index_size = None
+    if not unavailable:
+        index_size = read_index_size(keys["PINECONE_API_KEY"])
 
-    # A Pinecone or HuggingFace blip at boot used to raise here, which means
-    # gunicorn's worker dies, which means the container restarts and tries
-    # again -- a crash loop whose only symptom is a Space that never comes up.
-    # Serving a degraded app instead keeps /healthz answering, with the reason.
-    chain, unavailable = None, None
-    try:
-        chain = build_chain(keys["PINECONE_API_KEY"], keys["GROQ_API_KEY"])
-    except Exception as exc:
-        unavailable = "chain-unavailable"
-        logger.exception("could not build the retrieval chain")
-        chain = _Refusing(exc)
+        # A Pinecone or HuggingFace blip at boot used to raise here, which
+        # means gunicorn's worker dies, which means the container restarts and
+        # tries again -- a crash loop whose only symptom is a Space that never
+        # comes up. Serving a degraded app instead keeps /healthz answering,
+        # with the reason.
+        try:
+            chain = build_chain(keys["PINECONE_API_KEY"], keys["GROQ_API_KEY"])
+        except Exception as exc:
+            unavailable = "chain-unavailable"
+            logger.exception("could not build the retrieval chain")
+            chain = _Refusing(exc)
 
+    # Always set by now: either build_chain returned one, or one of the two
+    # failure paths above installed a _Refusing in its place. A raise rather
+    # than an assert, which `python -O` would strip.
+    if chain is None:  # pragma: no cover - unreachable past both paths above
+        raise RuntimeError("no chain and no reason; the branches above changed")
     app = create_app(
         chain,
         limiter=per_minute(RATE_LIMIT_PER_MINUTE),

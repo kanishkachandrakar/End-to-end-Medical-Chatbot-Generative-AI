@@ -221,12 +221,27 @@ class TestCreate:
         assert client.post("/get", data={"msg": "q"}).status_code == 200
 
     def test_missing_keys_are_reported_rather_than_guessed_at(
-        self, app_module, monkeypatch
+        self, app_module, monkeypatch, caplog
     ):
+        """Reported, and no longer raised.
+
+        This asserted `pytest.raises(RuntimeError)`, which was the
+        behaviour: create() stopped, gunicorn's worker died, the container
+        restarted, and the Space never came up -- for the likeliest mistake
+        on a first deploy. The reason is still named, in the log and at
+        /healthz, and the app serves. See TestMissingKeys below.
+        """
+        import logging
+
+        monkeypatch.setattr(app_module, "load_dotenv", lambda *a, **k: None)
         monkeypatch.delenv("PINECONE_API_KEY", raising=False)
         monkeypatch.delenv("GROQ_API_KEY", raising=False)
-        with pytest.raises(RuntimeError, match="PINECONE_API_KEY"):
-            app_module.create()
+
+        with caplog.at_level(logging.ERROR):
+            app = app_module.create()
+
+        assert "PINECONE_API_KEY" in caplog.text
+        assert app.test_client().get("/healthz").status_code == 503
 
     def test_a_failing_chain_yields_a_degraded_app_not_an_exception(
         self, app_module, monkeypatch
@@ -349,3 +364,71 @@ class TestBuildChain:
             "search_type": "similarity",
             "search_kwargs": {"k": app_module.TOP_K},
         }
+
+
+class TestMissingKeys:
+    """No secrets set is the likeliest first-deploy mistake, and it used to
+    be the least informative failure.
+
+    require_env raised inside create(), which kills the gunicorn worker,
+    which restarts the container, which tries again -- the crash loop the
+    chain-unavailable path exists to avoid, reached by forgetting to fill in
+    two fields in the Space settings. DEPLOY.md described the result as "no
+    response at all", when /healthz could name it.
+    """
+
+    @staticmethod
+    def _without_keys(app_module, monkeypatch):
+        monkeypatch.setattr(app_module, "load_dotenv", lambda *a, **k: None)
+        for key in ("PINECONE_API_KEY", "GROQ_API_KEY"):
+            monkeypatch.delenv(key, raising=False)
+        return app_module.create()
+
+    def test_the_app_still_serves(self, app_module, monkeypatch):
+        app = self._without_keys(app_module, monkeypatch)
+        assert app.test_client().get("/").status_code == 200
+
+    def test_healthz_names_the_reason(self, app_module, monkeypatch):
+        client = self._without_keys(app_module, monkeypatch).test_client()
+        response = client.get("/healthz")
+        assert response.status_code == 503
+        assert "keys-missing" in response.data.decode()
+
+    def test_livez_still_answers_so_nothing_restarts_it(
+        self, app_module, monkeypatch
+    ):
+        """A restart cannot set a secret. The HEALTHCHECK reads /livez."""
+        client = self._without_keys(app_module, monkeypatch).test_client()
+        assert client.get("/livez").status_code == 200
+
+    def test_questions_are_refused_without_reaching_a_chain(
+        self, app_module, monkeypatch
+    ):
+        client = self._without_keys(app_module, monkeypatch).test_client()
+        response = client.post("/get", data={"msg": "what is acne?"})
+        assert response.status_code == 503
+        assert response.headers.get("Retry-After")
+
+    def test_no_key_value_is_logged(self, app_module, monkeypatch, caplog):
+        """The message names variables; it must never carry a value.
+
+        There are no values to leak in this state, which is the point -- but
+        the log line is written from an exception message, so the test says
+        what that message is allowed to contain.
+        """
+        import logging
+
+        with caplog.at_level(logging.ERROR):
+            self._without_keys(app_module, monkeypatch)
+        text = caplog.text
+        assert "PINECONE_API_KEY" in text
+        assert "GROQ_API_KEY" in text
+        assert "pcsk_" not in text and "gsk_" not in text
+
+    def test_one_key_missing_is_still_reported(self, app_module, monkeypatch):
+        """And names the one that is absent, not both."""
+        monkeypatch.setattr(app_module, "load_dotenv", lambda *a, **k: None)
+        monkeypatch.setenv("GROQ_API_KEY", "gsk_present")
+        monkeypatch.delenv("PINECONE_API_KEY", raising=False)
+        client = app_module.create().test_client()
+        assert "keys-missing" in client.get("/healthz").data.decode()

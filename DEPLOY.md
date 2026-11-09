@@ -112,7 +112,7 @@ go back to *Rebuild the index*.
 
 Then open the Space and ask something like *What is hypertension?*.
 
-`GET /healthz` answers without spending a Groq call, and says which of four
+`GET /healthz` answers without spending a Groq call, and says which of five
 states the app is in:
 
 | Response | Status | Meaning |
@@ -120,6 +120,7 @@ states the app is in:
 | `ok <rev> vectors=5860` | 200 | Working. `<rev>` is the commit the image was built from, so you can confirm a deploy took effect. |
 | `ok <rev> vectors=unknown` | 200 | Working, but the vector count could not be read at startup — a slow or unreachable Pinecone control plane. Answers are served; `index-empty` cannot be ruled out from here. The reason is in the runtime log. |
 | `degraded <rev> index-empty` | 503 | Running, but the index has no vectors — every answer will be ungrounded. Rebuild it. |
+| `degraded <rev> keys-missing` | 503 | Running, but `PINECONE_API_KEY` or `GROQ_API_KEY` is not set. Add them under **Settings → Variables and secrets** as *secrets*. Before this state existed the worker died on start-up and the Space never came up at all. |
 | `degraded <rev> chain-unavailable` | 503 | Running, but the retrieval chain could not be built at startup: a bad key, or Pinecone unreachable. The reason is in the runtime log. |
 | no response at all | — | The container is not serving. Check the build log, then the runtime log. |
 
