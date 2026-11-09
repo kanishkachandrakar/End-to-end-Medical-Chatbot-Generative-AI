@@ -223,6 +223,41 @@ jobs:
       # It needs no real credentials because create() degrades rather than
       # raising when the chain cannot be built -- so a container with junk keys
       # still binds the port and answers /healthz, with 503 and the reason.
+      # The other way a Space comes up wrong, and the likelier one: the two
+      # secrets were never set. That used to kill the worker and crash-loop
+      # the container; it now serves and says keys-missing at /healthz. Tested
+      # here because the suite can only reach it through Flask's test client,
+      # and what matters is that gunicorn starts at all with no credentials.
+      - name: Boot the container with no credentials at all
+        run: |
+          docker run -d --name medibot-nokeys -p 7861:7860 medibot:ci
+
+          for attempt in $(seq 1 30); do
+            code=$(curl -s -o /tmp/nokeys -w '%{http_code}' \
+              http://127.0.0.1:7861/healthz || true)
+            case "$code" in
+              200|503) break ;;
+            esac
+            sleep 2
+          done
+          body=$(cat /tmp/nokeys 2>/dev/null || true)
+          live=$(curl -s -o /dev/null -w '%{http_code}' \
+            http://127.0.0.1:7861/livez || true)
+          printf 'healthz %s: %s\n' "$code" "$body"
+          printf 'livez   %s\n' "$live"
+          docker logs medibot-nokeys 2>&1 | tail -5
+          docker rm -f medibot-nokeys >/dev/null
+
+          if [ "$code" != "503" ] || ! printf '%s' "$body" | grep -q keys-missing; then
+            echo "::error::with no secrets set, /healthz must answer 503 keys-missing"
+            exit 1
+          fi
+          # A restart cannot set a secret, so liveness must not invite one.
+          if [ "$live" != "200" ]; then
+            echo "::error::/livez answered $live with no secrets; it must be 200"
+            exit 1
+          fi
+
       - name: Boot the container and ask it for /healthz
         run: |
           docker run -d --name medibot-boot -p 7860:7860 \
