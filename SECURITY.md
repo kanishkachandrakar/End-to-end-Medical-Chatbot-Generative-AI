@@ -52,8 +52,11 @@ What is in place now:
   before, an upper bound** — with the reason beside it in `requirements.txt`. A
   bare package name lets the resolver pick anything, which is how
   `langchain-pinecone` 0.0.1 came to be installed.
-- **The base image is pinned by digest**, so a rebuilt tag cannot change the
-  foundation underneath a build. Dependabot watches the Dockerfile, which is
+- **The base image is pinned by digest**, and **every GitHub Action by commit
+  SHA**, so neither a rebuilt tag nor a repointed action tag can change what
+  runs. A major tag like `@v5` is mutable by whoever publishes it, and these
+  run in CI holding a token; the version is in a comment beside each SHA, which
+  is also the format Dependabot reads to propose the next one. Dependabot watches the Dockerfile, which is
   what keeps that pin from freezing the base at an unpatched version.
 - **Dependabot proposes every bump it can as a pull request**, and CI builds
   the image and boots it before the bump is believed. Bounds are only tolerable

@@ -52,12 +52,34 @@ def test_every_run_block_is_valid_shell():
         assert result.returncode == 0, f"{name}: {result.stderr.strip()}"
 
 
-def test_no_action_is_used_unpinned():
-    """`@main` or a bare name tracks whatever upstream does next."""
-    for reference in re.findall(r"uses: (\S+)", WORKFLOW):
+def test_every_action_is_pinned_by_commit_sha():
+    """A major tag is mutable, and these run in CI holding a token.
+
+    This asserted only that the ref was not @main, @master or @latest --
+    which let five actions sit on moving major tags that their publishers
+    can repoint at any commit. The Dockerfile's base is pinned by digest for
+    exactly this reason, so half the build was hardened and half was not.
+    """
+    references = re.findall(r"uses: (\S+)", WORKFLOW)
+    assert references, "no actions found"
+    for reference in references:
         assert "@" in reference, f"{reference} has no version"
-        version = reference.split("@", 1)[1]
-        assert version not in ("main", "master", "latest"), reference
+        ref = reference.split("@", 1)[1]
+        assert re.fullmatch(r"[0-9a-f]{40}", ref), (
+            f"{reference} is not pinned to a commit SHA"
+        )
+
+
+def test_every_pin_says_which_version_it_is():
+    """A bare SHA is unreadable, and dependabot keys on the comment.
+
+    `uses: owner/repo@<sha> # v5` is the format it reads to propose the next
+    one; without the comment the pin is both opaque and unwatched.
+    """
+    for line in WORKFLOW.splitlines():
+        if "uses:" not in line:
+            continue
+        assert re.search(r"uses: \S+@[0-9a-f]{40} # v\d", line), line.strip()
 
 
 def test_the_workflow_uses_no_tabs():
