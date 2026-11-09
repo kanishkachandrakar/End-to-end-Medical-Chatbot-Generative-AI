@@ -45,8 +45,14 @@ repos:
         language: system
         files: \.ipynb$
 
+  # Dependabot has no pre-commit ecosystem -- GitHub's supported list does not
+  # include one -- so this rev is the only dependency in the project nothing
+  # proposes updates for. It sat at v5.0.0 for over a year while v6.0.0 was
+  # out. `make hooks-update` runs `pre-commit autoupdate`, which is the
+  # substitute, and SECURITY.md says so rather than claiming dependabot covers
+  # everything.
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer

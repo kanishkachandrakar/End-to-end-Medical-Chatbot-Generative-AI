@@ -19,7 +19,7 @@ export COVERAGE_CORE
 PY312_IMAGE := $(shell grep -oE 'python:3\.12-slim@sha256:[0-9a-f]+' Dockerfile)
 
 .DEFAULT_GOAL := help
-.PHONY: help install test test312 branches fast lint fix hooks check run index dry-run image clean
+.PHONY: help install test test312 branches fast lint fix hooks hooks-update check run index dry-run image clean
 
 # [a-z0-9-] rather than [a-z-]: test312 was invisible to this the moment it
 # existed, because the pattern had no digits in it -- as did the test that
@@ -96,6 +96,12 @@ lint:  ## Check formatting, imports, types and the non-Python files
 
 fix:  ## Apply the lint fixes that are safe to apply
 	ruff check --fix .
+
+# The one dependency dependabot cannot watch: GitHub's ecosystem list has no
+# pre-commit entry, so the rev in .pre-commit-config.yaml only moves when
+# somebody runs this. It sat a major version behind for over a year.
+hooks-update:  ## Update the pinned pre-commit hook revisions
+	$(PYTHON) -m pre_commit autoupdate
 
 hooks:  ## Run the pre-commit hooks, as CI does
 	SKIP=ruff $(PYTHON) -m pre_commit run --all-files

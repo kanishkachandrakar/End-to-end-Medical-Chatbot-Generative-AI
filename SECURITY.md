@@ -55,9 +55,12 @@ What is in place now:
 - **The base image is pinned by digest**, so a rebuilt tag cannot change the
   foundation underneath a build. Dependabot watches the Dockerfile, which is
   what keeps that pin from freezing the base at an unpatched version.
-- **Dependabot proposes every bump as a pull request**, and CI builds the image
-  and boots it before the bump is believed. Bounds are only tolerable because
-  the updates still arrive.
+- **Dependabot proposes every bump it can as a pull request**, and CI builds
+  the image and boots it before the bump is believed. Bounds are only tolerable
+  because the updates still arrive. The exception is the pre-commit hook
+  revisions: GitHub's supported-ecosystem list has no pre-commit entry, so
+  nothing watches `.pre-commit-config.yaml` and its pin sat a major version
+  behind for over a year. `make hooks-update` is the substitute.
 - **A pre-commit hook rejects any file containing a key-shaped string**
   (`scripts/check_no_keys.py`), and a test applies the same patterns to every
   tracked file. The hook is what makes "at commit time" true: a key in a local

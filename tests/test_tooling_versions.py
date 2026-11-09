@@ -95,3 +95,37 @@ def test_the_makefile_installs_only_the_requirements_files():
         and token not in {"$(PYTHON)", "-m", "pip", "install"}
     ]
     assert not extra, f"installed outside the requirements files: {extra}"
+
+
+def test_the_hook_revision_is_pinned_to_a_tag():
+    """A floating rev would be a different problem: unreproducible hooks.
+
+    pre-commit accepts a branch name here and warns about it. The pin is
+    deliberate; what was missing is anything that moves it.
+    """
+    import re
+
+    config = (ROOT / ".pre-commit-config.yaml").read_text()
+    revisions = re.findall(r"^\s*rev:\s*(\S+)", config, re.MULTILINE)
+    assert revisions, "no pinned hook revisions"
+    for revision in revisions:
+        assert re.fullmatch(r"v?\d+\.\d+\.\d+", revision), revision
+
+
+def test_there_is_a_documented_way_to_move_that_pin():
+    """Dependabot has no pre-commit ecosystem, so nothing proposes it.
+
+    It sat at v5.0.0 for over a year with v6.0.0 released. Every other
+    dependency in this project is watched; this one is only updated when
+    somebody runs the command, so the command has to exist and be findable.
+    """
+    makefile = (ROOT / "Makefile").read_text()
+    assert "hooks-update" in makefile
+    assert "pre_commit autoupdate" in makefile
+    assert "hooks-update:  ##" in makefile, "the target should appear in make help"
+
+    security = (ROOT / "SECURITY.md").read_text()
+    assert "hooks-update" in security, (
+        "SECURITY.md claims dependabot proposes every bump; the exception "
+        "belongs beside the claim"
+    )
