@@ -136,3 +136,29 @@ def test_a_long_body_is_not_shown_even_if_it_claims_to_be_text():
 def test_an_empty_or_missing_body_falls_back():
     """status 0: the request never arrived, so there is no body at all."""
     assert _ask_node([["", ""], ["text/plain", "   "]]) == [FALLBACK, FALLBACK]
+
+
+def test_nothing_is_declared_with_var():
+    """Nine const declarations and one var, which eslint found.
+
+    `var` is function-scoped and hoisted, so inside a long callback it is
+    visible before its line and after its block -- a difference that does
+    not matter until the day it does. The rest of the file had already
+    chosen const.
+
+    This project runs no npm tooling; `node --check` is the only check the
+    front end gets, and it has nothing to say about declaration style. So
+    the rule is kept here rather than by adding eslint, a package.json and a
+    node_modules to CI for one keyword.
+    """
+    offenders = [
+        line.strip()
+        for line in SCRIPT.splitlines()
+        if re.match(r"\s*var\s+\w", line)
+    ]
+    assert not offenders, f"var in chat.js: {offenders}"
+
+
+def test_the_declarations_are_all_block_scoped():
+    """And the file still declares things, so the check above has work to do."""
+    assert len(re.findall(r"\bconst\s+\w", SCRIPT)) >= 9

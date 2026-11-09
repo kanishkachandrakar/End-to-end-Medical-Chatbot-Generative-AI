@@ -89,7 +89,7 @@ $(document).ready(function () {
     // text, so the wording existed twice and only one copy could ever show.
     $.ajax({ type: "GET", url: "/healthz", dataType: "text" })
         .fail(function (jqXHR) {
-            var body = String(jqXHR.responseText || "");
+            const body = String(jqXHR.responseText || "");
             if (body.indexOf("chain-unavailable") !== -1) {
                 showBanner(
                     "The service cannot reach its search index right now, so " +
