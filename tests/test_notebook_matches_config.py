@@ -70,3 +70,42 @@ def test_a_changed_default_would_be_noticed():
     """
     assert config.INDEX_NAME in SOURCE
     assert config.GROQ_MODEL in SOURCE
+
+
+def test_the_notebooks_table_points_at_the_right_files():
+    """Its header table maps each prototype function to the maintained one.
+
+    `load_pdf` was listed under src/helper.py and has lived in
+    src/loaders.py since that module was split out to keep the sunset
+    langchain-community import away from the web app. So the one document
+    whose entire purpose is sending a reader to the maintained code sent
+    them to the wrong file, with a link to match.
+    """
+    import re
+
+    rows = re.findall(
+        r"\|\s*`(\w+)`\s*\|\s*\[`(src/\w+\.py)`\]\((\.\./src/\w+\.py)\)\s*\|", SOURCE
+    )
+    assert len(rows) >= 3, rows
+
+    for function, named, link in rows:
+        assert link == f"../{named}", (function, named, link)
+        path = ROOT / named
+        assert path.exists(), (function, named)
+        assert re.search(rf"^def {function}\b", path.read_text(), re.MULTILINE), (
+            f"the table sends a reader to {named} for {function}, "
+            "which is not defined there"
+        )
+
+
+def test_every_function_the_notebook_claims_to_duplicate_exists_once():
+    """A row for a function defined in two modules would be ambiguous."""
+    import re
+
+    for function in re.findall(r"\|\s*`(\w+)`\s*\|\s*\[`src/", SOURCE):
+        homes = [
+            path.name
+            for path in sorted((ROOT / "src").glob("*.py"))
+            if re.search(rf"^def {function}\b", path.read_text(), re.MULTILINE)
+        ]
+        assert len(homes) == 1, (function, homes)
