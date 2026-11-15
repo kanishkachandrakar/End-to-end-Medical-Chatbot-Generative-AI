@@ -48,6 +48,13 @@ body,html{
 	color: white !important;
 	cursor: pointer;
 }
+/* The page script disables both while a question is in flight. Without a rule the
+	change is invisible, and the box just appears to ignore typing. */
+.type_msg:disabled,
+.send_btn:disabled{
+	opacity: 0.5;
+	cursor: not-allowed;
+}
 .user_img_msg{
 	height: 40px;
 	width: 40px;

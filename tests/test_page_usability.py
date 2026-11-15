@@ -29,3 +29,11 @@ def test_focus_is_never_hidden():
     assert not re.search(r"outline\s*:\s*0", STYLESHEET)
     for selector in (".type_msg:focus", ".send_btn:focus-visible"):
         assert re.search(r"outline\s*:\s*2px solid", _rule(selector)), selector
+
+
+def test_the_busy_state_is_visible():
+    """setBusy disables the controls; the stylesheet has to show that it did."""
+    assert '$("#send").prop("disabled", busy)' in SCRIPT
+    for selector in (".type_msg:disabled", ".send_btn:disabled"):
+        body = _rule(selector)
+        assert "opacity" in body and "not-allowed" in body, selector
