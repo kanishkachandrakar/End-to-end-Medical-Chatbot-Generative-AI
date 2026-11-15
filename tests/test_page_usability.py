@@ -51,3 +51,8 @@ def test_a_long_word_cannot_overflow_its_bubble():
         body = _rule(selector)
         assert "overflow-wrap: anywhere" in body, selector
         assert "min-width: 0" in body, selector
+
+
+def test_the_placeholder_is_light_on_the_dark_field():
+    """Bootstrap's default placeholder colour is a mid grey meant for white."""
+    assert "rgba(255,255,255," in _rule(".type_msg::placeholder")

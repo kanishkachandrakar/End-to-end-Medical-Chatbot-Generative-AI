@@ -32,6 +32,11 @@ body,html{
 	height: 60px !important;
 	overflow-y: auto;
 }
+/* Bootstrap's placeholder grey is meant for a white field; on this dark one
+	it is barely visible. */
+.type_msg::placeholder{
+	color: rgba(255,255,255,0.6);
+}
 /* Bootstrap's blue glow is dropped for the dark theme, but something has to
 	take its place: with no outline either, a keyboard user cannot see which
 	control has focus. */
