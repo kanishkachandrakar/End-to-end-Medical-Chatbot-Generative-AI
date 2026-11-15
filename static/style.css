@@ -32,9 +32,14 @@ body,html{
 	height: 60px !important;
 	overflow-y: auto;
 }
-.type_msg:focus{
+/* Bootstrap's blue glow is dropped for the dark theme, but something has to
+	take its place: with no outline either, a keyboard user cannot see which
+	control has focus. */
+.type_msg:focus,
+.send_btn:focus-visible{
 	box-shadow:none !important;
-	outline:0px !important;
+	outline: 2px solid rgba(255,255,255,0.7) !important;
+	outline-offset: -2px;
 }
 .send_btn{
 	border-radius: 0 15px 15px 0 !important;
