@@ -99,8 +99,10 @@ body,html{
 	font-size: 20px;
 	color: white;
 }
+/* This line is the page's "not medical advice" disclaimer, so it is sized
+	to be read rather than to be fine print. */
 .user_info p{
-	font-size: 10px;
+	font-size: 12px;
 	color: rgba(255,255,255,0.6);
 }
 /* Bubbles are filled as plain text, so a newline in an answer reaches the DOM

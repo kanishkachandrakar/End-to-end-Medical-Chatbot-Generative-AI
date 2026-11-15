@@ -80,3 +80,11 @@ def test_the_status_dot_follows_the_banner():
     # Declared after .online_icon, so it wins at equal specificity.
     assert STYLESHEET.index(".online_icon_down{") > STYLESHEET.index(".online_icon{")
     assert "background-color" in _rule(".online_icon_down")
+
+
+def test_the_disclaimer_is_not_fine_print():
+    """The header subtitle is where the page says it is not medical advice."""
+    template = (ROOT / "templates" / "chat.html").read_text()
+    assert "not medical advice" in template
+    size = re.search(r"font-size:\s*(\d+)px", _rule(".user_info p"))
+    assert size and int(size.group(1)) >= 12, "the disclaimer is too small to read"
