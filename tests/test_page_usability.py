@@ -61,3 +61,10 @@ def test_the_placeholder_is_light_on_the_dark_field():
 def test_the_card_fits_a_short_viewport():
     """A fixed 500px card pushes the input off a landscape phone screen."""
     assert re.search(r"max-height:\s*calc\(100vh", _rule(".card"))
+
+
+def test_the_log_is_marked_busy_while_waiting():
+    """Otherwise the live region announces the placeholder before the answer."""
+    set_busy = re.search(r"function setBusy\(busy\) \{(.*?)\n    \}", SCRIPT, re.S)
+    assert set_busy, "setBusy is no longer where this test looks for it"
+    assert '$log.attr("aria-busy"' in set_busy.group(1)

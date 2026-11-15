@@ -68,9 +68,14 @@ $(document).ready(function () {
 
     // A request takes a few seconds: retrieval, then the LLM. Block a
     // second submit while one is in flight rather than queueing another.
+    //
+    // aria-busy tells a screen reader to hold the log's announcements until
+    // the request settles, so it reads the answer rather than first reading
+    // out the "..." placeholder bubble as "horizontal ellipsis".
     function setBusy(busy) {
         $("#text").prop("disabled", busy);
         $("#send").prop("disabled", busy);
+        $log.attr("aria-busy", busy ? "true" : "false");
     }
 
     // The page loads and looks working even when nothing can be answered:
