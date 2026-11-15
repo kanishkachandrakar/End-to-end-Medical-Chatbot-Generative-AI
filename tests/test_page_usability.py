@@ -37,3 +37,9 @@ def test_the_busy_state_is_visible():
     for selector in (".type_msg:disabled", ".send_btn:disabled"):
         body = _rule(selector)
         assert "opacity" in body and "not-allowed" in body, selector
+
+
+def test_line_breaks_in_an_answer_survive():
+    """An LLM answer with a list in it must not render as one run-on line."""
+    for selector in (".msg_cotainer", ".msg_cotainer_send"):
+        assert "white-space: pre-wrap" in _rule(selector), selector

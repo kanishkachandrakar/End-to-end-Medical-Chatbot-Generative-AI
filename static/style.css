@@ -92,6 +92,13 @@ body,html{
 	font-size: 10px;
 	color: rgba(255,255,255,0.6);
 }
+/* Bubbles are filled as plain text, so a newline in an answer reaches the DOM
+	as a newline -- and normal white-space then folds it into a space, running
+	a numbered list or two paragraphs together. pre-wrap keeps them. */
+.msg_cotainer,
+.msg_cotainer_send{
+	white-space: pre-wrap;
+}
 .msg_cotainer{
 	margin-top: auto;
 	margin-bottom: auto;
