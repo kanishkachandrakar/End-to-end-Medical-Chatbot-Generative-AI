@@ -98,6 +98,11 @@ body,html{
 .msg_cotainer,
 .msg_cotainer_send{
 	white-space: pre-wrap;
+	/* A URL or a long drug name has no break opportunity, and a flex item
+	   will not shrink below its content without min-width: 0 -- so one long
+	   word pushed the bubble past the card edge. */
+	overflow-wrap: anywhere;
+	min-width: 0;
 }
 .msg_cotainer{
 	margin-top: auto;

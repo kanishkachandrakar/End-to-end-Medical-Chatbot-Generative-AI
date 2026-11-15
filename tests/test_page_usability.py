@@ -43,3 +43,11 @@ def test_line_breaks_in_an_answer_survive():
     """An LLM answer with a list in it must not render as one run-on line."""
     for selector in (".msg_cotainer", ".msg_cotainer_send"):
         assert "white-space: pre-wrap" in _rule(selector), selector
+
+
+def test_a_long_word_cannot_overflow_its_bubble():
+    """Both halves are needed: a flex item will not shrink without min-width."""
+    for selector in (".msg_cotainer", ".msg_cotainer_send"):
+        body = _rule(selector)
+        assert "overflow-wrap: anywhere" in body, selector
+        assert "min-width: 0" in body, selector
