@@ -68,3 +68,15 @@ def test_the_log_is_marked_busy_while_waiting():
     set_busy = re.search(r"function setBusy\(busy\) \{(.*?)\n    \}", SCRIPT, re.S)
     assert set_busy, "setBusy is no longer where this test looks for it"
     assert '$log.attr("aria-busy"' in set_busy.group(1)
+
+
+def test_the_status_dot_follows_the_banner():
+    """A green "online" dot under a red outage banner contradicts it."""
+    show_banner = re.search(
+        r"function showBanner\(text\) \{(.*?)\n    \}", SCRIPT, re.S
+    )
+    assert show_banner, "showBanner is no longer where this test looks for it"
+    assert 'addClass("online_icon_down")' in show_banner.group(1)
+    # Declared after .online_icon, so it wins at equal specificity.
+    assert STYLESHEET.index(".online_icon_down{") > STYLESHEET.index(".online_icon{")
+    assert "background-color" in _rule(".online_icon_down")

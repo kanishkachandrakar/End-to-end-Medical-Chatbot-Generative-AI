@@ -87,6 +87,9 @@ body,html{
 	right: 0.4em;
 	border:1.5px solid white;
 }
+.online_icon_down{
+	background-color: #e84118;
+}
 .user_info{
 	margin-top: auto;
 	margin-bottom: auto;

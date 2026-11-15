@@ -81,8 +81,11 @@ $(document).ready(function () {
     // The page loads and looks working even when nothing can be answered:
     // /healthz knows, so ask it once rather than letting the first question
     // come back as an error.
+    // The green dot beside the avatar says "online"; once the banner says
+    // otherwise, the dot has to stop contradicting it.
     function showBanner(text) {
         $("#serviceBanner").text(text).prop("hidden", false);
+        $(".online_icon").addClass("online_icon_down");
     }
 
     // No .done() handler: /healthz answers 200 only when there is nothing to
