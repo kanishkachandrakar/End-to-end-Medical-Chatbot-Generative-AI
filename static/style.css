@@ -11,6 +11,9 @@ body,html{
 }
 .card{
 	height: 500px;
+	/* A phone in landscape is shorter than 500px; without this the input
+	   sat below the fold and the page had to scroll to reach it. */
+	max-height: calc(100vh - 20px);
 	border-radius: 15px !important;
 	background-color: rgba(0,0,0,0.4) !important;
 }
